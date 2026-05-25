@@ -338,6 +338,7 @@ h2 {
 .results {
   display: grid;
   align-content: start;
+  flex: 1 1 auto;
   gap: 10px;
   min-height: 0;
   overflow: auto;
