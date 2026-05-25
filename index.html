@@ -7,15 +7,37 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="app">
+  <main class="app workbench-shell">
     <header class="topbar">
-      <div>
-        <h1>特效 AI 标签管理</h1>
-        <p class="plugin-credit">公开插件 by InsanelyGreat · QQ群 1091524118</p>
-        <p id="statusText">等待读取 Eagle 资源</p>
+      <div class="toolbar-title">
+        <div class="title-row">
+          <h1>特效 AI 标签管理</h1>
+          <span class="plugin-credit">公开插件 by InsanelyGreat · QQ群 1091524118</span>
+        </div>
+        <div class="toolbar-status">
+          <p id="statusText">等待读取 Eagle 资源</p>
+          <div class="toolbar-stats" aria-label="分析概览">
+            <div class="stat">
+              <span>素材</span>
+              <strong id="selectedCount">0</strong>
+            </div>
+            <div class="stat">
+              <span>标签</span>
+              <strong id="tagPoolCount">0</strong>
+            </div>
+            <div class="stat">
+              <span>待写入</span>
+              <strong id="readyCount">0</strong>
+            </div>
+            <div class="stat">
+              <span>失败/跳过</span>
+              <strong id="failedCount">0</strong>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="top-actions">
-        <button id="openAiBtn" type="button">AI 设置</button>
+        <button id="openAiBtn" type="button">设置</button>
         <button id="importBtn" type="button">导入选中素材</button>
         <button id="refreshBtn" type="button">刷新选择</button>
         <button id="analyzeBtn" type="button" class="primary">开始分析</button>
@@ -24,25 +46,6 @@
         <button id="undoBtn" type="button" disabled>撤销写入</button>
       </div>
     </header>
-
-    <section class="summary-grid">
-      <div class="stat">
-        <span>待分析素材</span>
-        <strong id="selectedCount">0</strong>
-      </div>
-      <div class="stat">
-        <span>标签池</span>
-        <strong id="tagPoolCount">0</strong>
-      </div>
-      <div class="stat">
-        <span>待写入</span>
-        <strong id="readyCount">0</strong>
-      </div>
-      <div class="stat">
-        <span>失败/跳过</span>
-        <strong id="failedCount">0</strong>
-      </div>
-    </section>
 
     <section class="layout">
       <aside class="panel tag-panel">
@@ -76,17 +79,38 @@
           <div id="selectedItems" class="selected-list"></div>
         </section>
 
-        <section class="panel settings-panel">
+        <section class="panel results-panel">
           <div class="panel-header">
-            <h2>分析设置</h2>
+            <h2>分析结果</h2>
+            <button id="clearResultsBtn" type="button">清空结果</button>
           </div>
+          <div id="results" class="results"></div>
+        </section>
+      </section>
+    </section>
+
+    <div id="settingsOverlay" class="settings-overlay" hidden></div>
+    <section id="settingsDrawer" class="panel settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" aria-hidden="true">
+      <div class="settings-drawer-head">
+        <div>
+          <h2 id="settingsTitle">设置</h2>
+          <p class="hint">低频参数放在这里，主工作区保持给素材和分析结果。</p>
+        </div>
+        <button id="closeSettingsBtn" type="button">关闭</button>
+      </div>
+
+      <div class="settings-drawer-body">
+        <section class="settings-section">
           <div class="backend-panel">
             <div class="backend-head">
               <div>
                 <strong>AI 后端</strong>
                 <span id="backendStatus">默认优先使用本地 CLI</span>
               </div>
-              <button id="refreshBackendStatusBtn" type="button">检测</button>
+              <div class="backend-actions">
+                <button id="refreshBackendStatusBtn" type="button">检测</button>
+                <button id="eagleAiSettingsBtn" type="button">Eagle AI</button>
+              </div>
             </div>
             <div class="checks backend-checks">
               <label><input id="enableClaudeCli" type="checkbox" checked> Claude CLI</label>
@@ -124,6 +148,10 @@
               </label>
             </div>
           </div>
+        </section>
+
+        <section class="settings-section">
+          <div class="settings-section-title">分析参数</div>
           <div class="settings-grid">
             <label>
               最大标签数
@@ -175,6 +203,9 @@
             <label><input id="autoApplyHighConfidence" type="checkbox"> 自动写入高置信标签</label>
             <label><input id="writeAnnotation" type="checkbox" checked> 将 AI 分析说明追加到注释</label>
           </div>
+        </section>
+
+        <section class="settings-section">
           <label class="prompt-field">
             全局 AI 提示词
             <textarea id="globalPrompt" rows="4" placeholder="可选。这里写给 AI 的全局分析偏好，例如：优先识别技能用途、不要添加纯颜色标签、偏向游戏特效术语。"></textarea>
@@ -182,15 +213,7 @@
           <p class="hint">全局提示词会附加到每次 AI 分析中；标签仍只能从标签池选择，输出仍必须是 JSON。</p>
           <p id="frameRateHint" class="hint">抽帧频率范围：最高 8 帧/秒，最低 3 秒/帧。</p>
         </section>
-
-        <section class="panel results-panel">
-          <div class="panel-header">
-            <h2>分析结果</h2>
-            <button id="clearResultsBtn" type="button">清空结果</button>
-          </div>
-          <div id="results" class="results"></div>
-        </section>
-      </section>
+      </div>
     </section>
   </main>
 

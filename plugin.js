@@ -55,7 +55,8 @@
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
       "writeAnnotation", "globalPrompt", "frameRateHint", "selectedItems", "results", "clearResultsBtn",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
-      "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir"
+      "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
+      "settingsOverlay", "settingsDrawer", "closeSettingsBtn", "eagleAiSettingsBtn"
     ].forEach((id) => { els[id] = document.getElementById(id); });
 
     loadStoredState();
@@ -64,7 +65,13 @@
   }
 
   function bindEvents() {
-    els.openAiBtn.addEventListener("click", openAiSettings);
+    els.openAiBtn.addEventListener("click", openSettingsDrawer);
+    els.closeSettingsBtn.addEventListener("click", closeSettingsDrawer);
+    els.settingsOverlay.addEventListener("click", closeSettingsDrawer);
+    els.eagleAiSettingsBtn.addEventListener("click", openAiSettings);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeSettingsDrawer();
+    });
     els.importBtn.addEventListener("click", importSelectedItems);
     els.refreshBtn.addEventListener("click", refreshSelection);
     els.refreshTagsBtn.addEventListener("click", refreshTags);
@@ -220,6 +227,28 @@
     if (typeof ai.reload === "function") ai.reload();
     const modelId = ai.getDefaultModel("image");
     return modelId ? ai.getModel(modelId) : null;
+  }
+
+  function openSettingsDrawer() {
+    if (!els.settingsDrawer || !els.settingsOverlay) return;
+    els.settingsOverlay.hidden = false;
+    requestAnimationFrame(() => {
+      els.settingsOverlay.classList.add("is-open");
+      els.settingsDrawer.classList.add("is-open");
+      els.settingsDrawer.setAttribute("aria-hidden", "false");
+    });
+  }
+
+  function closeSettingsDrawer() {
+    if (!els.settingsDrawer || !els.settingsOverlay || els.settingsOverlay.hidden) return;
+    els.settingsOverlay.classList.remove("is-open");
+    els.settingsDrawer.classList.remove("is-open");
+    els.settingsDrawer.setAttribute("aria-hidden", "true");
+    window.setTimeout(() => {
+      if (!els.settingsOverlay.classList.contains("is-open")) {
+        els.settingsOverlay.hidden = true;
+      }
+    }, 180);
   }
 
   function openAiSettings() {
@@ -873,7 +902,7 @@
     els.undoBtn.disabled = state.running || state.undoStack.length === 0;
     els.results.innerHTML = "";
     if (!state.results.length) {
-      els.results.innerHTML = `<div class="empty">还没有分析结果</div>`;
+      els.results.innerHTML = `<div class="empty">导入选中素材后点击“开始分析”，这里会显示待确认标签、置信度和写入状态。</div>`;
       return;
     }
     state.results.forEach((result) => {
@@ -881,16 +910,23 @@
       item.className = "result";
       item.innerHTML = `
         <div class="result-head">
-          <div class="result-name" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</div>
+          <div class="result-title">
+            <div class="result-name" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</div>
+            <div class="result-meta">
+              <span class="result-state ${escapeHtml(result.status)}">${stateLabel(result.status)}</span>
+              ${result.aiBackend ? `<span class="badge">${escapeHtml(formatBackendLabel(result.aiBackend))}</span>` : ""}
+              ${typeof result.confidence === "number" ? `<span class="badge">整体 ${formatConfidence(result.confidence)}</span>` : ""}
+              ${result.frameCount ? `<span class="badge">${escapeHtml(String(result.frameCount))} 张图像</span>` : ""}
+            </div>
+          </div>
           <div class="result-actions">
             <button type="button" data-reanalyze-result="${escapeHtml(result.id)}" ${state.running ? "disabled" : ""}>重新分析</button>
-            <div class="result-state ${escapeHtml(result.status)}">${stateLabel(result.status)}</div>
           </div>
         </div>
-        <div class="muted">${escapeHtml(result.message || "")}</div>
-        ${result.frameCount ? `<div class="muted">本次传给 AI 的图像数量：${escapeHtml(String(result.frameCount))}</div>` : ""}
+        ${result.message ? `<div class="result-message">${escapeHtml(result.message)}</div>` : ""}
         ${renderAutoTags(result.autoTags)}
         ${renderReviewTags(result)}
+        ${result.aiReason ? `<div class="result-reason">AI 说明：${escapeHtml(result.aiReason)}</div>` : ""}
         ${result.filteredTags && result.filteredTags.length ? `<div class="filtered">已过滤：${escapeHtml(result.filteredTags.join("、"))}</div>` : ""}
         ${result.hiddenCount ? `<div class="muted">${result.hiddenCount} 个低置信标签已隐藏</div>` : ""}
       `;
