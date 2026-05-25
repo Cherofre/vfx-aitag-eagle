@@ -1,0 +1,23 @@
+{
+  "id": "VFX_AI_TAGGER",
+  "version": "1.0.0",
+  "name": "特效 AI 标签管理",
+  "logo": "/logo.png",
+  "keywords": [
+    "AI",
+    "特效",
+    "标签",
+    "视频",
+    "动图"
+  ],
+  "dependencies": [
+    "ai-sdk",
+    "ffmpeg"
+  ],
+  "main": {
+    "devTools": true,
+    "url": "index.html",
+    "width": 1180,
+    "height": 760
+  }
+}

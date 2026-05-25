@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>特效 AI 标签管理</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>特效 AI 标签管理</h1>
+        <p class="plugin-credit">公开插件 by InsanelyGreat · QQ群 1091524118</p>
+        <p id="statusText">等待读取 Eagle 资源</p>
+      </div>
+      <div class="top-actions">
+        <button id="openAiBtn" type="button">AI 设置</button>
+        <button id="importBtn" type="button">导入选中素材</button>
+        <button id="refreshBtn" type="button">刷新选择</button>
+        <button id="analyzeBtn" type="button" class="primary">开始分析</button>
+        <button id="pauseBtn" type="button" disabled>暂停</button>
+        <button id="applyBtn" type="button" class="success" disabled>写入标签</button>
+        <button id="undoBtn" type="button" disabled>撤销写入</button>
+      </div>
+    </header>
+
+    <section class="summary-grid">
+      <div class="stat">
+        <span>待分析素材</span>
+        <strong id="selectedCount">0</strong>
+      </div>
+      <div class="stat">
+        <span>标签池</span>
+        <strong id="tagPoolCount">0</strong>
+      </div>
+      <div class="stat">
+        <span>待写入</span>
+        <strong id="readyCount">0</strong>
+      </div>
+      <div class="stat">
+        <span>失败/跳过</span>
+        <strong id="failedCount">0</strong>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="panel tag-panel">
+        <div class="panel-header">
+          <h2>标签池</h2>
+          <button id="importDefaultsBtn" type="button">导入默认模板</button>
+        </div>
+        <label class="tag-source-field">
+          Eagle 标签来源
+          <select id="tagGroupSelect">
+            <option value="__all">全部 Eagle 标签</option>
+          </select>
+        </label>
+        <div class="inline-form">
+          <input id="tagInput" type="text" placeholder="新增候选标签">
+          <button id="addTagBtn" type="button">添加</button>
+        </div>
+        <div class="inline-form">
+          <input id="tagSearch" type="search" placeholder="搜索标签池">
+          <button id="refreshTagsBtn" type="button">刷新 Eagle 标签</button>
+        </div>
+        <p class="hint">可选择只读取某个 Eagle 标签组。删除只会从本插件候选池移除，不会删除 Eagle 里的真实标签。</p>
+        <div id="tagPool" class="tag-list"></div>
+      </aside>
+
+      <section class="main-column">
+        <section class="panel selected-panel">
+          <div class="panel-header">
+            <h2>待分析素材</h2>
+          </div>
+          <div id="selectedItems" class="selected-list"></div>
+        </section>
+
+        <section class="panel settings-panel">
+          <div class="panel-header">
+            <h2>分析设置</h2>
+          </div>
+          <div class="settings-grid">
+            <label>
+              最大标签数
+              <input id="maxTags" type="number" min="1" max="20" value="10">
+            </label>
+            <label>
+              并发数
+              <input id="concurrency" type="number" min="1" max="5" value="2">
+            </label>
+            <label>
+              自动写入置信度
+              <input id="autoConfidence" type="number" min="0" max="1" step="0.05" value="0.8">
+            </label>
+            <label>
+              隐藏低于置信度
+              <input id="hideConfidence" type="number" min="0" max="1" step="0.05" value="0.45">
+            </label>
+            <label>
+              抽帧频率
+              <input id="frameRateValue" type="number" min="0.125" max="8" step="0.125" value="1">
+            </label>
+            <label>
+              频率单位
+              <select id="frameRateUnit">
+                <option value="fps">帧/秒</option>
+                <option value="spf">秒/帧</option>
+              </select>
+            </label>
+            <label>
+              视频最大帧数
+              <input id="maxVideoFrames" type="number" min="1" max="120" value="60">
+            </label>
+            <label>
+              动图最大帧数
+              <input id="maxAnimatedFrames" type="number" min="1" max="120" value="24">
+            </label>
+            <label>
+              跳过开头(秒)
+              <input id="skipStart" type="number" min="0" max="10" step="0.1" value="0.2">
+            </label>
+            <label>
+              跳过结尾(秒)
+              <input id="skipEnd" type="number" min="0" max="10" step="0.1" value="0.2">
+            </label>
+          </div>
+          <div class="checks">
+            <label><input id="skipTagged" type="checkbox"> 只分析未打标签素材</label>
+            <label><input id="previewBeforeWrite" type="checkbox" checked> 分析后预览，再手动写入</label>
+            <label><input id="autoApplyHighConfidence" type="checkbox"> 自动写入高置信标签</label>
+            <label><input id="writeAnnotation" type="checkbox" checked> 将 AI 分析说明追加到注释</label>
+          </div>
+          <label class="prompt-field">
+            全局 AI 提示词
+            <textarea id="globalPrompt" rows="4" placeholder="可选。这里写给 AI 的全局分析偏好，例如：优先识别技能用途、不要添加纯颜色标签、偏向游戏特效术语。"></textarea>
+          </label>
+          <p class="hint">全局提示词会附加到每次 AI 分析中；标签仍只能从标签池选择，输出仍必须是 JSON。</p>
+          <p id="frameRateHint" class="hint">抽帧频率范围：最高 8 帧/秒，最低 3 秒/帧。</p>
+        </section>
+
+        <section class="panel results-panel">
+          <div class="panel-header">
+            <h2>分析结果</h2>
+            <button id="clearResultsBtn" type="button">清空结果</button>
+          </div>
+          <div id="results" class="results"></div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script src="plugin.js"></script>
+</body>
+</html>
