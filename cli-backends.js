@@ -98,12 +98,8 @@
         "text",
         "--no-session-persistence",
         "--permission-mode",
-        "dontAsk",
-        "--allowedTools",
-        "Read"
+        "dontAsk"
       ];
-      const addDirs = collectDirs([cwd, ...images]);
-      if (addDirs.length) args.push("--add-dir", ...addDirs);
       args.push(...splitExtraArgs(settings && settings.claudeExtraArgs));
       args.push(prompt);
       return { backend: normalized, command, args, cwd, timeoutMs };
@@ -114,18 +110,16 @@
         "exec",
         "--skip-git-repo-check",
         "--sandbox",
-        "read-only",
-        "--ask-for-approval",
-        "never"
+        "read-only"
       ];
       if (cwd) args.push("--cd", cwd);
       const model = String(settings && settings.codexModel || "").trim();
       if (model) args.push("--model", model);
+      args.push(...splitExtraArgs(settings && settings.codexExtraArgs));
+      args.push(prompt);
       images.forEach((imagePath) => {
         args.push("--image", imagePath);
       });
-      args.push(...splitExtraArgs(settings && settings.codexExtraArgs));
-      args.push(prompt);
       return { backend: normalized, command, args, cwd, timeoutMs };
     }
     throw new Error(`未知 CLI 后端：${backend}`);
@@ -133,6 +127,8 @@
 
   function runCliBackend(options) {
     const execFile = options.execFile;
+    const spawn = options.spawn;
+    if (typeof spawn === "function") return runCliBackendWithSpawn(options, spawn);
     if (typeof execFile !== "function") throw new Error("当前环境无法调用本地 CLI");
     const plan = createCliPlan(options.backend, options.settings || {}, options.prompt || "", options.imagePaths || []);
     return new Promise((resolve, reject) => {
@@ -175,6 +171,61 @@
     });
   }
 
+  function runCliBackendWithSpawn(options, spawn) {
+    const plan = createCliPlan(options.backend, options.settings || {}, options.prompt || "", options.imagePaths || []);
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let timeoutId = null;
+      let stdout = "";
+      let stderr = "";
+      const child = spawn(plan.command, plan.args, {
+        cwd: plan.cwd,
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+        shell: isWindowsCommandScript(plan.command)
+      });
+      if (child.stdout && typeof child.stdout.on === "function") {
+        child.stdout.on("data", (chunk) => { stdout += String(chunk || ""); });
+      }
+      if (child.stderr && typeof child.stderr.on === "function") {
+        child.stderr.on("data", (chunk) => { stderr += String(chunk || ""); });
+      }
+      child.on("error", (error) => {
+        if (settled) return;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        reject(error);
+      });
+      child.on("exit", (code, signal) => {
+        if (settled) return;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        if (code !== 0) {
+          reject(new Error([`${plan.backend} CLI 退出码 ${code}${signal ? `，信号 ${signal}` : ""}`, stderr.trim()].filter(Boolean).join("\n")));
+          return;
+        }
+        try {
+          resolve({
+            backend: plan.backend,
+            object: parseCliJson(stdout),
+            stdout,
+            stderr
+          });
+        } catch (parseError) {
+          reject(parseError);
+        }
+      });
+      if (!settled && child && typeof child.kill === "function" && plan.timeoutMs > 0) {
+        timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          try { child.kill(); } catch (error) {}
+          reject(new Error(`${plan.backend} CLI 超时`));
+        }, plan.timeoutMs + 1000);
+      }
+    });
+  }
+
   async function runCliBackends(options) {
     const failures = [];
     const backends = Array.isArray(options.backends) ? options.backends : [];
@@ -185,7 +236,8 @@
           settings: options.settings || {},
           prompt: options.prompt || "",
           imagePaths: options.imagePaths || [],
-          execFile: options.execFile
+          execFile: options.execFile,
+          spawn: options.spawn
         });
         return { ...result, failures };
       } catch (error) {
@@ -206,24 +258,6 @@
       args.push(match[1] ?? match[2] ?? match[3]);
     }
     return args;
-  }
-
-  function collectDirs(paths) {
-    const dirs = [];
-    const seen = new Set();
-    paths.forEach((filePath) => {
-      const dir = dirname(filePath);
-      if (!dir || seen.has(dir)) return;
-      seen.add(dir);
-      dirs.push(dir);
-    });
-    return dirs;
-  }
-
-  function dirname(filePath) {
-    const text = String(filePath || "");
-    const slash = Math.max(text.lastIndexOf("/"), text.lastIndexOf("\\"));
-    return slash > 0 ? text.slice(0, slash) : "";
   }
 
   function stringOrDefault(value, fallback) {

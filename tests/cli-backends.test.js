@@ -48,7 +48,10 @@ test("createCliPlan builds Claude and Codex non-interactive commands", () => {
 
   assert.equal(claude.command, "C:\\Tools\\claude.cmd");
   assert.deepEqual(claude.args.slice(0, 3), ["--print", "--output-format", "text"]);
-  assert.ok(claude.args.includes("--allowedTools"));
+  assert.equal(claude.args.includes("--allowedTools"), false);
+  assert.equal(claude.args.includes("--allowed-tools"), false);
+  assert.equal(claude.args.includes("--add-dir"), false);
+  assert.equal(claude.args.at(-1), "PROMPT");
   assert.equal(claude.timeoutMs, 90000);
 
   const codex = backends.createCliPlan("codex", {
@@ -56,13 +59,15 @@ test("createCliPlan builds Claude and Codex non-interactive commands", () => {
     codexModel: "gpt-5.4",
     cliTimeoutSeconds: 120,
     cliWorkingDir: "I:\\AI\\Vibe Coding\\vfx-aitag-eagle"
-  }, "PROMPT");
+  }, "PROMPT", ["C:\\tmp\\frame-001.jpg"]);
 
   assert.equal(codex.command, "codex");
   assert.deepEqual(codex.args.slice(0, 2), ["exec", "--skip-git-repo-check"]);
+  assert.equal(codex.args.includes("--ask-for-approval"), false);
   assert.ok(codex.args.includes("--model"));
   assert.ok(codex.args.includes("gpt-5.4"));
-  assert.ok(codex.args.includes("--image") === false);
+  assert.ok(codex.args.includes("--image"));
+  assert.ok(codex.args.indexOf("PROMPT") < codex.args.indexOf("--image"));
 });
 
 test("runCliBackends falls back after a failed backend and parses the first success", async () => {
@@ -91,4 +96,38 @@ test("runCliBackends falls back after a failed backend and parses the first succ
   assert.equal(result.backend, "codex");
   assert.deepEqual(result.object.tags, [{ name: "能量", confidence: 0.88 }]);
   assert.equal(result.failures.length, 1);
+});
+
+test("runCliBackend prefers spawn with ignored stdin when available", async () => {
+  const calls = [];
+  const result = await backends.runCliBackend({
+    backend: "codex",
+    settings: {
+      codexCommand: "codex",
+      cliTimeoutSeconds: 30,
+      cliWorkingDir: process.cwd()
+    },
+    prompt: "PROMPT",
+    imagePaths: [],
+    spawn: (command, args, options) => {
+      calls.push({ command, args, options });
+      const handlers = {};
+      const stdoutHandlers = {};
+      const stderrHandlers = {};
+      queueMicrotask(() => {
+        stdoutHandlers.data(Buffer.from('{"tags":[{"name":"火焰","confidence":0.91}],"reason":"spawn ok"}'));
+        handlers.exit(0, null);
+      });
+      return {
+        stdout: { on(event, handler) { stdoutHandlers[event] = handler; } },
+        stderr: { on(event, handler) { stderrHandlers[event] = handler; } },
+        on(event, handler) { handlers[event] = handler; return this; },
+        kill() {}
+      };
+    }
+  });
+
+  assert.equal(result.backend, "codex");
+  assert.deepEqual(result.object.tags, [{ name: "火焰", confidence: 0.91 }]);
+  assert.equal(calls[0].options.stdio[0], "ignore");
 });

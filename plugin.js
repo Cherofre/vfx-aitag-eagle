@@ -438,7 +438,8 @@
       },
       prompt,
       imagePaths,
-      execFile: cp.execFile
+      execFile: cp.execFile,
+      spawn: cp.spawn
     });
     return {
       ...result.object,
