@@ -5,6 +5,7 @@
   const path = nodeRequire ? nodeRequire("path") : null;
   const cp = nodeRequire ? nodeRequire("child_process") : null;
   const url = nodeRequire ? nodeRequire("url") : null;
+  const cliBackends = window.VfxAiTaggerBackends || null;
 
   const STORAGE_KEYS = {
     customAllowedTags: "vfxAiTagger.customAllowedTags",
@@ -52,7 +53,9 @@
       "readyCount", "failedCount", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
       "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
-      "writeAnnotation", "globalPrompt", "frameRateHint", "selectedItems", "results", "clearResultsBtn"
+      "writeAnnotation", "globalPrompt", "frameRateHint", "selectedItems", "results", "clearResultsBtn",
+      "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
+      "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir"
     ].forEach((id) => { els[id] = document.getElementById(id); });
 
     loadStoredState();
@@ -87,13 +90,20 @@
       state.results = [];
       renderResults();
     });
+    els.refreshBackendStatusBtn.addEventListener("click", () => {
+      refreshModelStatus();
+      saveSettings();
+    });
     [
       "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit", "maxVideoFrames",
-      "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence", "writeAnnotation"
+      "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence", "writeAnnotation",
+      "enableClaudeCli", "enableCodexCli", "enableEagleAi", "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel",
+      "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir"
     ].forEach((id) => {
       els[id].addEventListener("change", () => {
         clampAndShowFrameRate();
         saveSettings();
+        refreshModelStatus();
       });
     });
   }
@@ -189,10 +199,18 @@
 
   async function refreshModelStatus() {
     try {
+      const settings = readSettings();
       const model = getAiModel();
       if (els.modelStatus) els.modelStatus.textContent = model ? "视觉模型已配置" : "未配置视觉模型";
+      if (els.backendStatus) {
+        const labels = settings.enabledBackends.map(formatBackendLabel);
+        const cliReady = cliBackends && cp ? "" : "（当前环境不能调用 CLI）";
+        const eagleNote = settings.enabledBackends.includes("eagle") && !model ? "，Eagle AI 未配置" : "";
+        els.backendStatus.textContent = labels.length ? `已启用：${labels.join(" -> ")}${cliReady}${eagleNote}` : "未启用任何 AI 后端";
+      }
     } catch (error) {
       if (els.modelStatus) els.modelStatus.textContent = "AI SDK 不可用";
+      if (els.backendStatus) els.backendStatus.textContent = "后端状态检测失败";
     }
   }
 
@@ -211,6 +229,21 @@
     } else {
       setStatus("当前 Eagle 版本未提供 AI 设置入口。");
     }
+  }
+
+  function getUsableBackends(settings, eagleModel) {
+    const requested = Array.isArray(settings.enabledBackends) ? settings.enabledBackends : [];
+    return requested.filter((backend) => {
+      if (backend === "eagle") return Boolean(eagleModel);
+      return Boolean(cliBackends && cp && typeof cp.execFile === "function");
+    });
+  }
+
+  function formatBackendLabel(backend) {
+    if (backend === "claude") return "Claude CLI";
+    if (backend === "codex") return "Codex CLI";
+    if (backend === "eagle") return "Eagle AI";
+    return String(backend || "未知后端");
   }
 
   async function importSelectedItems() {
@@ -251,16 +284,18 @@
       setStatus("标签池为空，请先刷新 Eagle 标签或导入默认模板。");
       return;
     }
-    const model = getAiModel();
-    if (!model) {
-      setStatus("未配置默认视觉模型，请先打开 AI 设置。");
-      return;
-    }
     if (!state.selectedItems.length) {
       setStatus("请先在 Eagle 中选择要分析的素材。");
       return;
     }
     const settings = readSettings();
+    const model = settings.enabledBackends.includes("eagle") ? getAiModel() : null;
+    const usableBackends = getUsableBackends(settings, model);
+    if (!usableBackends.length) {
+      setStatus("没有可用 AI 后端：请启用 Claude/Codex CLI，或配置 Eagle 默认视觉模型。");
+      return;
+    }
+    settings.enabledBackends = usableBackends;
     const existingResults = new Map(state.results.map((result) => [result.id, result]));
     const hasPendingResults = state.results.some((result) => result.status === "pending");
     const itemsToAnalyze = hasPendingResults
@@ -338,6 +373,7 @@
       }
       const tags = reviewTags.map((tag) => tag.name);
       const messageParts = [];
+      if (object.backend) messageParts.push(`后端：${formatBackendLabel(object.backend)}`);
       if (autoTags.length) messageParts.push(autoSaved ? `已自动写入 ${autoTags.length} 个高置信标签` : `${autoTags.length} 个高置信标签待写入`);
       if (!settings.autoApplyHighConfidence && highConfidenceTags.length) messageParts.push(`${highConfidenceTags.length} 个高置信标签待确认`);
       if (reviewTags.length) messageParts.push(`${reviewTags.length} 个标签需要确认`);
@@ -351,6 +387,7 @@
         filteredTags,
         hiddenCount,
         aiReason: object.reason || "",
+        aiBackend: object.backend || "",
         frameCount: media.frameCount,
         confidence: clampNumber(object.confidence, 0, 1, 0)
       };
@@ -360,6 +397,57 @@
   }
 
   async function requestAiTags(item, model, allowedTags, settings, media) {
+    const cliBackendsToTry = settings.enabledBackends.filter((backend) => backend !== "eagle");
+    let cliError = null;
+    if (cliBackendsToTry.length) {
+      try {
+        return await requestCliTags(item, cliBackendsToTry, allowedTags, settings, media);
+      } catch (error) {
+        cliError = error;
+        if (!settings.enabledBackends.includes("eagle")) throw error;
+      }
+    }
+    if (!settings.enabledBackends.includes("eagle")) {
+      throw cliError || new Error("没有启用可用的 AI 后端");
+    }
+    if (!model) {
+      throw cliError || new Error("未配置默认视觉模型，请先打开 AI 设置。");
+    }
+    return requestEagleAiTags(item, model, allowedTags, settings, media);
+  }
+
+  async function requestCliTags(item, backends, allowedTags, settings, media) {
+    if (!cliBackends || !cp || typeof cp.execFile !== "function") {
+      throw new Error("当前 Eagle 插件环境无法调用本地 CLI");
+    }
+    const imagePaths = media.images.map(fileUrlToPath).filter(Boolean);
+    const prompt = cliBackends.createAnalysisPrompt({
+      itemName: getItemName(item),
+      mediaKind: media.kind,
+      frameCount: media.frameCount,
+      allowedTags,
+      maxTags: settings.maxTags,
+      globalPrompt: settings.globalPrompt,
+      imagePaths
+    });
+    const result = await cliBackends.runCliBackends({
+      backends,
+      settings: {
+        ...settings,
+        cliWorkingDir: settings.cliWorkingDir || getDefaultCliWorkingDir(item, imagePaths)
+      },
+      prompt,
+      imagePaths,
+      execFile: cp.execFile
+    });
+    return {
+      ...result.object,
+      backend: result.backend,
+      backendFailures: result.failures
+    };
+  }
+
+  async function requestEagleAiTags(item, model, allowedTags, settings, media) {
     const ai = eagle.extraModule.ai;
     const messages = [
       {
@@ -382,7 +470,10 @@
       messages
     });
     const text = typeof response === "string" ? response : response && response.text;
-    return parseAiJson(text);
+    return {
+      ...parseAiJson(text),
+      backend: "eagle"
+    };
   }
 
   function buildSystemPrompt(allowedTags, maxTags, globalPrompt) {
@@ -621,7 +712,19 @@
       previewBeforeWrite: els.previewBeforeWrite.checked,
       autoApplyHighConfidence: els.autoApplyHighConfidence.checked,
       globalPrompt: String(els.globalPrompt.value || "").trim(),
-      writeAnnotation: els.writeAnnotation.checked
+      writeAnnotation: els.writeAnnotation.checked,
+      enabledBackends: [
+        ...(els.enableClaudeCli.checked ? ["claude"] : []),
+        ...(els.enableCodexCli.checked ? ["codex"] : []),
+        ...(els.enableEagleAi.checked ? ["eagle"] : [])
+      ],
+      claudeCommand: String(els.claudeCommand.value || "claude").trim() || "claude",
+      claudeExtraArgs: String(els.claudeExtraArgs.value || "").trim(),
+      codexCommand: String(els.codexCommand.value || "codex").trim() || "codex",
+      codexModel: String(els.codexModel.value || "").trim(),
+      codexExtraArgs: String(els.codexExtraArgs.value || "").trim(),
+      cliTimeoutSeconds: readInt(els.cliTimeoutSeconds.value, 120, 10, 600),
+      cliWorkingDir: String(els.cliWorkingDir.value || "").trim()
     };
   }
 
@@ -654,7 +757,17 @@
       previewBeforeWrite: els.previewBeforeWrite.checked,
       autoApplyHighConfidence: els.autoApplyHighConfidence.checked,
       globalPrompt: els.globalPrompt.value,
-      writeAnnotation: els.writeAnnotation.checked
+      writeAnnotation: els.writeAnnotation.checked,
+      enableClaudeCli: els.enableClaudeCli.checked,
+      enableCodexCli: els.enableCodexCli.checked,
+      enableEagleAi: els.enableEagleAi.checked,
+      claudeCommand: els.claudeCommand.value,
+      claudeExtraArgs: els.claudeExtraArgs.value,
+      codexCommand: els.codexCommand.value,
+      codexModel: els.codexModel.value,
+      codexExtraArgs: els.codexExtraArgs.value,
+      cliTimeoutSeconds: els.cliTimeoutSeconds.value,
+      cliWorkingDir: els.cliWorkingDir.value
     }));
   }
 
@@ -828,12 +941,14 @@
       setStatus("标签池为空，请先刷新 Eagle 标签或导入默认模板。");
       return;
     }
-    const model = getAiModel();
-    if (!model) {
-      setStatus("未配置默认视觉模型，请先打开 AI 设置。");
+    const settings = readSettings();
+    const model = settings.enabledBackends.includes("eagle") ? getAiModel() : null;
+    const usableBackends = getUsableBackends(settings, model);
+    if (!usableBackends.length) {
+      setStatus("没有可用 AI 后端：请启用 Claude/Codex CLI，或配置 Eagle 默认视觉模型。");
       return;
     }
-    const settings = readSettings();
+    settings.enabledBackends = usableBackends;
     state.running = true;
     state.pauseRequested = false;
     setControlsBusy(true);
@@ -1016,6 +1131,29 @@
 
   function toFileUrl(filePath) {
     return url && url.pathToFileURL ? url.pathToFileURL(filePath).href : `file://${String(filePath).replace(/\\/g, "/")}`;
+  }
+
+  function fileUrlToPath(fileUrl) {
+    const text = String(fileUrl || "");
+    if (!text) return "";
+    try {
+      if (url && url.fileURLToPath && text.startsWith("file:")) return url.fileURLToPath(text);
+    } catch (error) {}
+    if (!text.startsWith("file://")) return text;
+    const withoutScheme = decodeURIComponent(text.replace(/^file:\/\/\/?/, ""));
+    return withoutScheme.replace(/\//g, "\\");
+  }
+
+  function getDefaultCliWorkingDir(item, imagePaths) {
+    const candidates = [
+      getItemFilePath(item),
+      getItemPreviewPath(item),
+      ...(Array.isArray(imagePaths) ? imagePaths : [])
+    ];
+    for (const candidate of candidates) {
+      if (candidate && path) return path.dirname(candidate);
+    }
+    return typeof process !== "undefined" && process.cwd ? process.cwd() : "";
   }
 
   function extractTagName(tag) {

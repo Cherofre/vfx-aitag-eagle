@@ -80,6 +80,50 @@
           <div class="panel-header">
             <h2>分析设置</h2>
           </div>
+          <div class="backend-panel">
+            <div class="backend-head">
+              <div>
+                <strong>AI 后端</strong>
+                <span id="backendStatus">默认优先使用本地 CLI</span>
+              </div>
+              <button id="refreshBackendStatusBtn" type="button">检测</button>
+            </div>
+            <div class="checks backend-checks">
+              <label><input id="enableClaudeCli" type="checkbox" checked> Claude CLI</label>
+              <label><input id="enableCodexCli" type="checkbox" checked> Codex CLI</label>
+              <label><input id="enableEagleAi" type="checkbox"> Eagle AI</label>
+            </div>
+            <div class="settings-grid backend-grid">
+              <label>
+                Claude 命令
+                <input id="claudeCommand" type="text" value="claude">
+              </label>
+              <label>
+                Claude 额外参数
+                <input id="claudeExtraArgs" type="text" placeholder="例如：--model sonnet">
+              </label>
+              <label>
+                Codex 命令
+                <input id="codexCommand" type="text" value="codex">
+              </label>
+              <label>
+                Codex 模型
+                <input id="codexModel" type="text" placeholder="留空使用 Codex 默认模型">
+              </label>
+              <label>
+                Codex 额外参数
+                <input id="codexExtraArgs" type="text" placeholder="例如：--profile-v2 work">
+              </label>
+              <label>
+                CLI 超时(秒)
+                <input id="cliTimeoutSeconds" type="number" min="10" max="600" value="120">
+              </label>
+              <label class="wide-field">
+                CLI 工作目录
+                <input id="cliWorkingDir" type="text" placeholder="留空时使用素材所在目录或当前目录">
+              </label>
+            </div>
+          </div>
           <div class="settings-grid">
             <label>
               最大标签数
@@ -150,6 +194,7 @@
     </section>
   </main>
 
+  <script src="cli-backends.js"></script>
   <script src="plugin.js"></script>
 </body>
 </html>
