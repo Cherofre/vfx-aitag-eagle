@@ -467,6 +467,9 @@
       },
       prompt,
       imagePaths,
+      fs,
+      path,
+      env: typeof process !== "undefined" ? process.env : undefined,
       execFile: cp.execFile,
       spawn: cp.spawn
     });

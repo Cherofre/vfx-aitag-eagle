@@ -2,13 +2,13 @@
 
 ## Now
 - [ ] Manual smoke in Eagle: install/open the updated package, import selected assets, open/close settings drawer, and confirm results are visible without whole-page scrolling.
-- [ ] If Eagle smoke shows layout regressions, patch `index.html`, `style.css`, or `plugin.js`, then rerun static and browser verification.
+- [ ] Analyze a real animated/video asset and confirm Claude/Codex read actual frames instead of returning file-name-only inference.
 - [ ] Decide whether to merge `codex/single-screen-workbench` back to `master` after the Eagle host smoke.
 
 ## Handoff Notes
-- Start here: install/open `dist/特效AI标签管理-cli.eagleplugin` in Eagle for final manual smoke.
-- Do not redo: ledger initialization, branch creation, workbench implementation, static tests, and browser layout measurements are done.
-- Verify next: real Eagle plugin window smoke test with selected assets.
+- Start here: install/open updated `dist/特效AI标签管理-cli.eagleplugin` in Eagle for final manual smoke.
+- Do not redo: ledger initialization, branch creation, workbench implementation, static tests, browser layout measurements, and CLI temp-frame smoke are done.
+- Verify next: real Eagle plugin window smoke test with selected assets and actual frame-reading result.
 - Do not claim: real Eagle host smoke is complete; it has not been run in the Eagle app yet.
 - Watch out for: `dist/` was already untracked before this UI work; do not delete it unless packaging intentionally replaces the plugin archive.
 
@@ -24,3 +24,5 @@
 - [x] Browser-checked `1180x760` and `1280x720`.
 - [x] Repackaged `dist/特效AI标签管理-cli.eagleplugin`.
 - [x] Verified packaged archive contents.
+- [x] Fixed Codex CLI path resolution to prefer native `codex.exe` over shell shims.
+- [x] Fixed Claude CLI image-read mode with `bypassPermissions`, `--add-dir`, and image-read failure fallback.

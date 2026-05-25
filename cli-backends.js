@@ -85,27 +85,32 @@
     }
   }
 
-  function createCliPlan(backend, settings, prompt, imagePaths) {
+  function createCliPlan(backend, settings, prompt, imagePaths, runtime) {
     const normalized = String(backend || "").toLowerCase();
+    const context = runtime || {};
     const timeoutMs = clampTimeout(settings && settings.cliTimeoutSeconds);
     const cwd = stringOrDefault(settings && settings.cliWorkingDir, undefined);
     const images = Array.isArray(imagePaths) ? imagePaths.filter(Boolean) : [];
     if (normalized === "claude") {
-      const command = stringOrDefault(settings && settings.claudeCommand, "claude");
+      const command = resolveCliCommand(stringOrDefault(settings && settings.claudeCommand, "claude"), "claude", context);
       const args = [
         "--print",
         "--output-format",
         "text",
         "--no-session-persistence",
         "--permission-mode",
-        "dontAsk"
+        "bypassPermissions"
       ];
       args.push(...splitExtraArgs(settings && settings.claudeExtraArgs));
+      const imageDirs = uniqueImageDirs(images);
+      if (imageDirs.length) {
+        args.push("--add-dir", ...imageDirs, "--");
+      }
       args.push(prompt);
-      return { backend: normalized, command, args, cwd, timeoutMs };
+      return { backend: normalized, command, args, cwd, timeoutMs, requiresImageRead: images.length > 0 };
     }
     if (normalized === "codex") {
-      const command = stringOrDefault(settings && settings.codexCommand, "codex");
+      const command = resolveCliCommand(stringOrDefault(settings && settings.codexCommand, "codex"), "codex", context);
       const args = [
         "exec",
         "--skip-git-repo-check",
@@ -120,7 +125,7 @@
       images.forEach((imagePath) => {
         args.push("--image", imagePath);
       });
-      return { backend: normalized, command, args, cwd, timeoutMs };
+      return { backend: normalized, command, args, cwd, timeoutMs, requiresImageRead: images.length > 0 };
     }
     throw new Error(`未知 CLI 后端：${backend}`);
   }
@@ -130,7 +135,11 @@
     const spawn = options.spawn;
     if (typeof spawn === "function") return runCliBackendWithSpawn(options, spawn);
     if (typeof execFile !== "function") throw new Error("当前环境无法调用本地 CLI");
-    const plan = createCliPlan(options.backend, options.settings || {}, options.prompt || "", options.imagePaths || []);
+    const plan = createCliPlan(options.backend, options.settings || {}, options.prompt || "", options.imagePaths || [], {
+      fs: options.fs,
+      path: options.path,
+      env: options.env
+    });
     return new Promise((resolve, reject) => {
       let settled = false;
       let timeoutId = null;
@@ -150,9 +159,11 @@
           return;
         }
         try {
+          const object = parseCliJson(stdout);
+          assertBackendReadImages(plan, object);
           resolve({
             backend: plan.backend,
-            object: parseCliJson(stdout),
+            object,
             stdout: String(stdout || ""),
             stderr: String(stderr || "")
           });
@@ -172,7 +183,11 @@
   }
 
   function runCliBackendWithSpawn(options, spawn) {
-    const plan = createCliPlan(options.backend, options.settings || {}, options.prompt || "", options.imagePaths || []);
+    const plan = createCliPlan(options.backend, options.settings || {}, options.prompt || "", options.imagePaths || [], {
+      fs: options.fs,
+      path: options.path,
+      env: options.env
+    });
     return new Promise((resolve, reject) => {
       let settled = false;
       let timeoutId = null;
@@ -205,9 +220,11 @@
           return;
         }
         try {
+          const object = parseCliJson(stdout);
+          assertBackendReadImages(plan, object);
           resolve({
             backend: plan.backend,
-            object: parseCliJson(stdout),
+            object,
             stdout,
             stderr
           });
@@ -236,6 +253,9 @@
           settings: options.settings || {},
           prompt: options.prompt || "",
           imagePaths: options.imagePaths || [],
+          fs: options.fs,
+          path: options.path,
+          env: options.env,
           execFile: options.execFile,
           spawn: options.spawn
         });
@@ -275,6 +295,108 @@
     return typeof process !== "undefined"
       && process.platform === "win32"
       && /\.(cmd|bat)$/i.test(String(command || ""));
+  }
+
+  function assertBackendReadImages(plan, object) {
+    if (!plan || !plan.requiresImageRead) return;
+    const reason = String(object && (object.reason || object.message || object.analysis || "") || "");
+    if (!reason) return;
+    if (/(未能|无法|不能|没能|没有|读取失败|权限|看不到|看不见|无法访问).{0,18}(图片|图像|帧|文件|路径)|仅.{0,10}(文件名|名称|标题).{0,10}(推断|判断|猜测)|based\s+on\s+(the\s+)?file\s*name|could\s+not\s+(read|access|view)/i.test(reason)) {
+      throw new Error(`${plan.backend} 未能读取图片帧，已尝试下一个后端`);
+    }
+  }
+
+  function resolveCliCommand(command, backend, runtime) {
+    const text = String(command || "").trim();
+    if (!text || hasPathSeparator(text)) return text;
+    if (!isWindowsRuntime()) return text;
+
+    const env = runtime && runtime.env || (typeof process !== "undefined" ? process.env : {});
+    const fileExists = runtime && runtime.fileExists || makeFileExists(runtime && runtime.fs);
+    const pathModule = runtime && runtime.path || getNodePath();
+    const candidates = windowsCliCandidates(text, backend, env, pathModule);
+    const found = candidates.find(fileExists);
+    return found || text;
+  }
+
+  function windowsCliCandidates(command, backend, env, pathModule) {
+    const names = commandNames(command);
+    const dirs = [];
+    const appData = env && env.APPDATA;
+    const userProfile = env && env.USERPROFILE;
+    const localAppData = env && env.LOCALAPPDATA;
+
+    if (backend === "codex" && appData) {
+      dirs.push(joinPath(pathModule, appData, "npm", "node_modules", "@openai", "codex", "node_modules", "@openai", "codex-win32-x64", "vendor", "x86_64-pc-windows-msvc", "codex"));
+    }
+    if (backend === "claude" && userProfile) dirs.push(joinPath(pathModule, userProfile, ".local", "bin"));
+    if (appData) dirs.push(joinPath(pathModule, appData, "npm"));
+    if (localAppData) dirs.push(joinPath(pathModule, localAppData, "Microsoft", "WindowsApps"));
+    String(env && env.PATH || "").split(";").filter(Boolean).forEach((dir) => dirs.push(dir));
+
+    const output = [];
+    dirs.forEach((dir) => {
+      names.forEach((name) => output.push(joinPath(pathModule, dir, name)));
+    });
+    return output;
+  }
+
+  function commandNames(command) {
+    const match = String(command || "").match(/^(.*?)(\.(exe|cmd|bat|ps1))?$/i);
+    const base = match && match[1] ? match[1] : command;
+    const ext = match && match[3] ? match[3].toLowerCase() : "";
+    if (ext === "exe") return [`${base}.exe`, `${base}.cmd`, `${base}.bat`, base];
+    if (ext === "cmd" || ext === "bat" || ext === "ps1") return [`${base}.exe`, `${base}.${ext}`, `${base}.cmd`, `${base}.bat`, base];
+    return [`${base}.cmd`, `${base}.exe`, `${base}.bat`, base];
+  }
+
+  function uniqueImageDirs(imagePaths) {
+    const pathModule = getNodePath();
+    const seen = new Set();
+    const dirs = [];
+    imagePaths.forEach((imagePath) => {
+      const dir = dirname(pathModule, imagePath);
+      if (dir && !seen.has(dir)) {
+        seen.add(dir);
+        dirs.push(dir);
+      }
+    });
+    return dirs;
+  }
+
+  function dirname(pathModule, filePath) {
+    if (pathModule && typeof pathModule.dirname === "function") return pathModule.dirname(filePath);
+    const text = String(filePath || "");
+    const index = Math.max(text.lastIndexOf("\\"), text.lastIndexOf("/"));
+    return index > 0 ? text.slice(0, index) : "";
+  }
+
+  function joinPath(pathModule, ...parts) {
+    if (pathModule && typeof pathModule.join === "function") return pathModule.join(...parts);
+    return parts.filter(Boolean).join("\\").replace(/\\+/g, "\\");
+  }
+
+  function makeFileExists(fsModule) {
+    const fs = fsModule || getNodeFs();
+    return (filePath) => Boolean(fs && typeof fs.existsSync === "function" && fs.existsSync(filePath));
+  }
+
+  function getNodeFs() {
+    if (typeof require !== "function") return null;
+    try { return require("fs"); } catch (error) { return null; }
+  }
+
+  function getNodePath() {
+    if (typeof require !== "function") return null;
+    try { return require("path"); } catch (error) { return null; }
+  }
+
+  function isWindowsRuntime() {
+    return typeof process !== "undefined" && process.platform === "win32";
+  }
+
+  function hasPathSeparator(command) {
+    return /[\\/]/.test(String(command || ""));
   }
 
   return {
