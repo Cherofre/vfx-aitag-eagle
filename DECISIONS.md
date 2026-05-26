@@ -8,8 +8,17 @@
 - 2026-05-26: Merge author package updates selectively; do not replace the current CLI/workbench files wholesale.
 - 2026-05-26: Fix author package import by using Eagle manifest localization placeholder instead of removing i18n.
 - 2026-05-26: Use a fixed-v2 package and require Eagle reload/reinstall for open-path verification.
+- 2026-05-26: Change the local plugin ID to `VFX_AI_TAGGER_CLI` so it does not collide with the author plugin.
+- 2026-05-26: Merge author UI selectively into the local workbench instead of adopting the author page structure.
 
 ## Decision Log
+
+## 2026-05-26 - Local CLI plugin identity and UI merge
+- Status: active
+- Decision: Use `VFX_AI_TAGGER_CLI` as the local plugin ID, remove author/QQ credit text from the title area, and port only selected author UI ideas into the existing single-screen workbench.
+- Reason: The author plugin has a different ID and Eagle-AI-only flow; the local plugin needs to coexist, preserve Claude/Codex support, and keep regional scrolling.
+- Alternatives considered: Use the author ID or wholesale replace the local UI; skipped because that would collide with the author package and regress local CLI support.
+- Consequences / follow-up: Existing localStorage origin changes with the plugin ID, so users may need to re-enter plugin settings after installing this package.
 
 ## 2026-05-26 - Author package open-path v2
 - Status: active

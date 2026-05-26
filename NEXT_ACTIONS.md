@@ -1,17 +1,16 @@
 # Next Actions
 
 ## Now
-- [ ] Fully quit/reopen Eagle or reinstall `C:\Users\mumengfei\Downloads\aitag-fixed-v2.eagleplugin` from Eagle UI, then capture the log tail and confirm whether `Open plugin: AI 标签工具` / `Create plugin: AI 标签工具` appears.
-- [ ] Decide merge scope for author package features: recommended path is selective merge, not wholesale replacement.
-- [ ] If merging, first add compatible static assets/metadata: `_locales`, new logo assets, manifest language fields, while preserving plugin identity decision.
-- [ ] Then port functional pieces one by one: diagnostics, continue/restart controls, AI retry, failure classification, theme/i18n if still wanted.
-- [ ] After any merge, rerun static tests/checks, browser layout measurement, package inspection, and Eagle real-asset smoke.
+- [ ] Install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle and confirm the new ID `VFX_AI_TAGGER_CLI` appears as a separate plugin.
+- [ ] Smoke-test that the frameless rounded window can be dragged from the topbar and that buttons/inputs remain clickable.
+- [ ] Smoke-test settings drawer tabs, diagnostic saving, pause/continue/restart, and Claude/Codex CLI analysis on real selected assets.
+- [ ] If Eagle smoke passes, decide whether to port any remaining author features such as i18n/theme toggle or AI retry count.
 
 ## Handoff Notes
-- Start here: fixed-v2 author package is `C:\Users\mumengfei\Downloads\AI 标签工具-fixed-v2.eagleplugin`, with a no-space duplicate at `C:\Users\mumengfei\Downloads\aitag-fixed-v2.eagleplugin`; original author package remains unchanged.
+- Start here: packaged local CLI plugin is `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin`.
 - Do not redo: ledger initialization, branch creation, workbench implementation, static tests, browser layout measurements, and CLI temp-frame smoke are done.
-- Verify next: after trying fixed-v2 in Eagle, inspect `C:\Users\mumengfei\AppData\Roaming\Eagle\log.log` for `Open plugin: AI 标签工具` and `Create plugin: AI 标签工具`; after selective merge, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, `node --check cli-backends.js`, then repackage.
-- Do not claim: author update has been merged; this step only evaluated and fixed import initialization for the standalone author package.
+- Verify next: after installing the packaged local CLI plugin, inspect `C:\Users\mumengfei\AppData\Roaming\Eagle\log.log` and test a real selected asset.
+- Do not claim: Eagle real-host smoke has passed; Browser MCP timed out during local HTML verification.
 - Watch out for: `dist/` was already untracked before this UI work; do not delete it unless packaging intentionally replaces the plugin archive.
 
 ## Later
@@ -29,3 +28,5 @@
 - [x] Fixed Codex CLI path resolution to prefer native `codex.exe` over shell shims.
 - [x] Fixed Claude CLI image-read mode with `bypassPermissions`, `--add-dir`, and image-read failure fallback.
 - [x] Created fixed-v2 author package and patched installed manifest; found that launching `.eagleplugin` via command line while Eagle is already running only logs argv and does not execute the install/open path.
+- [x] Selectively merged author UI improvements into local CLI plugin: frameless chrome, settings tabs, diagnostics UI, failure types, and continue/restart controls.
+- [x] Repackaged `dist/特效AI标签管理-cli.eagleplugin`.
