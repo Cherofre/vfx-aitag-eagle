@@ -102,7 +102,7 @@ textarea {
 
 .workbench-shell {
   display: grid;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .08);
   border-radius: 18px;
@@ -128,7 +128,8 @@ textarea {
 }
 
 .topbar {
-  min-height: 62px;
+  min-height: 58px;
+  max-height: 86px;
   justify-content: space-between;
   gap: 14px;
   padding: 8px 10px 0;
@@ -181,10 +182,15 @@ h2 {
 .top-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
+  max-height: 76px;
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-app-region: no-drag;
 }
 
 .top-actions button {
+  min-height: 32px;
+  padding: 6px 10px;
   white-space: nowrap;
 }
 
@@ -341,9 +347,14 @@ h2 {
 }
 
 .selected-meta span {
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 999px;
+  overflow: hidden;
   padding: 2px 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .results-panel {
@@ -377,6 +388,7 @@ h2 {
 }
 
 .result-head {
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 9px;
@@ -439,6 +451,15 @@ h2 {
 
 .result-message {
   color: #cad3dd;
+}
+
+.result-message,
+.diagnostic-saved,
+.result-reason,
+.review-tag span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .result-summary {
@@ -504,6 +525,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
   border: 1px solid #36537c;
   border-radius: 999px;
   background: #172033;
@@ -623,6 +645,7 @@ h2 {
   gap: 12px;
   border-bottom: 1px solid var(--line);
   padding-bottom: 12px;
+  -webkit-app-region: drag;
 }
 
 .settings-tabs {

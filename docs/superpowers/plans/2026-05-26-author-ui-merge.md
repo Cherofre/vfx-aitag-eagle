@@ -18,11 +18,11 @@
 - Modify: `style.css`
 - Test: `tests/ui-workbench.test.js`
 
-- [ ] Add failing UI tests for a unique plugin ID, no author credit in the title area, frameless window settings, and draggable chrome with no-drag controls.
-- [ ] Update `manifest.json` to a local unique ID and frameless rounded-window options.
-- [ ] Remove the author/QQ credit from `index.html`.
-- [ ] Polish base colors, panels, buttons, and drag/no-drag CSS without reintroducing body scrolling.
-- [ ] Run `node --test tests/ui-workbench.test.js`, `node --check plugin.js`, and commit.
+- [x] Add failing UI tests for a unique plugin ID, no author credit in the title area, frameless window settings, and draggable chrome with no-drag controls.
+- [x] Update `manifest.json` to a local unique ID and frameless rounded-window options.
+- [x] Remove the author/QQ credit from `index.html`.
+- [x] Polish base colors, panels, buttons, and drag/no-drag CSS without reintroducing body scrolling.
+- [x] Run `node --test tests/ui-workbench.test.js`, `node --check plugin.js`, and commit.
 
 ### Task 2: Settings Drawer Tabs
 
@@ -32,11 +32,11 @@
 - Modify: `plugin.js`
 - Test: `tests/ui-workbench.test.js`
 
-- [ ] Add failing UI tests for drawer tabs: AI backend, analysis parameters, frame extraction, write/diagnostics, and prompt section.
-- [ ] Reorganize drawer markup into tabs while keeping all existing input IDs and localStorage fields.
-- [ ] Add tab switching logic in `plugin.js`.
-- [ ] Style tabs and drawer scrolling.
-- [ ] Run targeted tests and commit.
+- [x] Add failing UI tests for drawer tabs: AI backend, analysis parameters, frame extraction, write/diagnostics, and prompt section.
+- [x] Reorganize drawer markup into tabs while keeping all existing input IDs and localStorage fields.
+- [x] Add tab switching logic in `plugin.js`.
+- [x] Style tabs and drawer scrolling.
+- [x] Run targeted tests and commit.
 
 ### Task 3: Result Cards And Diagnostics UI
 
@@ -46,11 +46,11 @@
 - Modify: `plugin.js`
 - Test: `tests/ui-workbench.test.js`
 
-- [ ] Add failing tests for result cards showing status, file name, backend, confidence, frame count, AI reason, failure type, and diagnostics details.
-- [ ] Add diagnostic settings controls and persist fields compatibly.
-- [ ] Add diagnostic metadata during media preparation and error paths.
-- [ ] Render richer result cards with collapsible diagnostic details.
-- [ ] Run targeted tests and commit.
+- [x] Add failing tests for result cards showing status, file name, backend, confidence, frame count, AI reason, failure type, and diagnostics details.
+- [x] Add diagnostic settings controls and persist fields compatibly.
+- [x] Add diagnostic metadata during media preparation and error paths.
+- [x] Render richer result cards with collapsible diagnostic details.
+- [x] Run targeted tests and commit.
 
 ### Task 4: Continue And Restart Workflow
 
@@ -60,8 +60,8 @@
 - Modify: `plugin.js`
 - Test: `tests/ui-workbench.test.js`
 
-- [ ] Add failing tests for continue and restart controls.
-- [ ] Add `continueBtn` and `restartBtn` markup near pause/start controls.
-- [ ] Track paused state and pending results.
-- [ ] Implement continue for pending queue and restart for current selected batch.
-- [ ] Run all tests, browser layout checks, package, update ledger, and commit.
+- [x] Add failing tests for continue and restart controls.
+- [x] Add `continueBtn` and `restartBtn` markup near pause/start controls.
+- [x] Track paused state and pending results.
+- [x] Implement continue for pending queue and restart for current selected batch.
+- [x] Run all tests, browser layout checks, package, update ledger, and commit.

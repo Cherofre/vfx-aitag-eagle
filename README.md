@@ -20,11 +20,17 @@
 
 1. 在 Eagle 中打开插件管理。
 2. 选择本地安装插件。
-3. 选择本文件夹：
+3. 选择已打包插件：
 
    ```text
-   C:\Users\xiangzx\Documents\特效设计稿\vfx-ai-tagger
+   dist\特效AI标签管理-cli.eagleplugin
    ```
+
+开发调试时也可以选择本仓库文件夹安装，但日常试用建议安装 `dist\特效AI标签管理-cli.eagleplugin`。
+
+## 迁移说明
+
+当前 CLI 分支插件 ID 是 `VFX_AI_TAGGER_CLI`，会和作者原版插件并存为独立插件。因为 Eagle 会按插件 ID 隔离本地存储，旧插件设置不会自动迁移；首次打开后需要重新填写 Claude/Codex/Eagle AI 后端、诊断目录和分析参数。
 
 ## 使用前准备
 

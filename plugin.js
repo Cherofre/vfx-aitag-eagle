@@ -210,6 +210,8 @@
       state.results = [];
       setStatus(`${actionName}：已读取 ${state.selectedItems.length} 个 Eagle 选中素材`);
     } catch (error) {
+      state.selectedItems = [];
+      state.results = [];
       setStatus(`读取选中素材失败：${formatError(error)}`);
     }
     renderAll();
@@ -447,9 +449,10 @@
         .sort((a, b) => b.confidence - a.confidence)
         .slice(0, settings.maxTags);
       const highConfidenceTags = allowedCandidates.filter((tag) => tag.confidence >= settings.autoConfidence);
-      const autoTags = settings.autoApplyHighConfidence ? highConfidenceTags : [];
+      const autoWriteEnabled = settings.autoApplyHighConfidence && !settings.previewBeforeWrite;
+      const autoTags = autoWriteEnabled ? highConfidenceTags : [];
       const reviewTags = allowedCandidates
-        .filter((tag) => tag.confidence >= settings.hideConfidence && (!settings.autoApplyHighConfidence || tag.confidence < settings.autoConfidence))
+        .filter((tag) => tag.confidence >= settings.hideConfidence && (!autoWriteEnabled || tag.confidence < settings.autoConfidence))
         .map((tag) => ({ ...tag, selected: true }));
       const hiddenCount = allowedCandidates.filter((tag) => tag.confidence < settings.hideConfidence).length;
       let autoSaved = false;
@@ -461,7 +464,7 @@
       const messageParts = [];
       if (object.backend) messageParts.push(`后端：${formatBackendLabel(object.backend)}`);
       if (autoTags.length) messageParts.push(autoSaved ? `已自动写入 ${autoTags.length} 个高置信标签` : `${autoTags.length} 个高置信标签待写入`);
-      if (!settings.autoApplyHighConfidence && highConfidenceTags.length) messageParts.push(`${highConfidenceTags.length} 个高置信标签待确认`);
+      if (!autoWriteEnabled && highConfidenceTags.length) messageParts.push(`${highConfidenceTags.length} 个高置信标签待确认`);
       if (reviewTags.length) messageParts.push(`${reviewTags.length} 个标签需要确认`);
       if (hiddenCount) messageParts.push(`${hiddenCount} 个低置信标签已隐藏`);
       return {
@@ -812,20 +815,29 @@
     }
     els.applyBtn.disabled = true;
     let saved = 0;
-    for (const result of ready) {
-      const item = state.selectedItems.find((candidate) => getItemId(candidate) === result.id);
-      if (!item) continue;
-      if (item.external || typeof item.save !== "function") {
-        updateResult(result.id, { status: "skipped", message: "外部导入文件无法写回 Eagle，请先把文件加入 Eagle 资源库" });
-        continue;
-      }
+    let failed = 0;
+    try {
       const settings = readSettings();
-      await mergeTagsIntoItem(item, getSelectedReviewTags(result).map((tag) => tag.name), settings.writeAnnotation ? result.aiReason : "", "手动确认写入标签");
-      saved += 1;
-      updateResult(result.id, { status: "applied", message: "已写入 Eagle" });
+      for (const result of ready) {
+        const item = state.selectedItems.find((candidate) => getItemId(candidate) === result.id);
+        if (!item) continue;
+        if (item.external || typeof item.save !== "function") {
+          updateResult(result.id, { status: "skipped", message: "外部导入文件无法写回 Eagle，请先把文件加入 Eagle 资源库" });
+          continue;
+        }
+        try {
+          await mergeTagsIntoItem(item, getSelectedReviewTags(result).map((tag) => tag.name), settings.writeAnnotation ? result.aiReason : "", "手动确认写入标签");
+          saved += 1;
+          updateResult(result.id, { status: "applied", message: "已写入 Eagle" });
+        } catch (error) {
+          failed += 1;
+          updateResult(result.id, { status: "failed", message: `写入失败：${formatError(error)}` });
+        }
+      }
+    } finally {
+      renderAll();
     }
-    renderAll();
-    setStatus(`已写入 ${saved} 个素材。`);
+    setStatus(failed ? `已写入 ${saved} 个素材，${failed} 个写入失败。` : `已写入 ${saved} 个素材。`);
   }
 
   function readSettings() {
@@ -937,11 +949,22 @@
     Object.keys(settings).forEach((key) => {
       if (!els[key]) return;
       if (els[key].type === "checkbox") {
-        els[key].checked = Boolean(settings[key]);
+        els[key].checked = coerceStoredBoolean(settings[key], els[key].checked);
       } else {
         els[key].value = settings[key];
       }
     });
+  }
+
+  function coerceStoredBoolean(value, fallback) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (["true", "1", "yes", "on"].includes(normalized)) return true;
+      if (["false", "0", "no", "off", ""].includes(normalized)) return false;
+    }
+    return Boolean(fallback);
   }
 
   function saveStoredTagState() {
@@ -1152,14 +1175,31 @@
       autoTags: [],
       reviewTags: [],
       filteredTags: [],
-      hiddenCount: 0
+      hiddenCount: 0,
+      aiReason: "",
+      aiBackend: "",
+      confidence: 0,
+      frameCount: 0,
+      diagnosticPath: "",
+      diagnostics: null,
+      errorType: ""
     });
     try {
       const result = await analyzeItem(item, model, allowedTags, settings);
       updateResult(resultId, result);
       setStatus(`已重新分析：${getItemName(item)}`);
     } catch (error) {
-      updateResult(resultId, { status: "failed", message: formatError(error), tags: [], reviewTags: [], autoTags: [], filteredTags: [] });
+      updateResult(resultId, {
+        status: "failed",
+        message: formatError(error),
+        errorType: classifyError(error),
+        diagnosticPath: error.diagnosticPath || "",
+        diagnostics: error.diagnostics || null,
+        tags: [],
+        reviewTags: [],
+        autoTags: [],
+        filteredTags: []
+      });
       setStatus(`重新分析失败：${formatError(error)}`);
     } finally {
       state.running = false;
@@ -1215,13 +1255,20 @@
   }
 
   async function mergeTagsIntoItem(item, tags, annotationText, source) {
-    const existing = Array.isArray(item.tags) ? item.tags : [];
+    const previousTags = Array.isArray(item.tags) ? [...item.tags] : [];
+    const existing = previousTags;
     const existingSet = new Set(existing);
     const addedTags = normalizeTagList(tags).filter((tag) => !existingSet.has(tag));
     const previousAnnotation = String(item.annotation || "");
     item.tags = normalizeTagList([...existing, ...tags]);
     appendAnnotation(item, annotationText);
-    await item.save();
+    try {
+      await item.save();
+    } catch (error) {
+      item.tags = previousTags;
+      item.annotation = previousAnnotation;
+      throw error;
+    }
     if (addedTags.length || previousAnnotation !== String(item.annotation || "")) {
       state.undoStack.push({
         itemId: getItemId(item),
@@ -1235,7 +1282,7 @@
   }
 
   async function undoLastWrite() {
-    const record = state.undoStack.pop();
+    const record = state.undoStack[state.undoStack.length - 1];
     if (!record) {
       renderResults();
       return;
@@ -1248,9 +1295,20 @@
     }
     const removeSet = new Set(record.addedTags || []);
     const currentTags = Array.isArray(item.tags) ? item.tags : [];
+    const previousTags = [...currentTags];
+    const previousAnnotation = String(item.annotation || "");
     item.tags = currentTags.filter((tag) => !removeSet.has(tag));
     item.annotation = record.previousAnnotation || "";
-    await item.save();
+    try {
+      await item.save();
+    } catch (error) {
+      item.tags = previousTags;
+      item.annotation = previousAnnotation;
+      setStatus(`撤销失败：${formatError(error)}。撤销记录已保留，可稍后重试。`);
+      renderResults();
+      return;
+    }
+    state.undoStack.pop();
     setStatus(`已撤销：${record.source || "上次写入"}。移除 ${removeSet.size} 个标签。`);
     renderResults();
   }

@@ -10,8 +10,16 @@
 - 2026-05-26: Use a fixed-v2 package and require Eagle reload/reinstall for open-path verification.
 - 2026-05-26: Change the local plugin ID to `VFX_AI_TAGGER_CLI` so it does not collide with the author plugin.
 - 2026-05-26: Merge author UI selectively into the local workbench instead of adopting the author page structure.
+- 2026-05-26: Treat version `1.1.0` as the hardened CLI release package with release devTools disabled.
 
 ## Decision Log
+
+## 2026-05-26 - Hardened CLI release package
+- Status: active
+- Decision: Bump the local CLI plugin package to version `1.1.0`, disable release `main.devTools`, document the new-ID settings migration, and keep `previewBeforeWrite` as a guard that prevents automatic high-confidence writes.
+- Reason: Post-review findings showed release metadata, migration expectations, and the preview/manual-write setting were misleading or unsafe for normal use.
+- Alternatives considered: Keep `devTools` enabled for easier debugging and leave preview as a stored-only setting; skipped because this package is intended for user smoke testing and the UI label promises manual confirmation.
+- Consequences / follow-up: Use Eagle host smoke for final validation; if a debug build is needed later, create a separate dev package instead of changing the release manifest.
 
 ## 2026-05-26 - Local CLI plugin identity and UI merge
 - Status: active
