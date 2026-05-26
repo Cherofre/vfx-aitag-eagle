@@ -1,15 +1,17 @@
 # Next Actions
 
 ## Now
-- [ ] Manual smoke in Eagle: install/open the updated package, import selected assets, open/close settings drawer, and confirm results are visible without whole-page scrolling.
-- [ ] Analyze a real animated/video asset and confirm Claude/Codex read actual frames instead of returning file-name-only inference.
-- [ ] Decide whether to merge `codex/single-screen-workbench` back to `master` after the Eagle host smoke.
+- [ ] Test `C:\Users\mumengfei\Downloads\AI 标签工具-fixed.eagleplugin` in Eagle, or restart Eagle to verify the already-installed patched manifest initializes cleanly.
+- [ ] Decide merge scope for author package features: recommended path is selective merge, not wholesale replacement.
+- [ ] If merging, first add compatible static assets/metadata: `_locales`, new logo assets, manifest language fields, while preserving plugin identity decision.
+- [ ] Then port functional pieces one by one: diagnostics, continue/restart controls, AI retry, failure classification, theme/i18n if still wanted.
+- [ ] After any merge, rerun static tests/checks, browser layout measurement, package inspection, and Eagle real-asset smoke.
 
 ## Handoff Notes
-- Start here: install/open updated `dist/特效AI标签管理-cli.eagleplugin` in Eagle for final manual smoke.
+- Start here: fixed author package is `C:\Users\mumengfei\Downloads\AI 标签工具-fixed.eagleplugin`; original author package remains unchanged.
 - Do not redo: ledger initialization, branch creation, workbench implementation, static tests, browser layout measurements, and CLI temp-frame smoke are done.
-- Verify next: real Eagle plugin window smoke test with selected assets and actual frame-reading result.
-- Do not claim: real Eagle host smoke is complete; it has not been run in the Eagle app yet.
+- Verify next: after selective merge, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, `node --check cli-backends.js`, then repackage.
+- Do not claim: author update has been merged; this step only evaluated and fixed import initialization for the standalone author package.
 - Watch out for: `dist/` was already untracked before this UI work; do not delete it unless packaging intentionally replaces the plugin archive.
 
 ## Later

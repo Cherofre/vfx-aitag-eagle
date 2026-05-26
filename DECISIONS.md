@@ -5,8 +5,24 @@
 - 2026-05-25: Work in the current repository on branch `codex/single-screen-workbench` with staged git commits.
 - 2026-05-25: Use a right-side settings drawer and keep analysis results as the primary visible work area.
 - 2026-05-25: Prefer native Codex executable and guarded Claude image reads for CLI backends.
+- 2026-05-26: Merge author package updates selectively; do not replace the current CLI/workbench files wholesale.
+- 2026-05-26: Fix author package import by using Eagle manifest localization placeholder instead of removing i18n.
 
 ## Decision Log
+
+## 2026-05-26 - Author package import fix
+- Status: active
+- Decision: For the standalone author package, keep `fallbackLanguage`/`languages` and change manifest `name` to `{{manifest.app.name}}`.
+- Reason: Eagle 4.0.0 `loadManifest` assumes localized manifests contain at least one `{{...}}` placeholder; a plain `name` with `languages` triggers `Cannot read properties of null (reading 'forEach')`.
+- Alternatives considered: Remove i18n fields and `_locales`; skipped because the author already ships locale files and the placeholder fix is smaller.
+- Consequences / follow-up: Use `C:\Users\mumengfei\Downloads\AI 标签工具-fixed.eagleplugin` for import tests; original download is unchanged.
+
+## 2026-05-26 - Author package merge strategy
+- Status: active
+- Decision: Treat `C:\Users\mumengfei\Downloads\AI 标签工具.eagleplugin` as an upstream feature source and port compatible pieces selectively into the current CLI/workbench branch.
+- Reason: The author package adds useful diagnostics/i18n/theme/run-control features, but its `plugin.js`, `index.html`, and `style.css` conflict heavily with local Claude/Codex CLI support and the single-screen workbench.
+- Alternatives considered: Replace current files with author package; skipped because it removes local CLI backend support and regresses the no-whole-page-scroll UI.
+- Consequences / follow-up: Merge in small commits with tests after each slice; preserve existing storage keys and UI contract.
 
 ## 2026-05-25 - UI rebuild workflow
 - Status: active
