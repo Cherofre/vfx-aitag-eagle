@@ -7,8 +7,16 @@
 - 2026-05-25: Prefer native Codex executable and guarded Claude image reads for CLI backends.
 - 2026-05-26: Merge author package updates selectively; do not replace the current CLI/workbench files wholesale.
 - 2026-05-26: Fix author package import by using Eagle manifest localization placeholder instead of removing i18n.
+- 2026-05-26: Use a fixed-v2 package and require Eagle reload/reinstall for open-path verification.
 
 ## Decision Log
+
+## 2026-05-26 - Author package open-path v2
+- Status: active
+- Decision: Ship a fixed-v2 author package with version `1.0.1`, localized manifest name, explicit `platform/arch`, top-level `devTools`, common window fields, and `main.runAfterInstall: true`; also keep a no-space filename duplicate for testing.
+- Reason: The first fixed package removed the manifest load crash but did not auto-open, and command-line launches while Eagle is already running only append argv to the log rather than executing the install/open path.
+- Alternatives considered: Keep iterating only on the original fixed package; skipped because it leaves run-after-install and command-line filename/path issues ambiguous.
+- Consequences / follow-up: Verify by reloading/restarting Eagle or reinstalling from Eagle UI, then checking for `Open plugin` / `Create plugin` log lines.
 
 ## 2026-05-26 - Author package import fix
 - Status: active
