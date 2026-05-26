@@ -1,14 +1,14 @@
 # Next Actions
 
 ## Now
-- [ ] Test `C:\Users\mumengfei\Downloads\AI 标签工具-fixed.eagleplugin` in Eagle, or restart Eagle to verify the already-installed patched manifest initializes cleanly.
+- [ ] Test `C:\Users\mumengfei\Downloads\AI 标签工具-fixed-open.eagleplugin` in Eagle; if it still does not show a window, capture the exact UI symptom and new log tail after clicking/opening.
 - [ ] Decide merge scope for author package features: recommended path is selective merge, not wholesale replacement.
 - [ ] If merging, first add compatible static assets/metadata: `_locales`, new logo assets, manifest language fields, while preserving plugin identity decision.
 - [ ] Then port functional pieces one by one: diagnostics, continue/restart controls, AI retry, failure classification, theme/i18n if still wanted.
 - [ ] After any merge, rerun static tests/checks, browser layout measurement, package inspection, and Eagle real-asset smoke.
 
 ## Handoff Notes
-- Start here: fixed author package is `C:\Users\mumengfei\Downloads\AI 标签工具-fixed.eagleplugin`; original author package remains unchanged.
+- Start here: fixed-open author package is `C:\Users\mumengfei\Downloads\AI 标签工具-fixed-open.eagleplugin`; original author package remains unchanged.
 - Do not redo: ledger initialization, branch creation, workbench implementation, static tests, browser layout measurements, and CLI temp-frame smoke are done.
 - Verify next: after selective merge, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, `node --check cli-backends.js`, then repackage.
 - Do not claim: author update has been merged; this step only evaluated and fixed import initialization for the standalone author package.
