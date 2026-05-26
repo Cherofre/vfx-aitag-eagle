@@ -17,6 +17,7 @@ test("workbench shell keeps settings in a drawer and results in the primary colu
   assert.match(html, /class="toolbar-stats"/);
   assert.match(html, /class="panel settings-drawer"/);
   assert.match(html, /id="eagleAiSettingsBtn"/);
+  assert.doesNotMatch(html, /InsanelyGreat|QQ群|plugin-credit/);
 
   const selectedIndex = html.indexOf('class="panel selected-panel"');
   const resultsIndex = html.indexOf('class="panel results-panel"');
@@ -25,6 +26,23 @@ test("workbench shell keeps settings in a drawer and results in the primary colu
   assert.ok(selectedIndex > -1, "selected panel should exist");
   assert.ok(resultsIndex > selectedIndex, "results should follow selected items in the main column");
   assert.ok(drawerIndex > resultsIndex, "settings drawer markup should be outside the main work area");
+});
+
+test("plugin identity and chrome are local, frameless, and draggable", () => {
+  const manifest = JSON.parse(read("manifest.json"));
+  const css = read("style.css");
+
+  assert.equal(manifest.id, "VFX_AI_TAGGER_CLI");
+  assert.notEqual(manifest.id, "81ae8109-ee4d-42e3-ab69-9bb73765d866");
+  assert.equal(manifest.main.frame, false);
+  assert.equal(manifest.main.resizable, true);
+  assert.equal(manifest.main.minWidth, 980);
+  assert.equal(manifest.main.minHeight, 640);
+
+  assert.match(css, /\.topbar\s*{[\s\S]*-webkit-app-region:\s*drag/);
+  assert.match(css, /button,\s*input,\s*select,\s*textarea[\s\S]*-webkit-app-region:\s*no-drag/);
+  assert.match(css, /\.top-actions\s*{[\s\S]*-webkit-app-region:\s*no-drag/);
+  assert.match(css, /\.workbench-shell\s*{[\s\S]*border-radius:\s*18px/);
 });
 
 test("workbench css uses viewport locking and region scrolling", () => {

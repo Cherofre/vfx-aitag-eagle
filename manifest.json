@@ -1,5 +1,5 @@
 {
-  "id": "VFX_AI_TAGGER",
+  "id": "VFX_AI_TAGGER_CLI",
   "version": "1.0.0",
   "name": "特效 AI 标签管理",
   "logo": "/logo.png",
@@ -18,6 +18,12 @@
     "devTools": true,
     "url": "index.html",
     "width": 1180,
-    "height": 760
+    "height": 760,
+    "minWidth": 980,
+    "minHeight": 640,
+    "resizable": true,
+    "frame": false,
+    "vibrancy": true,
+    "backgroundColor": "#121417"
   }
 }
