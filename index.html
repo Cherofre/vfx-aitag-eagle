@@ -224,7 +224,15 @@
             <label><input id="previewBeforeWrite" type="checkbox" checked> 分析后预览，再手动写入</label>
             <label><input id="autoApplyHighConfidence" type="checkbox"> 自动写入高置信标签</label>
             <label><input id="writeAnnotation" type="checkbox" checked> 将 AI 分析说明追加到注释</label>
+            <label><input id="diagnosticEnabled" type="checkbox"> 保存诊断帧和路径信息</label>
           </div>
+          <label class="diagnostic-path-field">
+            诊断保存文件夹
+            <div class="inline-form">
+              <input id="diagnosticDir" type="text" placeholder="请选择或粘贴本地文件夹路径">
+              <button id="chooseDiagnosticDirBtn" type="button">选择文件夹</button>
+            </div>
+          </label>
         </section>
       </div>
     </section>

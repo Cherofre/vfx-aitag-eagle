@@ -27,6 +27,7 @@
   const ANIMATED_EXTS = new Set(["gif", "apng"]);
   const VIDEO_EXTS = new Set(["mp4", "mov", "webm", "avi", "mkv", "ts", "m4v", "wmv"]);
   const PREVIEW_EXTS = new Set(["svg", "psd", "ai", "pdf", "eps", "sketch"]);
+  const DIAGNOSTIC_PREVIEW_LIMIT = 8;
 
   const els = {};
   const state = {
@@ -53,7 +54,7 @@
       "readyCount", "failedCount", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
       "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
-      "writeAnnotation", "globalPrompt", "frameRateHint", "selectedItems", "results", "clearResultsBtn",
+      "writeAnnotation", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedItems", "results", "clearResultsBtn",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
       "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
       "settingsOverlay", "settingsDrawer", "closeSettingsBtn", "eagleAiSettingsBtn"
@@ -71,6 +72,8 @@
     els.closeSettingsBtn.addEventListener("click", closeSettingsDrawer);
     els.settingsOverlay.addEventListener("click", closeSettingsDrawer);
     els.eagleAiSettingsBtn.addEventListener("click", openAiSettings);
+    els.chooseDiagnosticDirBtn.addEventListener("click", chooseDiagnosticDir);
+    els.diagnosticDir.addEventListener("input", saveSettings);
     els.settingsTabs.forEach((tab) => {
       tab.addEventListener("click", () => activateSettingsTab(tab.dataset.settingsTab));
     });
@@ -108,7 +111,7 @@
     });
     [
       "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit", "maxVideoFrames",
-      "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence", "writeAnnotation",
+      "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence", "writeAnnotation", "diagnosticEnabled",
       "enableClaudeCli", "enableCodexCli", "enableEagleAi", "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel",
       "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir"
     ].forEach((id) => {
@@ -377,7 +380,17 @@
           const result = await analyzeItem(item, model, allowedTags, settings);
           updateResult(current.id, result);
         } catch (error) {
-          updateResult(current.id, { status: "failed", message: formatError(error), tags: [], reviewTags: [], autoTags: [], filteredTags: [] });
+          updateResult(current.id, {
+            status: "failed",
+            message: formatError(error),
+            errorType: classifyError(error),
+            diagnosticPath: error && error.diagnosticPath ? error.diagnosticPath : current.diagnosticPath,
+            diagnostics: error && error.diagnostics ? error.diagnostics : current.diagnostics,
+            tags: [],
+            reviewTags: [],
+            autoTags: [],
+            filteredTags: []
+          });
         }
       });
     } finally {
@@ -399,7 +412,12 @@
 
   async function analyzeItem(item, model, allowedTags, settings) {
     const media = await prepareMedia(item, settings);
+    let diagnosticPath = "";
+    let diagnostics = null;
     try {
+      const savedDiagnostics = saveDiagnostics(item, media, settings);
+      diagnosticPath = savedDiagnostics.path;
+      diagnostics = savedDiagnostics.diagnostics;
       const object = await requestAiTags(item, model, allowedTags, settings, media);
       const candidates = normalizeTagCandidates(Array.isArray(object.tags) ? object.tags : [], object.confidence);
       const allowed = new Set(allowedTags);
@@ -437,8 +455,14 @@
         aiReason: object.reason || "",
         aiBackend: object.backend || "",
         frameCount: media.frameCount,
+        diagnosticPath,
+        diagnostics,
         confidence: clampNumber(object.confidence, 0, 1, 0)
       };
+    } catch (error) {
+      if (diagnosticPath) error.diagnosticPath = diagnosticPath;
+      if (diagnostics) error.diagnostics = diagnostics;
+      throw error;
     } finally {
       await cleanupMedia(media);
     }
@@ -590,7 +614,9 @@
       kind,
       images: [toFileUrl(filePath)],
       frameCount: 1,
-      tempDir: null
+      tempDir: null,
+      sourcePath: filePath,
+      previewPath: ""
     };
   }
 
@@ -614,8 +640,47 @@
       kind,
       images: frames.map(toFileUrl),
       frameCount: frames.length,
-      tempDir
+      tempDir,
+      sourcePath,
+      previewPath: ""
     };
+  }
+
+  function saveDiagnostics(item, media, settings) {
+    const diagnostics = buildDiagnostics(item, media, "");
+    if (!settings.diagnosticEnabled) return { path: "", diagnostics };
+    if (!fs || !path) throw new Error("当前插件环境缺少 Node.js 能力，无法保存诊断");
+    if (!settings.diagnosticDir) throw new Error("已开启诊断保存，请先选择诊断保存文件夹");
+    const targetDir = path.join(settings.diagnosticDir, `${Date.now()}-${safeFileName(getItemName(item))}`);
+    fs.mkdirSync(targetDir, { recursive: true });
+    diagnostics.images.forEach((image, index) => {
+      if (!image.exists || !image.path) return;
+      const ext = path.extname(image.path) || ".jpg";
+      const dest = path.join(targetDir, `frame-${String(index + 1).padStart(3, "0")}${ext}`);
+      fs.copyFileSync(image.path, dest);
+      image.path = dest;
+      image.url = toFileUrl(dest);
+      image.size = getFileSize(dest);
+    });
+    diagnostics.diagnosticPath = targetDir;
+    fs.writeFileSync(path.join(targetDir, "diagnostic.json"), JSON.stringify(diagnostics, null, 2), "utf8");
+    return { path: targetDir, diagnostics };
+  }
+
+  function buildDiagnostics(item, media, diagnosticPath) {
+    const sourcePath = media.sourcePath || getItemFilePath(item);
+    const previewPath = media.previewPath || getItemPreviewPath(item);
+    const images = (media.images || []).map((image) => {
+      const imagePath = fileUrlToPath(image);
+      const exists = Boolean(imagePath && fs && fs.existsSync(imagePath));
+      return {
+        path: imagePath,
+        url: image,
+        exists,
+        size: exists ? getFileSize(imagePath) : 0
+      };
+    });
+    return { sourcePath, previewPath, diagnosticPath, images };
   }
 
   function getFfmpegApi() {
@@ -765,6 +830,8 @@
       autoApplyHighConfidence: els.autoApplyHighConfidence.checked,
       globalPrompt: String(els.globalPrompt.value || "").trim(),
       writeAnnotation: els.writeAnnotation.checked,
+      diagnosticEnabled: els.diagnosticEnabled.checked,
+      diagnosticDir: String(els.diagnosticDir.value || "").trim(),
       enabledBackends: [
         ...(els.enableClaudeCli.checked ? ["claude"] : []),
         ...(els.enableCodexCli.checked ? ["codex"] : []),
@@ -810,6 +877,8 @@
       autoApplyHighConfidence: els.autoApplyHighConfidence.checked,
       globalPrompt: els.globalPrompt.value,
       writeAnnotation: els.writeAnnotation.checked,
+      diagnosticEnabled: els.diagnosticEnabled.checked,
+      diagnosticDir: els.diagnosticDir.value,
       enableClaudeCli: els.enableClaudeCli.checked,
       enableCodexCli: els.enableCodexCli.checked,
       enableEagleAi: els.enableEagleAi.checked,
@@ -821,6 +890,23 @@
       cliTimeoutSeconds: els.cliTimeoutSeconds.value,
       cliWorkingDir: els.cliWorkingDir.value
     }));
+  }
+
+  async function chooseDiagnosticDir() {
+    try {
+      const dialog = window.eagle && eagle.dialog;
+      if (!dialog || typeof dialog.showOpenDialog !== "function") {
+        setStatus("当前环境无法打开文件夹选择器，请手动粘贴本地文件夹路径。");
+        return;
+      }
+      const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
+      const folder = Array.isArray(result) ? result[0] : result && Array.isArray(result.filePaths) ? result.filePaths[0] : "";
+      if (!folder) return;
+      els.diagnosticDir.value = folder;
+      saveSettings();
+    } catch (error) {
+      setStatus(`选择诊断目录失败：${formatError(error)}`);
+    }
   }
 
   function loadStoredState() {
@@ -945,12 +1031,17 @@
             <button type="button" data-reanalyze-result="${escapeHtml(result.id)}" ${state.running ? "disabled" : ""}>重新分析</button>
           </div>
         </div>
-        ${result.message ? `<div class="result-message">${escapeHtml(result.message)}</div>` : ""}
+        <div class="result-summary">
+          ${result.message ? `<div class="result-message">${escapeHtml(result.message)}</div>` : ""}
+          ${result.errorType ? `<div class="failure-type">失败类型：${escapeHtml(failureTypeLabel(result.errorType))}</div>` : ""}
+          ${result.diagnosticPath ? `<div class="diagnostic-saved">诊断文件已保存：${escapeHtml(result.diagnosticPath)}</div>` : ""}
+        </div>
         ${renderAutoTags(result.autoTags)}
         ${renderReviewTags(result)}
         ${result.aiReason ? `<div class="result-reason">AI 说明：${escapeHtml(result.aiReason)}</div>` : ""}
         ${result.filteredTags && result.filteredTags.length ? `<div class="filtered">已过滤：${escapeHtml(result.filteredTags.join("、"))}</div>` : ""}
         ${result.hiddenCount ? `<div class="muted">${result.hiddenCount} 个低置信标签已隐藏</div>` : ""}
+        ${renderDiagnostics(result.diagnostics)}
       `;
       els.results.appendChild(item);
     });
@@ -960,6 +1051,28 @@
     els.results.querySelectorAll("[data-reanalyze-result]").forEach((button) => {
       button.addEventListener("click", () => reanalyzeResult(button.dataset.reanalyzeResult));
     });
+  }
+
+  function renderDiagnostics(diagnostics) {
+    if (!diagnostics || !Array.isArray(diagnostics.images) || !diagnostics.images.length) return "";
+    const images = diagnostics.images.slice(0, DIAGNOSTIC_PREVIEW_LIMIT);
+    return `
+      <details class="diagnostics">
+        <summary>诊断信息</summary>
+        <div class="diagnostic-line">原文件：${escapeHtml(shortPath(diagnostics.sourcePath || ""))}</div>
+        <div class="diagnostic-line">预览图：${escapeHtml(shortPath(diagnostics.previewPath || ""))}</div>
+        ${diagnostics.diagnosticPath ? `<div class="diagnostic-line">诊断目录：${escapeHtml(diagnostics.diagnosticPath)}</div>` : ""}
+        <div class="diagnostic-line">实际图片：${diagnostics.images.length} 张，显示前 ${images.length} 张</div>
+        <div class="diagnostic-grid">
+          ${images.map((image, index) => `
+            <figure class="diagnostic-frame">
+              ${image.exists ? `<img src="${escapeHtml(image.url)}" alt="frame ${index + 1}">` : `<div class="diagnostic-missing">不存在</div>`}
+              <figcaption>${index + 1} · ${image.exists ? "存在" : "缺失"} · ${formatBytes(image.size)}</figcaption>
+            </figure>
+          `).join("")}
+        </div>
+      </details>
+    `;
   }
 
   function renderAutoTags(tags) {
@@ -1055,6 +1168,8 @@
       reviewTags: [],
       aiReason: "",
       frameCount: 0,
+      diagnosticPath: "",
+      diagnostics: null,
       filteredTags: []
     };
   }
@@ -1341,6 +1456,50 @@
 
   function formatConfidence(confidence) {
     return `${Math.round(clampNumber(confidence, 0, 1, 0) * 100)}%`;
+  }
+
+  function classifyError(error) {
+    const message = formatError(error).toLowerCase();
+    if (message.includes("json")) return "json";
+    if (message.includes("没有返回") || message.includes("no content")) return "empty-ai";
+    if (message.includes("抽帧") || message.includes("frame")) return "frames";
+    if (message.includes("ffmpeg") || message.includes("ffprobe")) return "ffmpeg";
+    if (message.includes("cli") || message.includes("claude") || message.includes("codex")) return "cli";
+    if (message.includes("视觉模型") || message.includes("ai sdk")) return "eagle-ai";
+    if (message.includes("路径") || message.includes("文件") || message.includes("预览")) return "file";
+    return "unknown";
+  }
+
+  function failureTypeLabel(type) {
+    return {
+      "json": "AI 返回格式错误",
+      "empty-ai": "AI 未返回内容",
+      "frames": "抽帧失败",
+      "ffmpeg": "FFmpeg 不可用",
+      "cli": "本地 CLI 调用失败",
+      "eagle-ai": "Eagle AI 配置问题",
+      "file": "素材路径或预览不可用",
+      "unknown": "未知错误"
+    }[type] || "未知错误";
+  }
+
+  function getFileSize(filePath) {
+    try {
+      return fs && fs.existsSync(filePath) ? fs.statSync(filePath).size : 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  function formatBytes(size) {
+    if (!Number.isFinite(size) || size <= 0) return "大小未知";
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  function safeFileName(value) {
+    return String(value || "item").replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").slice(0, 80) || "item";
   }
 
   function formatError(error) {

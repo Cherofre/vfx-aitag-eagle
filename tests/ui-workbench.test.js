@@ -96,3 +96,27 @@ test("settings drawer groups controls into tabs without changing field ids", () 
   assert.match(js, /function activateSettingsTab\(/);
   assert.match(js, /settingsPanel/);
 });
+
+test("result cards expose diagnostics and actionable failure details", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(html, /id="diagnosticEnabled"/);
+  assert.match(html, /id="diagnosticDir"/);
+  assert.match(html, /id="chooseDiagnosticDirBtn"/);
+
+  assert.match(js, /function renderDiagnostics\(/);
+  assert.match(js, /function classifyError\(/);
+  assert.match(js, /failureTypeLabel/);
+  assert.match(js, /diagnosticPath/);
+  assert.match(js, /diagnostics/);
+  assert.match(js, /<details class="diagnostics"/);
+  assert.match(js, /class="failure-type"/);
+  assert.match(js, /class="result-summary"/);
+
+  assert.match(css, /\.result-summary/);
+  assert.match(css, /\.diagnostics/);
+  assert.match(css, /\.diagnostic-grid/);
+  assert.match(css, /\.failure-type/);
+});

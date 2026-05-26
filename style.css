@@ -441,6 +441,27 @@ h2 {
   color: #cad3dd;
 }
 
+.result-summary {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.failure-type {
+  width: fit-content;
+  border: 1px solid rgba(223, 118, 109, .42);
+  border-radius: 999px;
+  background: rgba(223, 118, 109, .12);
+  color: #f0aaa3;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.diagnostic-saved {
+  color: var(--accent);
+  font-size: 12px;
+}
+
 .result-reason {
   margin-top: 8px;
   color: var(--muted);
@@ -497,6 +518,66 @@ h2 {
 .review-tag strong {
   color: var(--muted);
   font-weight: 500;
+}
+
+.diagnostic-path-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.diagnostics {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(18, 21, 25, .7);
+  padding: 10px;
+}
+
+.diagnostics summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.diagnostic-line {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.diagnostic-frame {
+  margin: 0;
+}
+
+.diagnostic-frame img,
+.diagnostic-missing {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-3);
+  object-fit: cover;
+}
+
+.diagnostic-missing {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.diagnostic-frame figcaption {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .settings-overlay {
