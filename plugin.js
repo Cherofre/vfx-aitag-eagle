@@ -43,14 +43,15 @@
     sessionRemovedTags: [],
     undoStack: [],
     results: [],
-    pauseRequested: false
+    pauseRequested: false,
+    paused: false
   };
 
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
     [
-      "statusText", "openAiBtn", "importBtn", "refreshBtn", "analyzeBtn", "pauseBtn", "applyBtn", "undoBtn", "selectedCount", "tagPoolCount",
+      "statusText", "openAiBtn", "importBtn", "refreshBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn", "undoBtn", "selectedCount", "tagPoolCount",
       "readyCount", "failedCount", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
       "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
@@ -98,6 +99,8 @@
     els.tagSearch.addEventListener("input", renderTagPool);
     els.analyzeBtn.addEventListener("click", analyzeSelected);
     els.pauseBtn.addEventListener("click", pauseAnalysis);
+    els.continueBtn.addEventListener("click", continueAnalysis);
+    els.restartBtn.addEventListener("click", restartAnalysis);
     els.applyBtn.addEventListener("click", applyReadyResults);
     els.undoBtn.addEventListener("click", undoLastWrite);
     els.globalPrompt.addEventListener("input", saveSettings);
@@ -361,6 +364,7 @@
     }
     state.running = true;
     state.pauseRequested = false;
+    state.paused = false;
     if (!hasPendingResults) {
       state.results = state.selectedItems.map((item) => createPendingResult(item));
     }
@@ -397,9 +401,10 @@
       const paused = state.pauseRequested;
       state.running = false;
       state.pauseRequested = false;
+      state.paused = paused && state.results.some((result) => result.status === "pending");
       setControlsBusy(false);
       renderAll();
-      setStatus(paused ? "已暂停。点击“开始分析”可继续剩余素材。" : "分析完成。");
+      setStatus(state.paused ? "已暂停。点击“继续”处理剩余素材，或点击“重新开始”重跑当前批次。" : "分析完成。");
     }
   }
 
@@ -408,6 +413,21 @@
     state.pauseRequested = true;
     els.pauseBtn.disabled = true;
     setStatus("正在暂停：当前正在分析的素材完成后停止，不再派发新素材。");
+  }
+
+  async function continueAnalysis() {
+    if (state.running) return;
+    state.paused = false;
+    await analyzeSelected();
+  }
+
+  async function restartAnalysis() {
+    if (state.running) return;
+    state.paused = false;
+    state.pauseRequested = false;
+    state.results = [];
+    renderAll();
+    await analyzeSelected();
   }
 
   async function analyzeItem(item, model, allowedTags, settings) {
@@ -1008,6 +1028,7 @@
     els.failedCount.textContent = String(failedCount);
     els.applyBtn.disabled = state.running || readyCount === 0;
     els.undoBtn.disabled = state.running || state.undoStack.length === 0;
+    updateAnalysisControls();
     els.results.innerHTML = "";
     if (!state.results.length) {
       els.results.innerHTML = `<div class="empty">导入选中素材后点击“开始分析”，这里会显示待确认标签、置信度和写入状态。</div>`;
@@ -1264,11 +1285,25 @@
   function setControlsBusy(busy) {
     els.analyzeBtn.disabled = busy;
     els.pauseBtn.disabled = !busy || state.pauseRequested;
+    updateAnalysisControls();
     els.importBtn.disabled = busy;
     els.refreshBtn.disabled = busy;
     els.refreshTagsBtn.disabled = busy;
     els.importDefaultsBtn.disabled = busy;
     els.undoBtn.disabled = busy || state.undoStack.length === 0;
+  }
+
+  function updateAnalysisControls() {
+    const hasPending = state.results.some((result) => result.status === "pending");
+    const showPausedActions = Boolean(state.paused && hasPending && !state.running);
+    els.pauseBtn.hidden = showPausedActions;
+    els.continueBtn.hidden = !showPausedActions;
+    els.restartBtn.hidden = !showPausedActions;
+    els.continueBtn.disabled = !showPausedActions;
+    els.restartBtn.disabled = !showPausedActions;
+    if (!showPausedActions) {
+      els.pauseBtn.hidden = false;
+    }
   }
 
   function getItemId(item) {

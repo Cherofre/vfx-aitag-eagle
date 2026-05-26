@@ -120,3 +120,17 @@ test("result cards expose diagnostics and actionable failure details", () => {
   assert.match(css, /\.diagnostic-grid/);
   assert.match(css, /\.failure-type/);
 });
+
+test("analysis controls expose continue and restart after pause", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+
+  assert.match(html, /id="continueBtn"[^>]*>继续<\/button>/);
+  assert.match(html, /id="restartBtn"[^>]*>重新开始<\/button>/);
+  assert.match(js, /"continueBtn"/);
+  assert.match(js, /"restartBtn"/);
+  assert.match(js, /function continueAnalysis\(/);
+  assert.match(js, /function restartAnalysis\(/);
+  assert.match(js, /function updateAnalysisControls\(/);
+  assert.match(js, /state\.paused/);
+});
