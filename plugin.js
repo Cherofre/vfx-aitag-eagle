@@ -58,6 +58,8 @@
       "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
       "settingsOverlay", "settingsDrawer", "closeSettingsBtn", "eagleAiSettingsBtn"
     ].forEach((id) => { els[id] = document.getElementById(id); });
+    els.settingsTabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
+    els.settingsPanels = Array.from(document.querySelectorAll("[data-settings-panel]"));
 
     loadStoredState();
     bindEvents();
@@ -69,6 +71,9 @@
     els.closeSettingsBtn.addEventListener("click", closeSettingsDrawer);
     els.settingsOverlay.addEventListener("click", closeSettingsDrawer);
     els.eagleAiSettingsBtn.addEventListener("click", openAiSettings);
+    els.settingsTabs.forEach((tab) => {
+      tab.addEventListener("click", () => activateSettingsTab(tab.dataset.settingsTab));
+    });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeSettingsDrawer();
     });
@@ -249,6 +254,20 @@
         els.settingsOverlay.hidden = true;
       }
     }, 180);
+  }
+
+  function activateSettingsTab(tabName) {
+    const nextTab = tabName || "backend";
+    els.settingsTabs.forEach((tab) => {
+      const active = tab.dataset.settingsTab === nextTab;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    els.settingsPanels.forEach((panel) => {
+      const active = panel.dataset.settingsPanel === nextTab;
+      panel.classList.toggle("is-active", active);
+      panel.hidden = !active;
+    });
   }
 
   function openAiSettings() {

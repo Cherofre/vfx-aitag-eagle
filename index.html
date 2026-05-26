@@ -98,8 +98,15 @@
         <button id="closeSettingsBtn" type="button">关闭</button>
       </div>
 
+      <div class="settings-tabs" role="tablist" aria-label="设置分组">
+        <button type="button" class="settings-tab is-active" data-settings-tab="backend" aria-selected="true">AI 后端</button>
+        <button type="button" class="settings-tab" data-settings-tab="analysis" aria-selected="false">分析参数</button>
+        <button type="button" class="settings-tab" data-settings-tab="frames" aria-selected="false">抽帧</button>
+        <button type="button" class="settings-tab" data-settings-tab="write" aria-selected="false">写入与诊断</button>
+      </div>
+
       <div class="settings-drawer-body">
-        <section class="settings-section">
+        <section class="settings-section is-active" data-settings-panel="backend">
           <div class="backend-panel">
             <div class="backend-head">
               <div>
@@ -149,7 +156,7 @@
           </div>
         </section>
 
-        <section class="settings-section">
+        <section class="settings-section" data-settings-panel="analysis" hidden>
           <div class="settings-section-title">分析参数</div>
           <div class="settings-grid">
             <label>
@@ -168,6 +175,17 @@
               隐藏低于置信度
               <input id="hideConfidence" type="number" min="0" max="1" step="0.05" value="0.45">
             </label>
+          </div>
+          <label class="prompt-field">
+            全局 AI 提示词
+            <textarea id="globalPrompt" rows="4" placeholder="可选。这里写给 AI 的全局分析偏好，例如：优先识别技能用途、不要添加纯颜色标签、偏向游戏特效术语。"></textarea>
+          </label>
+          <p class="hint">全局提示词会附加到每次 AI 分析中；标签仍只能从标签池选择，输出仍必须是 JSON。</p>
+        </section>
+
+        <section class="settings-section" data-settings-panel="frames" hidden>
+          <div class="settings-section-title">抽帧</div>
+          <div class="settings-grid">
             <label>
               抽帧频率
               <input id="frameRateValue" type="number" min="0.125" max="8" step="0.125" value="1">
@@ -196,21 +214,17 @@
               <input id="skipEnd" type="number" min="0" max="10" step="0.1" value="0.2">
             </label>
           </div>
+          <p id="frameRateHint" class="hint">抽帧频率范围：最高 8 帧/秒，最低 3 秒/帧。</p>
+        </section>
+
+        <section class="settings-section" data-settings-panel="write" hidden>
+          <div class="settings-section-title">写入与诊断</div>
           <div class="checks">
             <label><input id="skipTagged" type="checkbox"> 只分析未打标签素材</label>
             <label><input id="previewBeforeWrite" type="checkbox" checked> 分析后预览，再手动写入</label>
             <label><input id="autoApplyHighConfidence" type="checkbox"> 自动写入高置信标签</label>
             <label><input id="writeAnnotation" type="checkbox" checked> 将 AI 分析说明追加到注释</label>
           </div>
-        </section>
-
-        <section class="settings-section">
-          <label class="prompt-field">
-            全局 AI 提示词
-            <textarea id="globalPrompt" rows="4" placeholder="可选。这里写给 AI 的全局分析偏好，例如：优先识别技能用途、不要添加纯颜色标签、偏向游戏特效术语。"></textarea>
-          </label>
-          <p class="hint">全局提示词会附加到每次 AI 分析中；标签仍只能从标签池选择，输出仍必须是 JSON。</p>
-          <p id="frameRateHint" class="hint">抽帧频率范围：最高 8 帧/秒，最低 3 秒/帧。</p>
         </section>
       </div>
     </section>

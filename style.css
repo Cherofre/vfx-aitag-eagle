@@ -544,6 +544,26 @@ h2 {
   padding-bottom: 12px;
 }
 
+.settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+
+.settings-tab {
+  justify-content: flex-start;
+  min-height: 40px;
+  text-align: left;
+}
+
+.settings-tab.is-active {
+  border-color: rgba(157, 191, 232, .72);
+  background: linear-gradient(180deg, rgba(157, 191, 232, .18), rgba(157, 191, 232, .08));
+  color: var(--text);
+}
+
 .settings-drawer-body {
   display: grid;
   align-content: start;
@@ -556,6 +576,10 @@ h2 {
 .settings-section {
   display: grid;
   gap: 10px;
+}
+
+.settings-section[hidden] {
+  display: none;
 }
 
 .settings-section-title {

@@ -69,3 +69,30 @@ test("settings drawer behavior is wired in plugin script", () => {
   assert.match(js, /eagleAiSettingsBtn\.addEventListener\("click", openAiSettings\)/);
   assert.match(js, /event\.key === "Escape"/);
 });
+
+test("settings drawer groups controls into tabs without changing field ids", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+
+  assert.match(html, /class="settings-tabs"/);
+  assert.match(html, /data-settings-tab="backend"[\s\S]*AI 后端/);
+  assert.match(html, /data-settings-tab="analysis"[\s\S]*分析参数/);
+  assert.match(html, /data-settings-tab="frames"[\s\S]*抽帧/);
+  assert.match(html, /data-settings-tab="write"[\s\S]*写入与诊断/);
+  assert.match(html, /data-settings-panel="backend"/);
+  assert.match(html, /data-settings-panel="analysis"/);
+  assert.match(html, /data-settings-panel="frames"/);
+  assert.match(html, /data-settings-panel="write"/);
+
+  [
+    "enableClaudeCli", "enableCodexCli", "enableEagleAi", "maxTags", "concurrency",
+    "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
+    "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd",
+    "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
+    "writeAnnotation", "globalPrompt"
+  ].forEach((id) => assert.match(html, new RegExp(`id="${id}"`), `${id} should stay in markup`));
+
+  assert.match(js, /settingsTabs/);
+  assert.match(js, /function activateSettingsTab\(/);
+  assert.match(js, /settingsPanel/);
+});
