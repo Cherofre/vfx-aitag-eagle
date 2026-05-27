@@ -30,6 +30,8 @@ test("workbench shell keeps settings in a drawer and results in the primary colu
 
 test("plugin identity and chrome are local, frameless, and draggable", () => {
   const manifest = JSON.parse(read("manifest.json"));
+  const html = read("index.html");
+  const js = read("plugin.js");
   const css = read("style.css");
 
   assert.equal(manifest.id, "VFX_AI_TAGGER_CLI");
@@ -39,9 +41,15 @@ test("plugin identity and chrome are local, frameless, and draggable", () => {
   assert.equal(manifest.main.minWidth, 980);
   assert.equal(manifest.main.minHeight, 640);
 
+  assert.match(html, /id="closeWindowBtn"[^>]*class="window-close-btn"/);
+  assert.match(html, /id="closeWindowBtn"[^>]*aria-label="关闭窗口"/);
+  assert.match(js, /"closeWindowBtn"/);
+  assert.match(js, /closeWindowBtn\.addEventListener\("click", closePluginWindow\)/);
+  assert.match(js, /function closePluginWindow\(/);
   assert.match(css, /\.topbar\s*{[\s\S]*-webkit-app-region:\s*drag/);
   assert.match(css, /button,\s*input,\s*select,\s*textarea[\s\S]*-webkit-app-region:\s*no-drag/);
   assert.match(css, /\.top-actions\s*{[\s\S]*-webkit-app-region:\s*no-drag/);
+  assert.match(css, /\.window-close-btn\s*{[\s\S]*-webkit-app-region:\s*no-drag/);
   assert.match(css, /\.workbench-shell\s*{[\s\S]*border-radius:\s*18px/);
 });
 

@@ -194,6 +194,25 @@ h2 {
   white-space: nowrap;
 }
 
+.window-close-btn {
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-color: rgba(223, 118, 109, .36);
+  background: rgba(223, 118, 109, .08);
+  color: #efb0aa;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  -webkit-app-region: no-drag;
+}
+
+.window-close-btn:hover:not(:disabled) {
+  border-color: rgba(223, 118, 109, .78);
+  background: rgba(223, 118, 109, .18);
+  color: #ffd4cf;
+}
+
 .toolbar-stats {
   flex-wrap: wrap;
   gap: 6px;

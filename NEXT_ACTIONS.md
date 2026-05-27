@@ -2,7 +2,7 @@
 
 ## Now
 - [ ] Install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle and confirm the new ID `VFX_AI_TAGGER_CLI` appears as a separate plugin.
-- [ ] Smoke-test that the frameless rounded window can be dragged from the topbar and that buttons/inputs remain clickable.
+- [ ] Smoke-test that the frameless rounded window can be dragged from the topbar, closed from the new top-right close button, and that buttons/inputs remain clickable.
 - [ ] Smoke-test settings drawer tabs, diagnostic saving, selection refresh failure recovery, write/undo failure recovery, pause/continue/restart, and Claude/Codex CLI analysis on real selected assets.
 - [ ] If Eagle smoke passes, decide whether to port any remaining author features such as i18n/theme toggle or AI retry count.
 
@@ -32,3 +32,4 @@
 - [x] Repackaged `dist/特效AI标签管理-cli.eagleplugin`.
 - [x] Fixed post-review reliability issues in selection refresh, write/apply, reanalysis diagnostics, undo, stored booleans, and preview-before-write behavior.
 - [x] Fixed post-review layout/release issues and repackaged version `1.1.0`.
+- [x] Added a top-right close button for the frameless window and repackaged version `1.1.1`.

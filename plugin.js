@@ -51,7 +51,7 @@
 
   async function init() {
     [
-      "statusText", "openAiBtn", "importBtn", "refreshBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn", "undoBtn", "selectedCount", "tagPoolCount",
+      "statusText", "openAiBtn", "importBtn", "refreshBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn", "undoBtn", "closeWindowBtn", "selectedCount", "tagPoolCount",
       "readyCount", "failedCount", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
       "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
@@ -103,6 +103,7 @@
     els.restartBtn.addEventListener("click", restartAnalysis);
     els.applyBtn.addEventListener("click", applyReadyResults);
     els.undoBtn.addEventListener("click", undoLastWrite);
+    els.closeWindowBtn.addEventListener("click", closePluginWindow);
     els.globalPrompt.addEventListener("input", saveSettings);
     els.clearResultsBtn.addEventListener("click", () => {
       state.results = [];
@@ -129,6 +130,25 @@
   async function refreshAll() {
     await Promise.all([refreshTags(), refreshSelection(), refreshModelStatus()]);
     renderAll();
+  }
+
+  function closePluginWindow() {
+    closeSettingsDrawer();
+    try {
+      const eagleWindow = window.eagle && (eagle.window || eagle.pluginWindow);
+      if (eagleWindow && typeof eagleWindow.close === "function") {
+        eagleWindow.close();
+        return;
+      }
+    } catch (error) {
+      setStatus(`关闭窗口失败：${formatError(error)}`);
+      return;
+    }
+    try {
+      window.close();
+    } catch (error) {
+      setStatus(`关闭窗口失败：${formatError(error)}`);
+    }
   }
 
   async function refreshTags() {
