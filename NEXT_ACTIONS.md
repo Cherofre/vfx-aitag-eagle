@@ -1,6 +1,7 @@
 # Next Actions
 
 ## Now
+- [ ] Download and install the GitHub Release asset `vfx-aitag-eagle-cli-1.0.0.eagleplugin` from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.0` on a clean Eagle host.
 - [ ] Install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle and confirm the new ID `VFX_AI_TAGGER_CLI` appears as a separate plugin.
 - [ ] Smoke-test on the other PC where Codex lives at `C:\Users\feiyu\AppData\Local\OpenAI\Codex\bin\codex.exe`; bare `codex` in plugin settings should resolve automatically.
 - [ ] Smoke-test the reported `1999同人皮肤...Magesbox.mp4` case again: Codex CLI should no longer fail with `The command line is too long`, and diagnostic frame thumbnails should display.
@@ -38,3 +39,4 @@
 - [x] Added a top-right close button for the frameless window and repackaged version `1.1.1`.
 - [x] Fixed Codex long-command failures and temporary diagnostic thumbnail breakage; repackaged version `1.1.2`.
 - [x] Added cross-machine Codex CLI discovery for `LOCALAPPDATA\OpenAI\Codex\bin` and bounded local search roots; repackaged version `1.1.3`.
+- [x] Published GitHub Release `v1.0.0` with asset `vfx-aitag-eagle-cli-1.0.0.eagleplugin`.
