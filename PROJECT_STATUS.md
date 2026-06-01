@@ -1,15 +1,15 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-05-28 00:22
-- Phase: Window chrome and workflow polish
+- Last Updated: 2026-06-01 10:42
+- Phase: CLI argument and diagnostic preview hardening
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/single-screen-workbench
 - Goal: 特效 AI 标签管理 Eagle 插件单屏工作台优化、CLI 图像读取修复、验证并重新打包；评估作者新版插件可合并内容
-- Current Focus: Added a frameless-window close control and collected next feature/operation optimization candidates while preserving the single-screen workbench and Claude/Codex backends.
+- Current Focus: Fixed Codex CLI long-command failures and broken diagnostic frame previews while preserving the single-screen workbench and Claude/Codex backends.
 - Superpowers Spec: none
 - Superpowers Plan: `docs/superpowers/plans/2026-05-26-author-ui-merge.md`
-- Current Task: Hand off the close-button packaged plugin for Eagle smoke testing.
+- Current Task: Hand off the CLI/diagnostic-preview patched package for Eagle smoke testing.
 
 ## Resume Here
 - Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test selection refresh failures, write failures, frameless dragging, settings tabs, diagnostics, and pause/continue/restart controls.
@@ -39,15 +39,18 @@
 - [x] Fixed post-review UI risks: workbench height clipping, drawer drag region, toolbar compression, and long text wrapping.
 - [x] Bumped release manifest to `1.1.0`, disabled release devTools, updated README installation/migration notes, and repackaged.
 - [x] Added a top-right close button for the frameless plugin window, bumped release manifest to `1.1.1`, and repackaged.
+- [x] Fixed Codex CLI `The command line is too long` by piping prompt through stdin and limiting Codex image argv attachments to 16 evenly sampled frames.
+- [x] Fixed broken diagnostic frame previews by embedding preview data URLs before temporary frame cleanup; saved diagnostics still use persistent file URLs.
 
 ## Verification
 - Last command: `Compress-Archive` packaged `dist\特效AI标签管理-cli.eagleplugin` and inspected archive entries.
 - Result: pass
-- Evidence / notes: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 16 tests. `node --check plugin.js` and `node --check cli-backends.js` passed. Bundled Playwright measured `1180x760` and `1280x720`: body scroll height/client height matched, workbench bottom equaled viewport height, close button measured 32x32 with `aria-label=关闭窗口`, and tag/results regions were `overflow: auto`. Package inspection confirmed `manifest.json`, `index.html`, `style.css`, `plugin.js`, `cli-backends.js`, `README.md`, and `logo.png` are present. Browser MCP still timed out on navigate/close in the prior run, so Eagle real-host close-button smoke is still required.
+- Evidence / notes: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 17 tests. `node --check plugin.js` and `node --check cli-backends.js` passed. Node smoke for a 40,000-character Codex prompt plus 60 long frame paths produced argv length 1406, stdin length 40000, imageCount 16, final arg `-`. Package inspection confirmed `manifest.json`, `index.html`, `style.css`, `plugin.js`, `cli-backends.js`, `README.md`, and `logo.png` are present. Eagle real-host smoke is still required.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.
+- Working tree may contain unrelated user file `docs/vfx-tag-taxonomy-review.md`; do not include or delete it unless explicitly requested.
 
 ## History
 - Ledger initialized at 2026-05-25 12:58.

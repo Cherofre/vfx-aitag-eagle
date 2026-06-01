@@ -71,7 +71,30 @@ test("createCliPlan builds Claude and Codex non-interactive commands", () => {
   assert.ok(codex.args.includes("--model"));
   assert.ok(codex.args.includes("gpt-5.4"));
   assert.ok(codex.args.includes("--image"));
-  assert.ok(codex.args.indexOf("PROMPT") < codex.args.indexOf("--image"));
+  assert.equal(codex.args.includes("PROMPT"), false);
+  assert.equal(codex.args.at(-1), "-");
+  assert.equal(codex.stdin, "PROMPT");
+  assert.ok(codex.args.indexOf("--image") < codex.args.indexOf("-"));
+});
+
+test("createCliPlan keeps Codex argv short by piping prompts and capping images", () => {
+  const longPrompt = "请分析这些特效帧。".repeat(4000);
+  const images = Array.from({ length: 60 }, (_, index) => `C:\\very-long-folder-name-${index}\\1999同人皮肤-全流程设计练习-游戏特效原创作品-Magesbox-frame-${String(index).padStart(3, "0")}.jpg`);
+
+  const codex = backends.createCliPlan("codex", {
+    codexCommand: "codex",
+    codexModel: "gpt-5.4",
+    cliTimeoutSeconds: 120
+  }, longPrompt, images);
+
+  const imageCount = codex.args.filter((arg) => arg === "--image").length;
+  const argvText = [codex.command, ...codex.args].join(" ");
+
+  assert.equal(codex.stdin, longPrompt);
+  assert.equal(codex.args.includes(longPrompt), false);
+  assert.equal(codex.args.at(-1), "-");
+  assert.ok(imageCount <= 16);
+  assert.ok(argvText.length < 8000, `argv length should stay comfortably below Windows limits, got ${argvText.length}`);
 });
 
 test("createCliPlan resolves common Windows CLI shim paths before spawning", () => {
@@ -153,8 +176,9 @@ test("runCliBackends falls back when a backend admits it could not read image fr
   assert.match(result.failures[0].message, /未能读取图片帧/);
 });
 
-test("runCliBackend prefers spawn with ignored stdin when available", async () => {
+test("runCliBackend pipes Codex prompt through stdin when using spawn", async () => {
   const calls = [];
+  let stdinText = "";
   const result = await backends.runCliBackend({
     backend: "codex",
     settings: {
@@ -169,11 +193,16 @@ test("runCliBackend prefers spawn with ignored stdin when available", async () =
       const handlers = {};
       const stdoutHandlers = {};
       const stderrHandlers = {};
+      const stdin = {
+        write(chunk) { stdinText += String(chunk || ""); },
+        end() {}
+      };
       queueMicrotask(() => {
         stdoutHandlers.data(Buffer.from('{"tags":[{"name":"火焰","confidence":0.91}],"reason":"spawn ok"}'));
         handlers.exit(0, null);
       });
       return {
+        stdin,
         stdout: { on(event, handler) { stdoutHandlers[event] = handler; } },
         stderr: { on(event, handler) { stderrHandlers[event] = handler; } },
         on(event, handler) { handlers[event] = handler; return this; },
@@ -184,5 +213,7 @@ test("runCliBackend prefers spawn with ignored stdin when available", async () =
 
   assert.equal(result.backend, "codex");
   assert.deepEqual(result.object.tags, [{ name: "火焰", confidence: 0.91 }]);
-  assert.equal(calls[0].options.stdio[0], "ignore");
+  assert.equal(calls[0].options.stdio[0], "pipe");
+  assert.equal(calls[0].args.at(-1), "-");
+  assert.equal(stdinText, "PROMPT");
 });

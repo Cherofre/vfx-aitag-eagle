@@ -703,6 +703,7 @@
       fs.copyFileSync(image.path, dest);
       image.path = dest;
       image.url = toFileUrl(dest);
+      image.previewUrl = image.url;
       image.size = getFileSize(dest);
     });
     diagnostics.diagnosticPath = targetDir;
@@ -713,12 +714,13 @@
   function buildDiagnostics(item, media, diagnosticPath) {
     const sourcePath = media.sourcePath || getItemFilePath(item);
     const previewPath = media.previewPath || getItemPreviewPath(item);
-    const images = (media.images || []).map((image) => {
+    const images = (media.images || []).map((image, index) => {
       const imagePath = fileUrlToPath(image);
       const exists = Boolean(imagePath && fs && fs.existsSync(imagePath));
       return {
         path: imagePath,
         url: image,
+        previewUrl: createDiagnosticPreviewUrl(imagePath, index),
         exists,
         size: exists ? getFileSize(imagePath) : 0
       };
@@ -1130,7 +1132,7 @@
         <div class="diagnostic-grid">
           ${images.map((image, index) => `
             <figure class="diagnostic-frame">
-              ${image.exists ? `<img src="${escapeHtml(image.url)}" alt="frame ${index + 1}">` : `<div class="diagnostic-missing">不存在</div>`}
+              ${image.exists ? `<img src="${escapeHtml(image.previewUrl || image.url)}" alt="frame ${index + 1}">` : `<div class="diagnostic-missing">不存在</div>`}
               <figcaption>${index + 1} · ${image.exists ? "存在" : "缺失"} · ${formatBytes(image.size)}</figcaption>
             </figure>
           `).join("")}
@@ -1418,6 +1420,26 @@
 
   function toFileUrl(filePath) {
     return url && url.pathToFileURL ? url.pathToFileURL(filePath).href : `file://${String(filePath).replace(/\\/g, "/")}`;
+  }
+
+  function createDiagnosticPreviewUrl(filePath, index) {
+    if (index >= DIAGNOSTIC_PREVIEW_LIMIT || !filePath || !fs || !fs.existsSync(filePath)) return "";
+    try {
+      const bytes = fs.readFileSync(filePath);
+      return `data:${getImageMimeType(filePath)};base64,${bytes.toString("base64")}`;
+    } catch (error) {
+      return toFileUrl(filePath);
+    }
+  }
+
+  function getImageMimeType(filePath) {
+    const ext = path ? path.extname(filePath).toLowerCase() : "";
+    if (ext === ".png") return "image/png";
+    if (ext === ".webp") return "image/webp";
+    if (ext === ".gif") return "image/gif";
+    if (ext === ".svg") return "image/svg+xml";
+    if (ext === ".bmp") return "image/bmp";
+    return "image/jpeg";
   }
 
   function fileUrlToPath(fileUrl) {

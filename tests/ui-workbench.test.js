@@ -117,10 +117,13 @@ test("result cards expose diagnostics and actionable failure details", () => {
   assert.match(html, /id="chooseDiagnosticDirBtn"/);
 
   assert.match(js, /function renderDiagnostics\(/);
+  assert.match(js, /function createDiagnosticPreviewUrl\(/);
   assert.match(js, /function classifyError\(/);
   assert.match(js, /failureTypeLabel/);
   assert.match(js, /diagnosticPath/);
   assert.match(js, /diagnostics/);
+  assert.match(js, /previewUrl:\s*createDiagnosticPreviewUrl/);
+  assert.match(js, /image\.previewUrl \|\| image\.url/);
   assert.match(js, /<details class="diagnostics"/);
   assert.match(js, /class="failure-type"/);
   assert.match(js, /class="result-summary"/);

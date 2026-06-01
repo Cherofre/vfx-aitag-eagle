@@ -4,6 +4,7 @@
   root.VfxAiTaggerBackends = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   const DEFAULT_BACKENDS = ["claude", "codex", "eagle"];
+  const MAX_CODEX_IMAGES = 16;
 
   function createAnalysisPrompt(options) {
     const itemName = options.itemName || "未命名素材";
@@ -111,6 +112,7 @@
     }
     if (normalized === "codex") {
       const command = resolveCliCommand(stringOrDefault(settings && settings.codexCommand, "codex"), "codex", context);
+      const codexImages = selectEvenly(images, MAX_CODEX_IMAGES);
       const args = [
         "exec",
         "--skip-git-repo-check",
@@ -121,11 +123,11 @@
       const model = String(settings && settings.codexModel || "").trim();
       if (model) args.push("--model", model);
       args.push(...splitExtraArgs(settings && settings.codexExtraArgs));
-      args.push(prompt);
-      images.forEach((imagePath) => {
+      codexImages.forEach((imagePath) => {
         args.push("--image", imagePath);
       });
-      return { backend: normalized, command, args, cwd, timeoutMs, requiresImageRead: images.length > 0 };
+      args.push("-");
+      return { backend: normalized, command, args, cwd, timeoutMs, stdin: prompt, requiresImageRead: images.length > 0 };
     }
     throw new Error(`未知 CLI 后端：${backend}`);
   }
@@ -171,6 +173,7 @@
           reject(parseError);
         }
       });
+      writeChildStdin(child, plan.stdin);
       if (!settled && child && typeof child.kill === "function" && plan.timeoutMs > 0) {
         timeoutId = setTimeout(() => {
           if (settled) return;
@@ -195,10 +198,11 @@
       let stderr = "";
       const child = spawn(plan.command, plan.args, {
         cwd: plan.cwd,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: [plan.stdin ? "pipe" : "ignore", "pipe", "pipe"],
         windowsHide: true,
         shell: isWindowsCommandScript(plan.command)
       });
+      writeChildStdin(child, plan.stdin);
       if (child.stdout && typeof child.stdout.on === "function") {
         child.stdout.on("data", (chunk) => { stdout += String(chunk || ""); });
       }
@@ -278,6 +282,27 @@
       args.push(match[1] ?? match[2] ?? match[3]);
     }
     return args;
+  }
+
+  function selectEvenly(items, maxItems) {
+    if (!Array.isArray(items) || items.length <= maxItems) return items || [];
+    if (maxItems <= 1) return items.slice(0, 1);
+    const selected = [];
+    const last = items.length - 1;
+    const selectedIndexes = new Set();
+    for (let index = 0; index < maxItems; index += 1) {
+      selectedIndexes.add(Math.round((index * last) / (maxItems - 1)));
+    }
+    [...selectedIndexes].sort((a, b) => a - b).forEach((index) => selected.push(items[index]));
+    return selected;
+  }
+
+  function writeChildStdin(child, input) {
+    if (!input || !child || !child.stdin || typeof child.stdin.write !== "function") return;
+    try {
+      child.stdin.write(input);
+      if (typeof child.stdin.end === "function") child.stdin.end();
+    } catch (error) {}
   }
 
   function stringOrDefault(value, fallback) {
