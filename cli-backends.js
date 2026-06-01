@@ -340,7 +340,7 @@
     const fileExists = runtime && runtime.fileExists || makeFileExists(runtime && runtime.fs);
     const pathModule = runtime && runtime.path || getNodePath();
     const candidates = windowsCliCandidates(text, backend, env, pathModule);
-    const found = candidates.find(fileExists);
+    const found = candidates.find(fileExists) || discoverWindowsCliExecutables(text, backend, env, pathModule, runtime && runtime.fs).find(fileExists);
     return found || text;
   }
 
@@ -351,6 +351,14 @@
     const userProfile = env && env.USERPROFILE;
     const localAppData = env && env.LOCALAPPDATA;
 
+    if (backend === "codex" && localAppData) {
+      dirs.push(
+        joinPath(pathModule, localAppData, "OpenAI", "Codex", "bin"),
+        joinPath(pathModule, localAppData, "OpenAI", "Codex"),
+        joinPath(pathModule, localAppData, "Programs", "Codex", "bin"),
+        joinPath(pathModule, localAppData, "Programs", "Codex")
+      );
+    }
     if (backend === "codex" && appData) {
       dirs.push(joinPath(pathModule, appData, "npm", "node_modules", "@openai", "codex", "node_modules", "@openai", "codex-win32-x64", "vendor", "x86_64-pc-windows-msvc", "codex"));
     }
@@ -364,6 +372,66 @@
       names.forEach((name) => output.push(joinPath(pathModule, dir, name)));
     });
     return output;
+  }
+
+  function discoverWindowsCliExecutables(command, backend, env, pathModule, fsModule) {
+    const fs = fsModule || getNodeFs();
+    if (!fs || typeof fs.readdirSync !== "function") return [];
+    const roots = windowsCliSearchRoots(backend, env, pathModule).filter(Boolean);
+    const targetNames = new Set(commandNames(command).map((name) => String(name).toLowerCase()));
+    const output = [];
+    const seen = new Set();
+    const maxDepth = backend === "codex" ? 6 : 4;
+    let visited = 0;
+    const maxVisited = 900;
+    roots.forEach((root) => {
+      const queue = [{ dir: root, depth: 0 }];
+      while (queue.length && visited < maxVisited) {
+        const current = queue.shift();
+        const key = String(current.dir).toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        visited += 1;
+        let entries = [];
+        try {
+          entries = fs.readdirSync(current.dir, { withFileTypes: true });
+        } catch (error) {
+          continue;
+        }
+        entries.forEach((entry) => {
+          const fullPath = joinPath(pathModule, current.dir, entry.name);
+          if (entry.isFile && entry.isFile() && targetNames.has(String(entry.name).toLowerCase())) {
+            output.push(fullPath);
+            return;
+          }
+          if (current.depth < maxDepth && entry.isDirectory && entry.isDirectory()) {
+            queue.push({ dir: fullPath, depth: current.depth + 1 });
+          }
+        });
+      }
+    });
+    return output;
+  }
+
+  function windowsCliSearchRoots(backend, env, pathModule) {
+    const roots = [];
+    const appData = env && env.APPDATA;
+    const localAppData = env && env.LOCALAPPDATA;
+    if (backend === "codex") {
+      if (localAppData) {
+        roots.push(
+          joinPath(pathModule, localAppData, "OpenAI"),
+          joinPath(pathModule, localAppData, "Programs")
+        );
+      }
+      if (appData) {
+        roots.push(
+          joinPath(pathModule, appData, "npm"),
+          joinPath(pathModule, appData, "npm", "node_modules", "@openai")
+        );
+      }
+    }
+    return roots;
   }
 
   function commandNames(command) {

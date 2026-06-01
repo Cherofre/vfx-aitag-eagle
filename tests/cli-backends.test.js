@@ -1,4 +1,7 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const test = require("node:test");
 
 const backends = require("../cli-backends.js");
@@ -105,6 +108,7 @@ test("createCliPlan resolves common Windows CLI shim paths before spawning", () 
     PATH: "C:\\Windows\\System32"
   };
   const existing = new Set([
+    "C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe",
     "C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\node_modules\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\codex\\codex.exe",
     "C:\\Users\\me\\.local\\bin\\claude.exe"
   ]);
@@ -114,9 +118,34 @@ test("createCliPlan resolves common Windows CLI shim paths before spawning", () 
   const codexCmd = backends.createCliPlan("codex", { codexCommand: "codex.cmd" }, "PROMPT", [], { env, fileExists });
   const claude = backends.createCliPlan("claude", { claudeCommand: "claude" }, "PROMPT", [], { env, fileExists });
 
-  assert.equal(codex.command, "C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\node_modules\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\codex\\codex.exe");
-  assert.equal(codexCmd.command, "C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\node_modules\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\codex\\codex.exe");
+  assert.equal(codex.command, "C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe");
+  assert.equal(codexCmd.command, "C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe");
   assert.equal(claude.command, "C:\\Users\\me\\.local\\bin\\claude.exe");
+});
+
+test("createCliPlan discovers Codex under variable local install folders", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "vfx-codex-path-"));
+  try {
+    const codexDir = path.join(root, "OpenAI", "Codex", "app-1.2.3", "bin");
+    const codexExe = path.join(codexDir, "codex.exe");
+    fs.mkdirSync(codexDir, { recursive: true });
+    fs.writeFileSync(codexExe, "");
+
+    const codex = backends.createCliPlan("codex", { codexCommand: "codex" }, "PROMPT", [], {
+      env: {
+        APPDATA: path.join(root, "Roaming"),
+        LOCALAPPDATA: root,
+        USERPROFILE: path.join(root, "User"),
+        PATH: ""
+      },
+      fs,
+      path
+    });
+
+    assert.equal(codex.command, codexExe);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("runCliBackends falls back after a failed backend and parses the first success", async () => {
