@@ -108,6 +108,8 @@
     healthStatus: [],
     activeResultFilter: "all",
     activePresetName: "",
+    collectorPreviousSize: null,
+    pluginRunCollectionBound: false,
     pauseRequested: false,
     paused: false,
     writing: false
@@ -117,12 +119,13 @@
 
   async function init() {
     [
-      "statusText", "openAiBtn", "importBtn", "refreshBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn", "undoBtn", "closeWindowBtn", "selectedCount", "tagPoolCount",
+      "statusText", "openAiBtn", "appendSelectedBtn", "replaceSelectedBtn", "clearSelectedBtn", "miniCollectorBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn", "undoBtn", "closeWindowBtn", "selectedCount", "tagPoolCount",
       "readyCount", "failedCount", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
       "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "aiRetryCount", "requestChunkK", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
       "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedSummary",
       "selectedItems", "showSelectedListBtn", "selectedListOverlay", "selectedListDialog", "selectedItemsFullList", "closeSelectedListBtn",
+      "collectorBar", "collectorCount", "collectorAppendBtn", "collectorAnalyzeBtn", "collectorExpandBtn", "collectorCloseBtn",
       "results", "clearResultsBtn", "analysisProgressPanel", "analysisProgressText", "analysisProgressPercent", "analysisProgressBar", "analysisProgressMeta",
       "writeProgressPanel", "writeProgressText", "writeProgressPercent", "writeProgressBar", "writeProgressMeta",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
@@ -137,6 +140,7 @@
 
     loadStoredState();
     bindEvents();
+    bindPluginRunCollection();
     await refreshAll();
     await runHealthCheck({ silent: true });
   }
@@ -160,8 +164,21 @@
         closeSettingsDrawer();
       }
     });
-    els.importBtn.addEventListener("click", importSelectedItems);
-    els.refreshBtn.addEventListener("click", refreshSelection);
+    els.appendSelectedBtn.addEventListener("click", () => appendSelectedItems("追加当前选中"));
+    els.replaceSelectedBtn.addEventListener("click", () => replaceSelectedItems("替换为当前选中"));
+    els.clearSelectedBtn.addEventListener("click", () => clearSelectedQueue());
+    els.miniCollectorBtn.addEventListener("click", enterCollectorMode);
+    els.collectorAppendBtn.addEventListener("click", () => appendSelectedItems("采集条追加当前选中"));
+    els.collectorAnalyzeBtn.addEventListener("click", async () => {
+      await exitCollectorMode();
+      await analyzeSelected();
+    });
+    els.collectorExpandBtn.addEventListener("click", exitCollectorMode);
+    els.collectorCloseBtn.addEventListener("click", closePluginWindow);
+    els.selectedItems.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "selected-panel"));
+    els.selectedItemsFullList.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "selected-panel"));
+    els.tagPool.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "tag-pool"));
+    els.results.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "results"));
     els.refreshTagsBtn.addEventListener("click", refreshTags);
     els.importDefaultsBtn.addEventListener("click", importDefaultTags);
     els.addTagBtn.addEventListener("click", addCustomTag);
@@ -224,7 +241,7 @@
   }
 
   async function refreshAll() {
-    await Promise.all([refreshTags(), refreshSelection(), refreshModelStatus()]);
+    await Promise.all([refreshTags(), appendSelectedItems("打开插件导入当前选中", { silentWhenEmpty: true }), refreshModelStatus()]);
     renderAll();
   }
 
@@ -244,6 +261,239 @@
       window.close();
     } catch (error) {
       setStatus(`关闭窗口失败：${formatError(error)}`);
+    }
+  }
+
+  function bindPluginRunCollection() {
+    if (state.pluginRunCollectionBound || !window.eagle) return;
+    const eventApi = eagle.event || eagle;
+    const handler = () => appendSelectedItems("插件入口追加当前选中", { silentWhenEmpty: true });
+    let bound = false;
+    ["onPluginRun", "onPluginShow"].forEach((eventName) => {
+      if (eventApi && typeof eventApi[eventName] === "function") {
+        eventApi[eventName](handler);
+        bound = true;
+      }
+    });
+    state.pluginRunCollectionBound = bound;
+  }
+
+  function getPluginWindowApi() {
+    return window.eagle && (eagle.window || eagle.pluginWindow);
+  }
+
+  async function enterCollectorMode() {
+    closeSelectedListDialog();
+    closeSettingsDrawer();
+    state.collectorPreviousSize = state.collectorPreviousSize || {
+      width: window.outerWidth || 1180,
+      height: window.outerHeight || 760
+    };
+    document.body.classList.add("collector-mode");
+    if (els.collectorBar) els.collectorBar.hidden = false;
+    updateCollectorBar();
+    try {
+      const eagleWindow = getPluginWindowApi();
+      if (eagleWindow && typeof eagleWindow.setSize === "function") {
+        await eagleWindow.setSize(560, 72);
+      }
+    } catch (error) {
+      setStatus(`切换采集条失败：${formatError(error)}`);
+    }
+  }
+
+  async function exitCollectorMode() {
+    document.body.classList.remove("collector-mode");
+    if (els.collectorBar) els.collectorBar.hidden = true;
+    try {
+      const eagleWindow = getPluginWindowApi();
+      const previous = state.collectorPreviousSize;
+      if (previous && eagleWindow && typeof eagleWindow.setSize === "function") {
+        await eagleWindow.setSize(previous.width, previous.height);
+      }
+    } catch (error) {
+      setStatus(`展开工作台失败：${formatError(error)}`);
+    }
+  }
+
+  function openWorkbenchContextMenu(event, scope) {
+    event.preventDefault();
+    event.stopPropagation();
+    const itemRow = event.target.closest("[data-item-id]");
+    const resultCard = event.target.closest("[data-result-id]");
+    const poolTag = event.target.closest("[data-pool-tag]");
+    const reviewTag = event.target.closest("[data-review-tag-name]");
+    if (itemRow) {
+      openContextMenu(event, [
+        { label: "分析此素材", action: () => analyzeSingleItem(itemRow.dataset.itemId) },
+        { label: "从列表移除", action: () => removeSelectedItem(itemRow.dataset.itemId) },
+        { label: "复制文件路径", action: () => copyItemPath(itemRow.dataset.itemId) }
+      ]);
+      return;
+    }
+    if (reviewTag) {
+      openContextMenu(event, [
+        { label: "移除此标签", action: () => removeReviewTag(reviewTag.dataset.resultId, reviewTag.dataset.reviewTagName) },
+        { label: "复制标签名", action: () => copyText(reviewTag.dataset.reviewTagName) }
+      ]);
+      return;
+    }
+    if (resultCard) {
+      const resultId = resultCard.dataset.resultId;
+      const result = state.results.find((item) => item.id === resultId);
+      openContextMenu(event, [
+        { label: "重新分析", action: () => reanalyzeResult(resultId), disabled: state.running },
+        { label: "写入此项标签", action: () => applySingleResult(resultId), disabled: !result || result.status !== "ready" || !getSelectedReviewTags(result).length },
+        { label: "复制推荐标签", action: () => copyResultTags(resultId), disabled: !result || !getSelectedReviewTags(result).length },
+        { label: "从结果中移除", action: () => removeResult(resultId) }
+      ]);
+      return;
+    }
+    if (poolTag) {
+      openContextMenu(event, [
+        { label: "复制标签名", action: () => copyText(poolTag.dataset.poolTag) },
+        { label: "从本次标签池移除", action: () => removeFromPool(poolTag.dataset.poolTag) }
+      ]);
+      return;
+    }
+    if (scope === "tag-pool") return;
+    openContextMenu(event, [
+      { label: "追加当前选中", action: () => appendSelectedItems("右键菜单追加当前选中") },
+      { label: "替换为当前选中", action: () => replaceSelectedItems("右键菜单替换当前选中") },
+      { label: "清空待分析素材", action: () => clearSelectedQueue() },
+      { label: "打开完整列表", action: openSelectedListDialog, disabled: !state.selectedItems.length },
+      { label: "收起为采集条", action: enterCollectorMode }
+    ]);
+  }
+
+  function openContextMenu(event, items) {
+    const availableItems = items.filter((item) => !item.hidden);
+    const nativeMenu = window.eagle && eagle.contextMenu && eagle.contextMenu.open;
+    if (typeof nativeMenu === "function") {
+      nativeMenu.call(eagle.contextMenu, availableItems.map((item) => ({
+        label: item.label,
+        disabled: Boolean(item.disabled),
+        enabled: !item.disabled,
+        click: item.disabled ? undefined : item.action
+      })));
+      return;
+    }
+    showFallbackContextMenu(event, availableItems);
+  }
+
+  function showFallbackContextMenu(event, items) {
+    closeFallbackContextMenu();
+    const menu = document.createElement("div");
+    menu.className = "context-menu";
+    menu.style.left = `${Math.min(event.clientX, window.innerWidth - 190)}px`;
+    menu.style.top = `${Math.min(event.clientY, window.innerHeight - 40)}px`;
+    items.forEach((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = item.label;
+      button.disabled = Boolean(item.disabled);
+      button.addEventListener("click", () => {
+        closeFallbackContextMenu();
+        if (!item.disabled) item.action();
+      });
+      menu.appendChild(button);
+    });
+    document.body.appendChild(menu);
+    window.setTimeout(() => {
+      document.addEventListener("click", closeFallbackContextMenu, { once: true });
+    }, 0);
+  }
+
+  function closeFallbackContextMenu() {
+    document.querySelectorAll(".context-menu").forEach((menu) => menu.remove());
+  }
+
+  async function analyzeSingleItem(itemId) {
+    const item = state.selectedItems.find((candidate) => getItemId(candidate) === itemId);
+    if (!item) {
+      setStatus("找不到这个素材，请重新导入当前选中素材后再试。");
+      return;
+    }
+    state.results = state.results.filter((result) => result.id !== itemId);
+    state.results.push(createPendingResult(item));
+    saveResultsState();
+    renderAll();
+    await analyzeSelected();
+  }
+
+  function removeSelectedItem(itemId) {
+    state.selectedItems = state.selectedItems.filter((item) => getItemId(item) !== itemId);
+    state.results = state.results.filter((result) => result.id !== itemId);
+    saveResultsState();
+    renderAll();
+    setStatus("已从待分析列表移除 1 个素材。");
+  }
+
+  function removeResult(resultId) {
+    state.results = state.results.filter((result) => result.id !== resultId);
+    saveResultsState();
+    resetAnalysisProgress();
+    renderAll();
+    setStatus("已从结果中移除 1 项。");
+  }
+
+  async function applySingleResult(resultId) {
+    if (state.writing || state.running) return;
+    const result = state.results.find((item) => item.id === resultId);
+    const selectedTags = result ? getSelectedReviewTags(result) : [];
+    if (!result || result.status !== "ready" || !selectedTags.length) {
+      setStatus("这个结果没有可写入的标签。");
+      return;
+    }
+    const item = state.selectedItems.find((candidate) => getItemId(candidate) === resultId);
+    if (!item || item.external || typeof item.save !== "function") {
+      updateResult(resultId, { status: "ready", message: "找不到可写回的 Eagle 素材", errorType: "write" });
+      return;
+    }
+    state.writing = true;
+    updateWriteProgress(0, 1, 0);
+    try {
+      const settings = readSettings();
+      await mergeTagsIntoItem(item, selectedTags.map((tag) => tag.name), settings.writeAnnotation ? result.aiReason : "", "右键菜单写入标签");
+      updateResult(resultId, { status: "applied", message: "已写入 Eagle", errorType: "" });
+      updateWriteProgress(1, 1, 0, "已写入 1 个素材。");
+      setStatus("已写入 1 个素材。");
+    } catch (error) {
+      updateResult(resultId, { status: "ready", message: `写入失败：${formatError(error)}`, errorType: "write" });
+      updateWriteProgress(1, 1, 1, "写入失败 1 个素材。");
+    } finally {
+      state.writing = false;
+      renderAll();
+    }
+  }
+
+  function copyItemPath(itemId) {
+    const item = state.selectedItems.find((candidate) => getItemId(candidate) === itemId);
+    copyText(getItemFilePath(item));
+  }
+
+  function copyResultTags(resultId) {
+    const result = state.results.find((item) => item.id === resultId);
+    copyText(getSelectedReviewTags(result || {}).map((tag) => tag.name).join("、"));
+  }
+
+  async function copyText(text) {
+    const value = String(text || "");
+    if (!value) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = value;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        input.remove();
+      }
+      setStatus("已复制到剪贴板。");
+    } catch (error) {
+      setStatus(`复制失败：${formatError(error)}`);
     }
   }
 
@@ -329,37 +579,112 @@
   }
 
   async function refreshSelection() {
-    await readSelectedItems("刷新选择");
+    await replaceSelectedItems("刷新当前选中");
   }
 
-  async function readSelectedItems(actionName) {
+  async function fetchEagleSelectedItems() {
     if (!window.eagle || !eagle.item) {
-      state.selectedItems = [];
-      setStatus("未检测到 Eagle 项目 API，请在 Eagle 插件窗口中运行。");
-      renderAll();
-      return;
+      throw new Error("未检测到 Eagle 项目 API，请在 Eagle 插件窗口中运行。");
     }
+    if (typeof eagle.item.getSelected === "function") {
+      return await eagle.item.getSelected();
+    }
+    if (typeof eagle.item.get === "function") {
+      return await eagle.item.get({ isSelected: true });
+    }
+    return [];
+  }
+
+  function getQueueKey(item) {
+    const id = getItemId(item);
+    if (id) return `id:${id}`;
+    const filePath = getItemFilePath(item);
+    return filePath ? `path:${filePath}` : `name:${getItemName(item)}`;
+  }
+
+  function mergeSelectedItems(nextItems, mode) {
+    const incoming = Array.isArray(nextItems) ? nextItems.filter(Boolean) : [];
+    const replacing = mode === "replace";
+    if (replacing) {
+      state.selectedItems = [];
+      state.results = [];
+      resetAnalysisProgress();
+      resetWriteProgress();
+    }
+    const seen = new Set(state.selectedItems.map(getQueueKey));
+    const addedItems = [];
+    let skipped = 0;
+    incoming.forEach((item) => {
+      const key = getQueueKey(item);
+      if (seen.has(key)) {
+        skipped += 1;
+        return;
+      }
+      seen.add(key);
+      addedItems.push(item);
+    });
+    state.selectedItems = [...state.selectedItems, ...addedItems];
+    state.itemSource = "eagle";
+    saveResultsState();
+    renderAll();
+    return { added: addedItems.length, skipped, total: incoming.length };
+  }
+
+  async function appendSelectedItems(actionName, options = {}) {
     try {
-      if (typeof eagle.item.getSelected === "function") {
-        state.selectedItems = await eagle.item.getSelected();
-      } else if (typeof eagle.item.get === "function") {
-        state.selectedItems = await eagle.item.get({ isSelected: true });
-      } else {
-        state.selectedItems = [];
+      const nextItems = await fetchEagleSelectedItems();
+      const summary = mergeSelectedItems(nextItems, "append");
+      if (!summary.total && !options.silentWhenEmpty) {
+        setStatus("没有读取到 Eagle 当前选中素材。");
+      } else if (summary.added) {
+        setStatus(`${actionName}：新增 ${summary.added} 个，跳过已存在 ${summary.skipped} 个。`);
+      } else if (summary.total && !options.silentWhenEmpty) {
+        setStatus("当前选中素材已在待分析列表中。");
       }
-      state.itemSource = "eagle";
-      if (state.selectedItems.length) {
-        const selectedIds = new Set(state.selectedItems.map(getItemId));
-        state.results = state.results.filter((result) => selectedIds.has(result.id));
+    } catch (error) {
+      setStatus(`读取选中素材失败：${formatError(error)}`);
+      renderAll();
+    }
+  }
+
+  async function replaceSelectedItems(actionName) {
+    try {
+      const nextItems = await fetchEagleSelectedItems();
+      if (!nextItems.length) {
+        setStatus("没有读取到 Eagle 当前选中素材，待分析列表保持不变。");
+        return;
       }
-      saveResultsState();
-      setStatus(`${actionName}：已读取 ${state.selectedItems.length} 个 Eagle 选中素材`);
+      const summary = mergeSelectedItems(nextItems, "replace");
+      setStatus(`${actionName}：已导入 ${summary.added} 个 Eagle 选中素材。`);
     } catch (error) {
       state.selectedItems = [];
       state.results = [];
       setStatus(`读取选中素材失败：${formatError(error)}`);
+      renderAll();
     }
+  }
+
+  function clearSelectedQueue(options = {}) {
+    if (state.running || state.writing) {
+      setStatus("正在分析或写入，不能清空待分析素材。");
+      return;
+    }
+    const hasContent = state.selectedItems.length || state.results.length;
+    if (!hasContent) {
+      setStatus("待分析素材已经是空的。");
+      return;
+    }
+    if (!options.skipConfirm && typeof window.confirm === "function" && !window.confirm("清空待分析素材和当前分析结果？")) {
+      return;
+    }
+    closeSelectedListDialog();
+    state.selectedItems = [];
+    state.results = [];
+    resetAnalysisProgress();
+    resetWriteProgress();
+    saveResultsState();
     renderAll();
+    setStatus("已清空待分析素材和当前分析结果。");
   }
 
   async function refreshModelStatus() {
@@ -448,7 +773,7 @@
   }
 
   async function importSelectedItems() {
-    await readSelectedItems("导入选中素材");
+    await appendSelectedItems("追加当前选中");
   }
 
   function importDefaultTags() {
@@ -1876,8 +2201,27 @@
     renderSelectedItems();
     renderSelectedFullList();
     renderResults();
+    updateCollectorBar();
     els.selectedCount.textContent = String(state.selectedItems.length);
     els.tagPoolCount.textContent = String(getAllowedTags().length);
+  }
+
+  function updateCollectorBar() {
+    if (els.collectorCount) {
+      els.collectorCount.textContent = `${state.selectedItems.length} 个待分析`;
+    }
+    if (els.collectorAnalyzeBtn) {
+      els.collectorAnalyzeBtn.disabled = state.running || state.writing || !state.selectedItems.length;
+    }
+    if (els.collectorAppendBtn) {
+      els.collectorAppendBtn.disabled = state.running || state.writing;
+    }
+    if (els.clearSelectedBtn) {
+      els.clearSelectedBtn.disabled = state.running || state.writing || (!state.selectedItems.length && !state.results.length);
+    }
+    if (els.appendSelectedBtn) els.appendSelectedBtn.disabled = state.running || state.writing;
+    if (els.replaceSelectedBtn) els.replaceSelectedBtn.disabled = state.running || state.writing;
+    if (els.miniCollectorBtn) els.miniCollectorBtn.disabled = state.running || state.writing;
   }
 
   function renderSelectedSummary() {
@@ -1899,7 +2243,7 @@
     if (!els.selectedItems) return;
     els.selectedItems.innerHTML = "";
     if (!state.selectedItems.length) {
-      els.selectedItems.innerHTML = `<div class="empty">请先在 Eagle 中选择素材，然后点击“导入选中素材”。</div>`;
+      els.selectedItems.innerHTML = `<div class="empty">请先在 Eagle 中选择素材，然后点击“追加当前选中”。</div>`;
       return;
     }
     state.selectedItems.slice(0, 3).forEach((item) => {
@@ -1931,6 +2275,7 @@
     const tags = Array.isArray(item.tags) ? item.tags : [];
     const row = document.createElement("div");
     row.className = "selected-item";
+    row.setAttribute("data-item-id", getItemId(item));
     row.innerHTML = `
       <div class="selected-name" title="${escapeHtml(getItemName(item))}">${escapeHtml(getItemName(item))}</div>
       <div class="selected-meta">
@@ -1953,6 +2298,7 @@
     tags.forEach((tag) => {
       const chip = document.createElement("div");
       chip.className = "tag-chip";
+      chip.setAttribute("data-pool-tag", tag);
       chip.innerHTML = `<span title="${escapeHtml(tag)}">${escapeHtml(tag)}</span>`;
       const remove = document.createElement("button");
       remove.type = "button";
@@ -1992,7 +2338,7 @@
     updateAnalysisControls();
     els.results.innerHTML = "";
     if (!state.results.length) {
-      els.results.innerHTML = `<div class="empty">导入选中素材后点击“开始分析”，这里会显示待确认标签、置信度和写入状态。</div>`;
+      els.results.innerHTML = `<div class="empty">追加当前选中素材后点击“开始分析”，这里会显示待确认标签、置信度和写入状态。</div>`;
       return;
     }
     const visibleResults = getFilteredResults();
@@ -2003,6 +2349,7 @@
     visibleResults.forEach((result) => {
       const item = document.createElement("article");
       item.className = "result";
+      item.setAttribute("data-result-id", result.id);
       item.innerHTML = `
         <div class="result-head">
           <div class="result-title">
@@ -2112,7 +2459,7 @@
       <div class="tag-section-title">待确认</div>
       <div class="review-tags">
         ${result.reviewTags.map((tag) => `
-          <label class="review-tag ${tag.source === "manual" ? "manual" : ""}">
+          <label class="review-tag ${tag.source === "manual" ? "manual" : ""}" data-result-id="${escapeHtml(result.id)}" data-review-tag-name="${escapeHtml(tag.name)}">
             <input type="checkbox" data-result-id="${escapeHtml(result.id)}" data-review-tag="${escapeHtml(tag.name)}" ${tag.selected ? "checked" : ""}>
             <span>${escapeHtml(tag.name)}</span>
             <strong>${tag.source === "manual" ? "人工" : formatConfidence(tag.confidence)}</strong>
@@ -2406,8 +2753,11 @@
     els.analyzeBtn.disabled = busy;
     els.pauseBtn.disabled = !busy || state.pauseRequested;
     updateAnalysisControls();
-    els.importBtn.disabled = busy;
-    els.refreshBtn.disabled = busy;
+    els.appendSelectedBtn.disabled = busy;
+    els.replaceSelectedBtn.disabled = busy;
+    els.clearSelectedBtn.disabled = busy || (!state.selectedItems.length && !state.results.length);
+    els.miniCollectorBtn.disabled = busy;
+    updateCollectorBar();
     els.refreshTagsBtn.disabled = busy;
     els.importDefaultsBtn.disabled = busy;
     els.applyBtn.disabled = busy || state.writing || state.results.filter((result) => result.status === "ready" && getSelectedReviewTags(result).length).length === 0;

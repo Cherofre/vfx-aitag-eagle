@@ -5,6 +5,7 @@
   --panel-2: #1d2126;
   --panel-3: #121519;
   --line: #2d333b;
+  --line-strong: #3b4450;
   --line-soft: rgba(255, 255, 255, .06);
   --text: #f1f3f5;
   --muted: #9ca5b0;
@@ -110,6 +111,86 @@ textarea {
   box-shadow: var(--shadow);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
+}
+
+body.collector-mode {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+}
+
+body.collector-mode .workbench-shell {
+  display: none;
+}
+
+.collector-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  width: min(560px, calc(100vw - 16px));
+  min-height: 52px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 8px;
+  -webkit-app-region: drag;
+}
+
+body.collector-mode .collector-bar {
+  display: flex;
+}
+
+.collector-bar[hidden] {
+  display: none;
+}
+
+.collector-bar strong,
+.collector-bar span {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.collector-bar span {
+  color: var(--muted);
+}
+
+.collector-bar button {
+  flex: 0 0 auto;
+  -webkit-app-region: no-drag;
+}
+
+.collector-bar .window-close-btn {
+  margin-left: auto;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 80;
+  display: grid;
+  min-width: 180px;
+  max-width: min(280px, calc(100vw - 16px));
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 5px;
+}
+
+.context-menu[hidden] {
+  display: none;
+}
+
+.context-menu button {
+  justify-content: flex-start;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+}
+
+.context-menu button:hover {
+  background: var(--panel-3);
 }
 
 .topbar,

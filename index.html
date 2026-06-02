@@ -75,9 +75,11 @@
           <div class="panel-header">
             <h2>待分析素材</h2>
             <div class="material-actions">
-              <button id="importBtn" type="button">导入</button>
-              <button id="refreshBtn" type="button">刷新</button>
+              <button id="appendSelectedBtn" type="button">追加当前选中</button>
+              <button id="replaceSelectedBtn" type="button">替换为当前选中</button>
+              <button id="clearSelectedBtn" type="button">清空</button>
               <button id="showSelectedListBtn" type="button">完整列表</button>
+              <button id="miniCollectorBtn" type="button">采集条</button>
             </div>
           </div>
           <div id="selectedSummary" class="selected-summary"></div>
@@ -324,6 +326,15 @@
       </div>
     </section>
   </main>
+
+  <section id="collectorBar" class="collector-bar" aria-label="素材采集条" hidden>
+    <strong>特效标签</strong>
+    <span id="collectorCount">0 个待分析</span>
+    <button id="collectorAppendBtn" type="button">追加当前选中</button>
+    <button id="collectorAnalyzeBtn" type="button" class="primary">分析</button>
+    <button id="collectorExpandBtn" type="button">展开</button>
+    <button id="collectorCloseBtn" type="button" class="window-close-btn" aria-label="关闭窗口" title="关闭窗口">×</button>
+  </section>
 
   <script src="cli-backends.js"></script>
   <script src="plugin.js"></script>

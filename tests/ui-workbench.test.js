@@ -266,9 +266,11 @@ test("compact workbench keeps material actions local and exposes analysis progre
   assert.doesNotMatch(topActions, /id="importBtn"|id="refreshBtn"|id="undoBtn"/);
 
   const selectedPanel = html.slice(html.indexOf('class="panel selected-panel"'), html.indexOf('class="panel results-panel"'));
-  assert.match(selectedPanel, /id="importBtn"/);
-  assert.match(selectedPanel, /id="refreshBtn"/);
+  assert.match(selectedPanel, /id="appendSelectedBtn"/);
+  assert.match(selectedPanel, /id="replaceSelectedBtn"/);
+  assert.match(selectedPanel, /id="clearSelectedBtn"/);
   assert.match(selectedPanel, /id="showSelectedListBtn"/);
+  assert.match(selectedPanel, /id="miniCollectorBtn"/);
   assert.match(selectedPanel, /id="selectedSummary"/);
   assert.match(selectedPanel, /id="selectedItems"/);
 
@@ -309,4 +311,41 @@ test("closed selected material dialog is removed from hit testing", () => {
   assert.match(css, /\.selected-list-dialog\[hidden\]\s*{[\s\S]*display:\s*none/);
   assert.match(js, /els\.selectedListDialog\.hidden\s*=\s*false/);
   assert.match(js, /els\.selectedListDialog\.hidden\s*=\s*true/);
+});
+
+test("collection workflow exposes append, replace, clear, context menus, and collector bar", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(html, /id="appendSelectedBtn"[^>]*>追加当前选中<\/button>/);
+  assert.match(html, /id="replaceSelectedBtn"[^>]*>替换为当前选中<\/button>/);
+  assert.match(html, /id="clearSelectedBtn"[^>]*>清空<\/button>/);
+  assert.match(html, /id="miniCollectorBtn"[^>]*>采集条<\/button>/);
+  assert.match(html, /id="collectorBar"/);
+  assert.match(html, /id="collectorAppendBtn"/);
+  assert.match(html, /id="collectorAnalyzeBtn"/);
+  assert.match(html, /id="collectorExpandBtn"/);
+  assert.match(html, /id="collectorCloseBtn"/);
+
+  assert.match(js, /"appendSelectedBtn"/);
+  assert.match(js, /"replaceSelectedBtn"/);
+  assert.match(js, /"clearSelectedBtn"/);
+  assert.match(js, /"miniCollectorBtn"/);
+  assert.match(js, /function fetchEagleSelectedItems\(/);
+  assert.match(js, /function mergeSelectedItems\(/);
+  assert.match(js, /function appendSelectedItems\(/);
+  assert.match(js, /function replaceSelectedItems\(/);
+  assert.match(js, /function clearSelectedQueue\(/);
+  assert.match(js, /function bindPluginRunCollection\(/);
+  assert.match(js, /function openWorkbenchContextMenu\(/);
+  assert.match(js, /function enterCollectorMode\(/);
+  assert.match(js, /function exitCollectorMode\(/);
+  assert.match(js, /eagle\.contextMenu\.open/);
+  assert.match(js, /data-item-id/);
+  assert.match(js, /collector-mode/);
+
+  assert.match(css, /\.collector-bar\s*{/);
+  assert.match(css, /body\.collector-mode\s+\.workbench-shell/);
+  assert.match(css, /body\.collector-mode\s+\.collector-bar/);
 });
