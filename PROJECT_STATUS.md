@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-02 20:00
+- Last Updated: 2026-06-02 20:47
 - Phase: collector/workbench UI hotfix packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/collection-workflow
-- Goal: 修复采集条尺寸被 Eagle 记住后导致工作台打开过矮的问题，并优化分析进度、待确认标签高度和手动添加标签菜单。
-- Current Focus: Package version `1.3.4` restores full workbench bounds when Eagle reopens a collector-sized window or closes from collector mode, shows staged per-item analysis progress, reduces review tag chip height to 28px, replaces the native `datalist` with a styled constrained suggestion menu, and keeps `logo.png` as the generated tag-plus-sparkle logo.
+- Goal: 优化采集浮窗密度，修复关闭采集条时先闪完整工作台窗口的问题，并保持下次打开恢复正常工作台尺寸。
+- Current Focus: Package version `1.3.5` uses a `646×104` collector window with `18px` left/right and `7px` top/bottom padding, slightly smaller collector controls, and marks a pending workbench restore on collector close instead of visibly expanding before close.
 - Superpowers Spec: none
 - Superpowers Plan: `docs/superpowers/plans/2026-06-02-collection-workflow.md`
-- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.4` in Eagle and smoke-test default open size, collector close/reopen behavior, staged progress, compact tags, and the manual tag suggestion menu.
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.5` in Eagle and smoke-test collector spacing/height, collector close without full-window flash, and default reopen restore.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.4` in Eagle.
-- Next verification: Eagle real-host smoke for opening the plugin after closing collector mode, collector bar entering at `646×112`, auto-collecting current selection, clearing queue from the bar, clamping inside the available screen, staying always-on-top while collapsed, restoring full workbench bounds/normal top state on expand/close, staged progress while a CLI request is running, compact review tag chips, manual tag suggestion menu placement, plus analysis/write flows.
+- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.5` in Eagle.
+- Next verification: Eagle real-host smoke for opening the plugin after closing collector mode, collector bar entering at `646×104`, balanced left/right spacing, reduced vertical height, closing collector mode without flashing a full workbench window, restoring full workbench bounds/normal top state on next open or expand, staged progress while a CLI request is running, compact review tag chips, manual tag suggestion menu placement, plus analysis/write flows.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -75,11 +75,14 @@
 - [x] Changed analysis progress from completed-item-only ticks to staged per-item progress with current stage metadata.
 - [x] Reduced review tag chip height and replaced native manual-tag `datalist` with a styled fixed-position suggestion menu constrained to the viewport.
 - [x] Bumped manifest to `1.3.4`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Increased collector left/right padding, reduced collector height to `646×104`, and slightly reduced collector action/icon/close sizes.
+- [x] Fixed collector close flash by marking a pending workbench restore and closing the small window directly instead of expanding first.
+- [x] Bumped manifest to `1.3.5`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
 
 ## Verification
-- Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, `node --check cli-backends.js`
+- Last command: package inspection after `Compress-Archive`
 - Result: pass
-- Evidence / notes: Added RED UI contract tests for full workbench restore after collector-sized reopen/close, staged analysis progress, compact review tags, and styled manual tag suggestion menus; they failed before implementation and now pass. Final `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 34 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Browser static smoke via local server at `1180×760` confirmed `body.scrollHeight=760`, `overflow=hidden`, not `collector-mode`, fake result review chips at `28px` height, and the manual tag menu aligned to the input (`left=399`, `width=640`) inside the viewport. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.4`, default `1180×760`, `minWidth: 646`, `minHeight: 112`, `devTools: false`. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: Added/updated RED UI contract tests for collector `646×104` sizing, `7px 18px` collector padding, smaller collector actions/icons, and close-without-visible-restore behavior; they failed before implementation and now pass. Final `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 34 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Browser static smoke at `646×104` collector mode confirmed `body.scrollWidth=646`, `body.scrollHeight=104`, collector padding `18px` left/right and `7px` top/bottom, first visible content gap about `19px`, close gap about `19px`, and action buttons at `74×57`. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.5`, default `1180×760`, `minWidth: 646`, `minHeight: 104`, `devTools: false`. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.

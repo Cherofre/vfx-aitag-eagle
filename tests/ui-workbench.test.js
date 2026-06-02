@@ -388,9 +388,9 @@ test("collector bar uses prominent themed icon actions and concise labels", () =
   const manifest = JSON.parse(read("manifest.json"));
 
   assert.equal(manifest.main.minWidth, 646);
-  assert.equal(manifest.main.minHeight, 112);
+  assert.equal(manifest.main.minHeight, 104);
   assert.match(js, /width:\s*646/);
-  assert.match(js, /height:\s*112/);
+  assert.match(js, /height:\s*104/);
   assert.match(js, /await appendSelectedItems\("进入采集条自动收集当前选中",\s*\{ silentWhenEmpty:\s*true \}\)/);
   assert.match(html, /<strong>素材采集<\/strong>/);
   assert.match(html, /<span>边选边收<\/span>/);
@@ -406,8 +406,10 @@ test("collector bar uses prominent themed icon actions and concise labels", () =
   assert.match(css, /body\.collector-mode\s*{[\s\S]*place-items:\s*stretch/);
   assert.match(css, /body\.collector-mode\s+\.collector-bar\s*{[\s\S]*position:\s*fixed[\s\S]*inset:\s*0/);
   assert.match(css, /\.collector-bar\s*{[\s\S]*\n\s+height:\s*100%/);
-  assert.match(css, /\.collector-action\s*{[\s\S]*min-width:\s*74px[\s\S]*grid-template-rows:\s*24px auto/);
-  assert.match(css, /\.collector-icon\s*{[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
+  assert.match(css, /\.collector-bar\s*{[\s\S]*padding:\s*7px 18px/);
+  assert.match(css, /\.collector-action\s*{[\s\S]*min-width:\s*74px[\s\S]*grid-template-rows:\s*22px auto/);
+  assert.match(css, /\.collector-action\s*{[\s\S]*min-height:\s*57px/);
+  assert.match(css, /\.collector-icon\s*{[\s\S]*width:\s*22px[\s\S]*height:\s*22px/);
   assert.match(css, /\.collector-action-primary\s*{[\s\S]*background:\s*linear-gradient\(135deg,\s*rgba\(157,\s*191,\s*232,\s*\.28\)/);
   assert.match(css, /\.collector-action-accent\s*{[\s\S]*background:\s*linear-gradient\(135deg,\s*#8cb8de,\s*#a69ae0\)/);
   assert.match(css, /\.collector-action-danger\s*{[\s\S]*border-color:\s*rgba\(223,\s*118,\s*109,\s*\.48\)/);
@@ -489,11 +491,15 @@ test("workbench restores full bounds when Eagle reopens the last collector-sized
   assert.match(js, /await restoreWorkbenchWindow\(eagleWindow,\s*\{ clearCollectorState:\s*false \}\)/);
 });
 
-test("closing from collector mode restores workbench bounds before Eagle persists window size", () => {
+test("closing from collector mode marks workbench restore without flashing full window", () => {
   const js = read("plugin.js");
 
   assert.match(js, /async function closePluginWindow\(/);
-  assert.match(js, /if \(document\.body\.classList\.contains\("collector-mode"\)\) \{\s*await restoreWorkbenchWindow\(eagleWindow\);\s*\}/);
+  assert.match(js, /if \(document\.body\.classList\.contains\("collector-mode"\)\) \{\s*markWorkbenchRestorePending\(\);\s*\}/);
+  assert.doesNotMatch(js, /if \(document\.body\.classList\.contains\("collector-mode"\)\) \{\s*await restoreWorkbenchWindow\(eagleWindow\);\s*\}/);
+  assert.match(js, /restoreWorkbenchBounds:\s*"vfxAiTagger\.restoreWorkbenchBounds"/);
+  assert.match(js, /function markWorkbenchRestorePending\(/);
+  assert.match(js, /function consumeWorkbenchRestorePending\(/);
   assert.match(js, /async function restoreWorkbenchWindow\(eagleWindow,\s*options = \{\}\)/);
   assert.match(js, /document\.body\.classList\.remove\("collector-mode"\)/);
   assert.match(js, /setWindowBounds\(eagleWindow,\s*getWorkbenchWindowBounds\(/);

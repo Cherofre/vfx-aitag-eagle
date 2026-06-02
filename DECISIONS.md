@@ -19,24 +19,33 @@
 - 2026-06-02: Use collection workflow instead of Eagle host-menu injection for right-click analysis.
 - 2026-06-02: Collector bar mode should be a real small always-on-top floating window.
 - 2026-06-02: Collector bar should be a prominent top collection control with icon actions, auto-collect-on-enter, and a clear queue action.
-- 2026-06-02: Scale the collector window to `646×112`, clamp it inside the available screen, and use the generated tag-plus-sparkle logo.
+- 2026-06-02: Scale the collector window to `646×104`, clamp it inside the available screen, and use the generated tag-plus-sparkle logo.
 - 2026-06-02: Restore full workbench bounds when Eagle persists collector-sized window bounds, and use styled manual tag suggestions instead of native `datalist`.
+- 2026-06-02: Use `646×104` collector spacing and defer workbench restore on collector close to avoid a visible full-window flash.
 
 ## Decision Log
 
+## 2026-06-02 - Collector compact spacing and close behavior
+- Status: active
+- Decision: Keep collector width at `646px`, reduce height to `104px`, use `7px 18px` collector padding, slightly reduce collector action/icon/close sizes, and on collector close write a pending restore flag instead of visibly restoring workbench bounds before `close()`.
+- Reason: Eagle smoke showed the collector window looked too tight horizontally and slightly too tall. The previous close path restored `1180×760` before closing to prevent persisted small bounds, which caused a visible full-window flash.
+- Alternatives considered: Increase collector width; skipped because the user asked for a compact collector. Keep restoring before close and hide only CSS content; skipped because the native window bounds change could still flash. Never restore after collector close; skipped because it could regress the earlier tiny-window reopen bug.
+- Consequences / follow-up: Eagle smoke must verify collector close no longer flashes, and the next plugin open or explicit expand still restores full workbench bounds.
+
 ## 2026-06-02 - Workbench restore and styled tag suggestions
 - Status: active
-- Decision: Keep the collector minimum window size at `646×112`, but restore the full `1180×760` workbench bounds on plugin init when current bounds look collector-sized and before closing from collector mode. Replace the manual result tag editor's native `datalist` with a fixed-position styled menu constrained to the input and viewport.
+- Decision: Keep the collector minimum window size at `646×104`, restore the full `1180×760` workbench bounds on plugin init when current bounds look collector-sized or a pending restore flag exists, and replace the manual result tag editor's native `datalist` with a fixed-position styled menu constrained to the input and viewport.
 - Reason: Eagle can persist the last plugin window size, so closing from collector mode can make the next full workbench open like a tiny collector bar. Native datalist popups cannot be styled consistently and appeared offset/oversized in Eagle.
 - Alternatives considered: Raise `minWidth/minHeight` back to full workbench size; skipped because it would make the real collector bar impossible. Keep `datalist` and only adjust CSS; skipped because browser-native datalist popups ignore most CSS and positioning control.
 - Consequences / follow-up: Eagle smoke must verify default reopen size after closing collector mode, and manual tag menu placement inside the real plugin window.
 
 ## 2026-06-02 - Scaled collector window and logo
-- Status: active
+- Status: superseded
 - Decision: Use a `646×112` top floating collector window with `74×61` icon actions, clamp the collector bounds inside the available screen with an 8px margin, and replace `logo.png` with the generated minimal tag-plus-sparkle mark.
 - Reason: Eagle smoke showed the collector entry needed stronger hierarchy while the collector window itself was too large. The logo also needed a simple silhouette that stays legible at plugin-list icon sizes.
 - Alternatives considered: Keep the `760×132` collector window; skipped because it took too much space. Keep the old 128px logo; skipped because it was less aligned with the AI tagging concept.
 - Consequences / follow-up: Eagle smoke must verify the smaller window still has readable controls, remains visible on different screen setups, and the new logo looks clear in the plugin list.
+- Superseded by: 2026-06-02 - Collector compact spacing and close behavior.
 
 ## 2026-06-02 - Prominent collector action bar
 - Status: superseded

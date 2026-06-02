@@ -135,7 +135,7 @@ body.collector-mode .workbench-shell {
   border-radius: 7px;
   background: linear-gradient(180deg, rgba(24, 28, 34, .98), rgba(14, 17, 22, .98));
   box-shadow: 0 14px 41px rgba(0, 0, 0, .46), 0 0 0 1px rgba(157, 191, 232, .16) inset;
-  padding: 9px 10px;
+  padding: 7px 18px;
   -webkit-app-region: drag;
 }
 
@@ -189,15 +189,15 @@ body.collector-mode .collector-bar {
 .collector-action {
   display: grid;
   min-width: 74px;
-  grid-template-rows: 24px auto;
+  grid-template-rows: 22px auto;
   place-items: center;
   gap: 4px;
   flex: 0 0 auto;
-  min-height: 61px;
+  min-height: 57px;
   border-color: rgba(157, 191, 232, .36);
   background: linear-gradient(180deg, rgba(39, 46, 55, .98), rgba(24, 28, 34, .98));
   color: var(--text);
-  padding: 7px 8px;
+  padding: 6px 8px;
   font-size: 11px;
   font-weight: 650;
   -webkit-app-region: no-drag;
@@ -208,8 +208,8 @@ body.collector-mode .collector-bar {
 }
 
 .collector-icon {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.9;
@@ -238,10 +238,10 @@ body.collector-mode .collector-bar {
 
 .collector-bar .window-close-btn {
   margin-left: auto;
-  width: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  font-size: 16px;
+  width: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  font-size: 15px;
 }
 
 .context-menu {

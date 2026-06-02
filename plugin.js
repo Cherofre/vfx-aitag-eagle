@@ -11,7 +11,8 @@
     customAllowedTags: "vfxAiTagger.customAllowedTags",
     disabledTags: "vfxAiTagger.disabledTags",
     settings: "vfxAiTagger.settings",
-    results: "vfxAiTagger.results"
+    results: "vfxAiTagger.results",
+    restoreWorkbenchBounds: "vfxAiTagger.restoreWorkbenchBounds"
   };
 
   const DEFAULT_VFX_TAGS = [
@@ -92,7 +93,7 @@
   };
   const COLLECTOR_WINDOW_BOUNDS = {
     width: 646,
-    height: 112,
+    height: 104,
     topOffset: 61
   };
   const WORKBENCH_WINDOW_BOUNDS = {
@@ -269,7 +270,7 @@
     try {
       const eagleWindow = getPluginWindowApi();
       if (document.body.classList.contains("collector-mode")) {
-        await restoreWorkbenchWindow(eagleWindow);
+        markWorkbenchRestorePending();
       }
       if (eagleWindow && typeof eagleWindow.close === "function") {
         eagleWindow.close();
@@ -393,6 +394,24 @@
     }, screenBounds);
   }
 
+  function markWorkbenchRestorePending() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.restoreWorkbenchBounds, "1");
+    } catch (error) {
+      // The current bounds check on next launch is still a fallback if storage is unavailable.
+    }
+  }
+
+  function consumeWorkbenchRestorePending() {
+    try {
+      const pending = localStorage.getItem(STORAGE_KEYS.restoreWorkbenchBounds) === "1";
+      if (pending) localStorage.removeItem(STORAGE_KEYS.restoreWorkbenchBounds);
+      return pending;
+    } catch (error) {
+      return false;
+    }
+  }
+
   async function restoreWorkbenchWindow(eagleWindow, options = {}) {
     document.body.classList.remove("collector-mode");
     if (els.collectorBar) els.collectorBar.hidden = true;
@@ -409,7 +428,8 @@
       const eagleWindow = getPluginWindowApi();
       if (!eagleWindow) return;
       const bounds = await getCurrentWindowBounds(eagleWindow);
-      if (isCollectorSizedBounds(bounds)) {
+      const restorePending = consumeWorkbenchRestorePending();
+      if (restorePending || isCollectorSizedBounds(bounds)) {
         await restoreWorkbenchWindow(eagleWindow, { clearCollectorState: false });
       }
     } catch (error) {
