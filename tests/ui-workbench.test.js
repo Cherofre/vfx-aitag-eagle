@@ -323,7 +323,7 @@ test("collection workflow exposes append, replace, clear, context menus, and col
   assert.match(html, /id="appendSelectedBtn"[^>]*>追加当前选中<\/button>/);
   assert.match(html, /id="replaceSelectedBtn"[^>]*>替换为当前选中<\/button>/);
   assert.match(html, /id="clearSelectedBtn"[^>]*>清空<\/button>/);
-  assert.match(html, /id="miniCollectorBtn"[^>]*>采集条<\/button>/);
+  assert.match(html, /id="miniCollectorBtn"[^>]*class="collector-entry-btn"/);
   assert.match(html, /id="collectorBar"/);
   assert.match(html, /id="collectorAppendBtn"/);
   assert.match(html, /id="collectorAnalyzeBtn"/);
@@ -369,9 +369,13 @@ test("collector bar becomes a real always-on-top floating window", () => {
   assert.match(js, /setResizable\(false\)/);
   assert.match(js, /setResizable\(true\)/);
   assert.match(js, /setWindowBounds\(eagleWindow,\s*await getCollectorWindowBounds\(/);
-  assert.match(js, /setWindowBounds\(eagleWindow,\s*state\.collectorPreviousBounds\)/);
+  assert.match(js, /restoreWorkbenchWindow\(eagleWindow\)/);
+  assert.match(js, /setWindowBounds\(eagleWindow,\s*getWorkbenchWindowBounds\(/);
   assert.match(js, /function getCollectorWindowBounds\(/);
   assert.match(js, /function getCurrentWindowBounds\(/);
+  assert.match(js, /function getAvailableScreenBounds\(/);
+  assert.match(js, /function clampCollectorWindowBounds\(/);
+  assert.match(js, /COLLECTOR_SCREEN_MARGIN/);
   assert.match(css, /\.collector-bar\s*{[\s\S]*border:\s*1px solid rgba\(157,\s*191,\s*232,\s*\.72\)/);
   assert.match(css, /\.collector-count-badge/);
   assert.match(css, /\.collector-title/);
@@ -383,9 +387,10 @@ test("collector bar uses prominent themed icon actions and concise labels", () =
   const js = read("plugin.js");
   const manifest = JSON.parse(read("manifest.json"));
 
-  assert.equal(manifest.main.minWidth, 760);
-  assert.equal(manifest.main.minHeight, 132);
-  assert.match(js, /height:\s*132/);
+  assert.equal(manifest.main.minWidth, 646);
+  assert.equal(manifest.main.minHeight, 112);
+  assert.match(js, /width:\s*646/);
+  assert.match(js, /height:\s*112/);
   assert.match(js, /await appendSelectedItems\("进入采集条自动收集当前选中",\s*\{ silentWhenEmpty:\s*true \}\)/);
   assert.match(html, /<strong>素材采集<\/strong>/);
   assert.match(html, /<span>边选边收<\/span>/);
@@ -398,9 +403,99 @@ test("collector bar uses prominent themed icon actions and concise labels", () =
   assert.match(html, />开始分析<\/span>/);
   assert.match(html, />清空队列<\/span>/);
   assert.match(html, />工作台<\/span>/);
-  assert.match(css, /\.collector-action\s*{[\s\S]*min-width:\s*86px[\s\S]*grid-template-rows:\s*28px auto/);
-  assert.match(css, /\.collector-icon\s*{[\s\S]*width:\s*28px[\s\S]*height:\s*28px/);
+  assert.match(css, /body\.collector-mode\s*{[\s\S]*place-items:\s*stretch/);
+  assert.match(css, /body\.collector-mode\s+\.collector-bar\s*{[\s\S]*position:\s*fixed[\s\S]*inset:\s*0/);
+  assert.match(css, /\.collector-bar\s*{[\s\S]*\n\s+height:\s*100%/);
+  assert.match(css, /\.collector-action\s*{[\s\S]*min-width:\s*74px[\s\S]*grid-template-rows:\s*24px auto/);
+  assert.match(css, /\.collector-icon\s*{[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
   assert.match(css, /\.collector-action-primary\s*{[\s\S]*background:\s*linear-gradient\(135deg,\s*rgba\(157,\s*191,\s*232,\s*\.28\)/);
   assert.match(css, /\.collector-action-accent\s*{[\s\S]*background:\s*linear-gradient\(135deg,\s*#8cb8de,\s*#a69ae0\)/);
   assert.match(css, /\.collector-action-danger\s*{[\s\S]*border-color:\s*rgba\(223,\s*118,\s*109,\s*\.48\)/);
+});
+
+test("analysis progress shows staged per-item progress while long AI work is running", () => {
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(js, /function reportAnalysisStage\(/);
+  assert.match(js, /updateAnalysisProgress\(processed,\s*itemsToAnalyze\.length,\s*item,\s*\{\s*stage,\s*itemProgress/);
+  assert.match(js, /async function analyzeItem\(item,\s*model,\s*allowedTags,\s*settings,\s*onProgress = null\)/);
+  assert.match(js, /reportAnalysisStage\(onProgress,\s*"准备素材"/);
+  assert.match(js, /reportAnalysisStage\(onProgress,\s*"调用 AI"/);
+  assert.match(js, /reportAnalysisStage\(onProgress,\s*"整理标签"/);
+  assert.match(js, /async function prepareMedia\(item,\s*settings,\s*onProgress = null\)/);
+  assert.match(js, /async function extractFramesMedia\(sourcePath,\s*kind,\s*maxFrames,\s*settings,\s*onProgress = null\)/);
+  assert.match(js, /itemProgress:\s*Math\.min\(.+?0\.95/s);
+  assert.match(js, /const effectiveDone = safeDone \+ safeItemProgress/);
+  assert.match(js, /阶段：/);
+  assert.match(css, /\.analysis-progress\.is-active\s+\.analysis-progress-bar::after/);
+});
+
+test("manual result tag editor uses a styled constrained suggestion menu and compact tags", () => {
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.doesNotMatch(js, /<datalist/);
+  assert.match(js, /data-manual-tag-menu/);
+  assert.match(js, /function renderManualTagSuggestions\(/);
+  assert.match(js, /function positionManualTagMenu\(/);
+  assert.match(js, /classList\.add\("is-open"\)/);
+  assert.match(js, /window\.addEventListener\("resize", closeManualTagMenus\)/);
+  assert.match(css, /\.review-tag\s*{[\s\S]*min-height:\s*28px[\s\S]*padding:\s*3px 7px/);
+  assert.match(css, /\.review-tag-remove\s*{[\s\S]*width:\s*18px[\s\S]*height:\s*18px/);
+  assert.match(css, /\.manual-tag-menu\s*{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*80/);
+  assert.match(css, /\.manual-tag-menu\[hidden\]\s*{[\s\S]*display:\s*none/);
+  assert.match(css, /\.manual-tag-option\s*{/);
+});
+
+test("collector entry is a primary local action before secondary material actions", () => {
+  const html = read("index.html");
+  const css = read("style.css");
+
+  const materialActions = html.match(/<div class="material-actions">([\s\S]*?)<\/div>/)?.[1] || "";
+  assert.ok(materialActions.indexOf('id="miniCollectorBtn"') < materialActions.indexOf('id="appendSelectedBtn"'));
+  assert.match(materialActions, /id="miniCollectorBtn"[^>]*class="collector-entry-btn"[^>]*aria-label="进入顶部置顶采集窗"/);
+  assert.match(materialActions, /class="button-icon"/);
+  assert.match(materialActions, />置顶采集<\/span>/);
+  assert.match(css, /\.collector-entry-btn\s*{[\s\S]*background:\s*linear-gradient\(135deg,\s*#8cb8de,\s*#a69ae0\)/);
+  assert.match(css, /\.button-icon\s*{[\s\S]*width:\s*16px[\s\S]*height:\s*16px/);
+});
+
+test("collector window clamps position and size to available screen", () => {
+  const js = read("plugin.js");
+
+  assert.match(js, /const COLLECTOR_SCREEN_MARGIN = 8/);
+  assert.match(js, /function clampNumber\(/);
+  assert.match(js, /function getAvailableScreenBounds\(fallbackBounds\)/);
+  assert.match(js, /function clampCollectorWindowBounds\(bounds,\s*screenBounds\)/);
+  assert.match(js, /const maxWidth = Math\.max\(1,\s*screenBounds\.width - COLLECTOR_SCREEN_MARGIN \* 2\)/);
+  assert.match(js, /const width = Math\.min\(bounds\.width,\s*maxWidth\)/);
+  assert.match(js, /const x = clampNumber\(bounds\.x,\s*minX,\s*maxX\)/);
+  assert.match(js, /clampCollectorWindowBounds\(ideal,\s*screenBounds\)/);
+});
+
+test("workbench restores full bounds when Eagle reopens the last collector-sized window", () => {
+  const js = read("plugin.js");
+  const manifest = JSON.parse(read("manifest.json"));
+
+  assert.equal(manifest.main.width, 1180);
+  assert.equal(manifest.main.height, 760);
+  assert.match(js, /const WORKBENCH_WINDOW_BOUNDS = \{\s*width:\s*1180,\s*height:\s*760\s*\}/);
+  assert.match(js, /await ensureWorkbenchWindowBounds\(\)/);
+  assert.match(js, /async function ensureWorkbenchWindowBounds\(/);
+  assert.match(js, /function isCollectorSizedBounds\(/);
+  assert.match(js, /bounds\.width <= COLLECTOR_WINDOW_BOUNDS\.width \+ COLLECTOR_RESTORE_TOLERANCE/);
+  assert.match(js, /bounds\.height <= COLLECTOR_WINDOW_BOUNDS\.height \+ COLLECTOR_RESTORE_TOLERANCE/);
+  assert.match(js, /await restoreWorkbenchWindow\(eagleWindow,\s*\{ clearCollectorState:\s*false \}\)/);
+});
+
+test("closing from collector mode restores workbench bounds before Eagle persists window size", () => {
+  const js = read("plugin.js");
+
+  assert.match(js, /async function closePluginWindow\(/);
+  assert.match(js, /if \(document\.body\.classList\.contains\("collector-mode"\)\) \{\s*await restoreWorkbenchWindow\(eagleWindow\);\s*\}/);
+  assert.match(js, /async function restoreWorkbenchWindow\(eagleWindow,\s*options = \{\}\)/);
+  assert.match(js, /document\.body\.classList\.remove\("collector-mode"\)/);
+  assert.match(js, /setWindowBounds\(eagleWindow,\s*getWorkbenchWindowBounds\(/);
+  assert.match(js, /state\.collectorPreviousBounds = null/);
 });

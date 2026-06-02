@@ -75,11 +75,16 @@
           <div class="panel-header">
             <h2>待分析素材</h2>
             <div class="material-actions">
+              <button id="miniCollectorBtn" class="collector-entry-btn" type="button" aria-label="进入顶部置顶采集窗">
+                <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 4v11M8 8l4-4 4 4M5 16h14M8 20h8"></path>
+                </svg>
+                <span>置顶采集</span>
+              </button>
               <button id="appendSelectedBtn" type="button">追加当前选中</button>
               <button id="replaceSelectedBtn" type="button">替换为当前选中</button>
               <button id="clearSelectedBtn" type="button">清空</button>
               <button id="showSelectedListBtn" type="button">完整列表</button>
-              <button id="miniCollectorBtn" type="button">采集条</button>
             </div>
           </div>
           <div id="selectedSummary" class="selected-summary"></div>

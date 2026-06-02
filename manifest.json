@@ -1,6 +1,6 @@
 {
   "id": "VFX_AI_TAGGER_CLI",
-  "version": "1.3.2",
+  "version": "1.3.4",
   "name": "特效 AI 标签管理",
   "logo": "/logo.png",
   "keywords": [
@@ -19,8 +19,8 @@
     "url": "index.html",
     "width": 1180,
     "height": 760,
-    "minWidth": 760,
-    "minHeight": 132,
+    "minWidth": 646,
+    "minHeight": 112,
     "resizable": true,
     "frame": false,
     "vibrancy": true,

@@ -1,17 +1,18 @@
 # Next Actions
 
 ## Now
-- [x] Collector bar now has prominent themed icon actions and copy: “素材采集 / 边选边收”.
-- [x] Entering collector mode auto-collects current Eagle selection, and the collector bar has a “清空队列” action.
+- [x] Workbench now restores `1180×760` bounds on init if Eagle reopens the persisted collector-sized window, and restores before closing from collector mode.
+- [x] Analysis progress now reports staged per-item progress instead of only 0/100 item completion.
+- [x] Review tag chips are compacted to 28px height and manual tag suggestions use a styled constrained menu instead of native `datalist`.
 - [x] `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js` pass.
-- [x] Manifest bumped to `1.3.2`, `dist\特效AI标签管理-cli.eagleplugin` repackaged, and archive contents inspected.
-- [ ] Install version `1.3.2` in Eagle and smoke-test collector bar with real selected assets.
+- [x] Manifest bumped to `1.3.4`, `dist\特效AI标签管理-cli.eagleplugin` repackaged, and archive contents inspected.
+- [ ] Install version `1.3.4` in Eagle and smoke-test default open size, collector restore, progress stages, compact tags, and manual tag menu placement.
 
 ## Handoff Notes
-- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.2` in Eagle.
-- Do not redo: collection workflow implementation, collector bar visibility/action fix, static tests, syntax checks, version bump, and package inspection are done.
-- Verify next: Eagle smoke-test right-click plugin entry append, entering collector mode auto-collects current selection, “清空队列” clears pending items/results, collector bar shrinks to the top floating window, stays always-on-top, expands back to the full workbench, and restores normal top state.
-- Do not claim: Eagle real-host smoke has passed; Browser local smoke was not rerun because current environment policy previously blocked local browser access.
+- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.4` in Eagle.
+- Do not redo: collection workflow implementation, collector entry/action fix, 15% collector scaling, screen-bound clamping, window restore hotfix, staged progress UI, compact/manual tag menu UI, static tests, syntax checks, browser static smoke, version bump, and package inspection are done.
+- Verify next: Eagle smoke-test right-click plugin entry append, “置顶采集” visibility, entering collector mode auto-collects current selection, “清空队列” clears pending items/results, collector bar shrinks to the top floating window, stays within visible screen bounds, stays always-on-top, expands/closes back to the full workbench, default reopen is not collector-sized, progress stages update during analysis, and manual tag menu appears near the input.
+- Do not claim: Eagle real-host smoke has passed; Browser local smoke only covered static layout/menu behavior outside the Eagle host.
 - Watch out for: `dist/特效AI标签管理-cli.eagleplugin` is a tracked release artifact and should be intentionally replaced when packaging changes; the new collection event hooks must not auto-start analysis.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 

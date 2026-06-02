@@ -91,10 +91,16 @@
     }
   };
   const COLLECTOR_WINDOW_BOUNDS = {
-    width: 760,
-    height: 132,
-    topOffset: 72
+    width: 646,
+    height: 112,
+    topOffset: 61
   };
+  const WORKBENCH_WINDOW_BOUNDS = {
+    width: 1180,
+    height: 760
+  };
+  const COLLECTOR_SCREEN_MARGIN = 8;
+  const COLLECTOR_RESTORE_TOLERANCE = 24;
 
   const els = {};
   const state = {
@@ -147,6 +153,7 @@
     loadStoredState();
     bindEvents();
     bindPluginRunCollection();
+    await ensureWorkbenchWindowBounds();
     await refreshAll();
     await runHealthCheck({ silent: true });
   }
@@ -168,8 +175,13 @@
       if (event.key === "Escape") {
         closeSelectedListDialog();
         closeSettingsDrawer();
+        closeManualTagMenus();
       }
     });
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".result-editor")) closeManualTagMenus();
+    });
+    window.addEventListener("resize", closeManualTagMenus);
     els.appendSelectedBtn.addEventListener("click", () => appendSelectedItems("追加当前选中"));
     els.replaceSelectedBtn.addEventListener("click", () => replaceSelectedItems("替换为当前选中"));
     els.clearSelectedBtn.addEventListener("click", () => clearSelectedQueue());
@@ -252,10 +264,13 @@
     renderAll();
   }
 
-  function closePluginWindow() {
+  async function closePluginWindow() {
     closeSettingsDrawer();
     try {
-      const eagleWindow = window.eagle && (eagle.window || eagle.pluginWindow);
+      const eagleWindow = getPluginWindowApi();
+      if (document.body.classList.contains("collector-mode")) {
+        await restoreWorkbenchWindow(eagleWindow);
+      }
       if (eagleWindow && typeof eagleWindow.close === "function") {
         eagleWindow.close();
         return;
@@ -311,6 +326,97 @@
     };
   }
 
+  function readFiniteNumber(value, fallback) {
+    const next = Number(value);
+    return Number.isFinite(next) ? next : fallback;
+  }
+
+  function readPositiveNumber(value, fallback) {
+    const next = Number(value);
+    return Number.isFinite(next) && next > 0 ? next : fallback;
+  }
+
+  function clampNumber(value, min, max) {
+    if (max < min) return min;
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function getAvailableScreenBounds(fallbackBounds) {
+    const screenInfo = window.screen || {};
+    return {
+      left: readFiniteNumber(screenInfo.availLeft, fallbackBounds.x || 0),
+      top: readFiniteNumber(screenInfo.availTop, fallbackBounds.y || 0),
+      width: readPositiveNumber(screenInfo.availWidth, fallbackBounds.width || COLLECTOR_WINDOW_BOUNDS.width),
+      height: readPositiveNumber(screenInfo.availHeight, fallbackBounds.height || COLLECTOR_WINDOW_BOUNDS.height)
+    };
+  }
+
+  function clampCollectorWindowBounds(bounds, screenBounds) {
+    const maxWidth = Math.max(1, screenBounds.width - COLLECTOR_SCREEN_MARGIN * 2);
+    const maxHeight = Math.max(1, screenBounds.height - COLLECTOR_SCREEN_MARGIN * 2);
+    const width = Math.min(bounds.width, maxWidth);
+    const height = Math.min(bounds.height, maxHeight);
+    const minX = screenBounds.left + COLLECTOR_SCREEN_MARGIN;
+    const maxX = screenBounds.left + screenBounds.width - width - COLLECTOR_SCREEN_MARGIN;
+    const minY = screenBounds.top + COLLECTOR_SCREEN_MARGIN;
+    const maxY = screenBounds.top + screenBounds.height - height - COLLECTOR_SCREEN_MARGIN;
+    const x = clampNumber(bounds.x, minX, maxX);
+    const y = clampNumber(bounds.y, minY, maxY);
+    return {
+      x: Math.round(x),
+      y: Math.round(y),
+      width: Math.round(width),
+      height: Math.round(height)
+    };
+  }
+
+  function isCollectorSizedBounds(bounds) {
+    return Boolean(
+      bounds
+      && bounds.width <= COLLECTOR_WINDOW_BOUNDS.width + COLLECTOR_RESTORE_TOLERANCE
+      && bounds.height <= COLLECTOR_WINDOW_BOUNDS.height + COLLECTOR_RESTORE_TOLERANCE
+    );
+  }
+
+  function getWorkbenchWindowBounds(sourceBounds = {}) {
+    const screenBounds = getAvailableScreenBounds(sourceBounds);
+    const useDefaultSize = isCollectorSizedBounds(sourceBounds);
+    const width = useDefaultSize ? WORKBENCH_WINDOW_BOUNDS.width : readPositiveNumber(sourceBounds.width, WORKBENCH_WINDOW_BOUNDS.width);
+    const height = useDefaultSize ? WORKBENCH_WINDOW_BOUNDS.height : readPositiveNumber(sourceBounds.height, WORKBENCH_WINDOW_BOUNDS.height);
+    const defaultX = screenBounds.left + (screenBounds.width - width) / 2;
+    const defaultY = screenBounds.top + (screenBounds.height - height) / 2;
+    return clampCollectorWindowBounds({
+      x: useDefaultSize ? defaultX : readFiniteNumber(sourceBounds.x, defaultX),
+      y: useDefaultSize ? defaultY : readFiniteNumber(sourceBounds.y, defaultY),
+      width,
+      height
+    }, screenBounds);
+  }
+
+  async function restoreWorkbenchWindow(eagleWindow, options = {}) {
+    document.body.classList.remove("collector-mode");
+    if (els.collectorBar) els.collectorBar.hidden = true;
+    if (!eagleWindow) return;
+    if (typeof eagleWindow.setResizable === "function") await eagleWindow.setResizable(true);
+    const sourceBounds = state.collectorPreviousBounds || await getCurrentWindowBounds(eagleWindow);
+    await setWindowBounds(eagleWindow, getWorkbenchWindowBounds(sourceBounds));
+    if (typeof eagleWindow.setAlwaysOnTop === "function") await eagleWindow.setAlwaysOnTop(state.collectorPreviousAlwaysOnTop);
+    if (options.clearCollectorState !== false) state.collectorPreviousBounds = null;
+  }
+
+  async function ensureWorkbenchWindowBounds() {
+    try {
+      const eagleWindow = getPluginWindowApi();
+      if (!eagleWindow) return;
+      const bounds = await getCurrentWindowBounds(eagleWindow);
+      if (isCollectorSizedBounds(bounds)) {
+        await restoreWorkbenchWindow(eagleWindow, { clearCollectorState: false });
+      }
+    } catch (error) {
+      setStatus(`恢复工作台窗口尺寸失败：${formatError(error)}`);
+    }
+  }
+
   async function getCurrentAlwaysOnTop(eagleWindow) {
     if (eagleWindow && typeof eagleWindow.isAlwaysOnTop === "function") {
       return Boolean(await eagleWindow.isAlwaysOnTop());
@@ -320,15 +426,14 @@
 
   async function getCollectorWindowBounds(eagleWindow) {
     const current = await getCurrentWindowBounds(eagleWindow);
-    const screenWidth = window.screen && window.screen.availWidth ? window.screen.availWidth : current.width;
-    const screenLeft = window.screen && typeof window.screen.availLeft === "number" ? window.screen.availLeft : 0;
-    const screenTop = window.screen && typeof window.screen.availTop === "number" ? window.screen.availTop : 0;
-    return {
-      x: Math.round(screenLeft + Math.max(0, (screenWidth - COLLECTOR_WINDOW_BOUNDS.width) / 2)),
-      y: Math.round(screenTop + COLLECTOR_WINDOW_BOUNDS.topOffset),
+    const screenBounds = getAvailableScreenBounds(current);
+    const ideal = {
+      x: screenBounds.left + (screenBounds.width - COLLECTOR_WINDOW_BOUNDS.width) / 2,
+      y: screenBounds.top + COLLECTOR_WINDOW_BOUNDS.topOffset,
       width: COLLECTOR_WINDOW_BOUNDS.width,
       height: COLLECTOR_WINDOW_BOUNDS.height
     };
+    return clampCollectorWindowBounds(ideal, screenBounds);
   }
 
   async function setWindowBounds(eagleWindow, bounds) {
@@ -368,14 +473,9 @@
   }
 
   async function exitCollectorMode() {
-    document.body.classList.remove("collector-mode");
-    if (els.collectorBar) els.collectorBar.hidden = true;
     try {
       const eagleWindow = getPluginWindowApi();
-      if (eagleWindow && typeof eagleWindow.setResizable === "function") await eagleWindow.setResizable(true);
-      await setWindowBounds(eagleWindow, state.collectorPreviousBounds);
-      if (eagleWindow && typeof eagleWindow.setAlwaysOnTop === "function") await eagleWindow.setAlwaysOnTop(state.collectorPreviousAlwaysOnTop);
-      state.collectorPreviousBounds = null;
+      await restoreWorkbenchWindow(eagleWindow);
     } catch (error) {
       setStatus(`展开工作台失败：${formatError(error)}`);
     }
@@ -427,7 +527,7 @@
       { label: "替换为当前选中", action: () => replaceSelectedItems("右键菜单替换当前选中") },
       { label: "清空待分析素材", action: () => clearSelectedQueue() },
       { label: "打开完整列表", action: openSelectedListDialog, disabled: !state.selectedItems.length },
-      { label: "收起为采集条", action: enterCollectorMode }
+      { label: "进入置顶采集", action: enterCollectorMode }
     ]);
   }
 
@@ -905,7 +1005,7 @@
     state.pauseRequested = false;
     state.paused = false;
     let processed = 0;
-    updateAnalysisProgress(processed, itemsToAnalyze.length, itemsToAnalyze[0]);
+    updateAnalysisProgress(processed, itemsToAnalyze.length, itemsToAnalyze[0], { stage: "准备队列", itemProgress: 0.02 });
     if (!hasPendingResults) {
       state.results = state.selectedItems.map((item) => createPendingResult(item));
       resetWriteProgress();
@@ -917,15 +1017,23 @@
     try {
       await runWithConcurrency(itemsToAnalyze, settings.concurrency, async (item) => {
         const current = state.results.find((result) => result.id === getItemId(item));
+        let lastStage = "";
+        const reportStage = (stage, itemProgress) => {
+          updateAnalysisProgress(processed, itemsToAnalyze.length, item, { stage, itemProgress: Math.min(itemProgress, 0.95) });
+          if (current && stage && stage !== lastStage) {
+            lastStage = stage;
+            updateResult(current.id, { message: `分析中：${stage}` });
+          }
+        };
         try {
           if (!current) return;
-          updateAnalysisProgress(processed, itemsToAnalyze.length, item);
+          updateAnalysisProgress(processed, itemsToAnalyze.length, item, { stage: "准备素材", itemProgress: 0.04 });
           updateResult(current.id, { status: "running", message: "分析中" });
           if (settings.skipTagged && Array.isArray(item.tags) && item.tags.length) {
             updateResult(current.id, { status: "skipped", message: "已有标签，已跳过" });
             return;
           }
-          const result = await analyzeItem(item, model, allowedTags, settings);
+          const result = await analyzeItem(item, model, allowedTags, settings, reportStage);
           updateResult(current.id, result);
         } catch (error) {
           updateResult(current.id, {
@@ -941,7 +1049,7 @@
           });
         } finally {
           processed += 1;
-          updateAnalysisProgress(processed, itemsToAnalyze.length, item);
+          updateAnalysisProgress(processed, itemsToAnalyze.length, item, { stage: "完成", itemProgress: 1 });
         }
       });
     } finally {
@@ -977,15 +1085,21 @@
     await analyzeSelected();
   }
 
-  async function analyzeItem(item, model, allowedTags, settings) {
-    const media = await prepareMedia(item, settings);
+  async function analyzeItem(item, model, allowedTags, settings, onProgress = null) {
+    let media = null;
     let diagnosticPath = "";
     let diagnostics = null;
     try {
+      reportAnalysisStage(onProgress, "准备素材", 0.08);
+      media = await prepareMedia(item, settings, onProgress);
+      reportAnalysisStage(onProgress, `已准备 ${media.frameCount} 张图像`, 0.34);
+      reportAnalysisStage(onProgress, "保存诊断", 0.38);
       const savedDiagnostics = saveDiagnostics(item, media, settings);
       diagnosticPath = savedDiagnostics.path;
       diagnostics = savedDiagnostics.diagnostics;
-      const object = await requestAiTagsWithRetry(item, model, allowedTags, settings, media);
+      reportAnalysisStage(onProgress, "调用 AI", 0.45);
+      const object = await requestAiTagsWithRetry(item, model, allowedTags, settings, media, onProgress);
+      reportAnalysisStage(onProgress, "整理标签", 0.88);
       const candidates = normalizeTagCandidates(Array.isArray(object.tags) ? object.tags : [], object.confidence);
       const allowed = new Set(allowedTags);
       const filteredTags = candidates.filter((tag) => !allowed.has(tag.name)).map((tag) => tag.name);
@@ -1002,9 +1116,11 @@
       const hiddenCount = allowedCandidates.filter((tag) => tag.confidence < settings.hideConfidence).length;
       let autoSaved = false;
       if (autoTags.length && typeof item.save === "function" && !item.external) {
+        reportAnalysisStage(onProgress, "写入高置信标签", 0.94);
         await mergeTagsIntoItem(item, autoTags.map((tag) => tag.name), settings.writeAnnotation ? object.reason : "", "自动写入高置信标签");
         autoSaved = true;
       }
+      reportAnalysisStage(onProgress, "完成", 0.98);
       const tags = reviewTags.map((tag) => tag.name);
       const messageParts = [];
       if (object.backend) messageParts.push(`后端：${formatBackendLabel(object.backend)}`);
@@ -1039,23 +1155,31 @@
     }
   }
 
-  async function requestAiTagsWithRetry(item, model, allowedTags, settings, media) {
+  function reportAnalysisStage(onProgress, stage, itemProgress) {
+    if (typeof onProgress !== "function") return;
+    onProgress(stage, clampNumber(itemProgress, 0, 0.98, 0));
+  }
+
+  async function requestAiTagsWithRetry(item, model, allowedTags, settings, media, onProgress = null) {
     let lastError = null;
     const retryCount = clampNumber(settings.aiRetryCount, 0, 10, AI_RETRY_COUNT);
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
       try {
-        return await requestAiTags(item, model, allowedTags, settings, media);
+        if (attempt > 0) reportAnalysisStage(onProgress, `重试 AI ${attempt}/${retryCount}`, 0.46);
+        return await requestAiTags(item, model, allowedTags, settings, media, onProgress);
       } catch (error) {
         lastError = error;
         if (attempt >= retryCount || !isRetryableAiError(error)) break;
+        reportAnalysisStage(onProgress, `等待重试 ${attempt + 1}/${retryCount}`, 0.46);
         await delay(AI_RETRY_BASE_DELAY_MS * Math.pow(2, attempt));
       }
     }
     throw new Error(`AI 请求失败，已重试 ${retryCount} 次：${formatError(lastError)}`);
   }
 
-  async function requestAiTags(item, model, allowedTags, settings, media) {
+  async function requestAiTags(item, model, allowedTags, settings, media, onProgress = null) {
     const plan = buildAiRequestPlan(item, allowedTags, settings, media);
+    reportAnalysisStage(onProgress, "规划请求", 0.42);
     if (plan.requestCount > 1) {
       const message = `AI 请求将分为 ${plan.requestCount} 次：图片组 ${plan.mediaChunkCount}，标签组 ${plan.maxTagChunkCount}。`;
       setStatus(message);
@@ -1070,15 +1194,19 @@
     for (let index = 0; index < plan.requests.length; index += 1) {
       if (state.pauseRequested) throw new Error("分析已暂停");
       const request = plan.requests[index];
+      const requestStart = 0.48 + (index / plan.requestCount) * 0.34;
+      reportAnalysisStage(onProgress, `调用 AI ${index + 1}/${plan.requestCount}`, requestStart);
       const object = await requestAiTagsSingle(item, model, request.allowedTags, settings, request.media, {
         ...request.chunkInfo,
         chunkIndex: index,
         chunkCount: plan.requestCount
       });
+      reportAnalysisStage(onProgress, `接收结果 ${index + 1}/${plan.requestCount}`, Math.min(requestStart + 0.18 / plan.requestCount, 0.84));
       object.__allowedTags = request.allowedTags;
       object.__chunkInfo = request.chunkInfo;
       objects.push(object);
     }
+    reportAnalysisStage(onProgress, "合并结果", 0.86);
     const merged = mergeAiObjects(objects, plan.requestCount > 1 ? Math.max(settings.maxTags * 3, settings.maxTags + 12) : settings.maxTags);
     merged.__requestPlan = {
       requestCount: plan.requestCount,
@@ -1362,31 +1490,35 @@
     return output;
   }
 
-  async function prepareMedia(item, settings) {
+  async function prepareMedia(item, settings, onProgress = null) {
     const sourcePath = getItemFilePath(item);
     const ext = getItemExt(item, sourcePath);
+    reportAnalysisStage(onProgress, "检查素材格式", 0.1);
     if (!sourcePath && !getItemPreviewPath(item)) {
       throw new Error("找不到原文件或预览图路径");
     }
     if (ext === "png" && await isAnimatedPng(sourcePath)) {
-      return extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings);
+      return extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings, onProgress);
     }
     if (STATIC_IMAGE_EXTS.has(ext)) {
+      reportAnalysisStage(onProgress, "读取图片", 0.28);
       return singleImageMedia(sourcePath || getItemPreviewPath(item), "image");
     }
     if (ext === WEBP_EXT) {
       const animated = await isAnimatedWebp(sourcePath);
-      return animated ? extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings) : singleImageMedia(sourcePath, "image");
+      if (!animated) reportAnalysisStage(onProgress, "读取图片", 0.28);
+      return animated ? extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings, onProgress) : singleImageMedia(sourcePath, "image");
     }
     if (ANIMATED_EXTS.has(ext)) {
-      return extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings);
+      return extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings, onProgress);
     }
     if (VIDEO_EXTS.has(ext)) {
-      return extractFramesMedia(sourcePath, "video", settings.maxVideoFrames, settings);
+      return extractFramesMedia(sourcePath, "video", settings.maxVideoFrames, settings, onProgress);
     }
     if (PREVIEW_EXTS.has(ext)) {
       const preview = getItemPreviewPath(item);
       if (!preview) throw new Error("该设计文件没有可用预览图");
+      reportAnalysisStage(onProgress, "读取预览图", 0.28);
       return singleImageMedia(preview, "preview");
     }
     throw new Error(`暂不支持该文件格式：${ext || "未知"}`);
@@ -1404,20 +1536,24 @@
     };
   }
 
-  async function extractFramesMedia(sourcePath, kind, maxFrames, settings) {
+  async function extractFramesMedia(sourcePath, kind, maxFrames, settings, onProgress = null) {
     if (!sourcePath) throw new Error("找不到可抽帧的原文件路径");
     if (!fs || !os || !path || !cp) throw new Error("当前插件环境缺少 Node.js 能力，无法抽帧");
+    reportAnalysisStage(onProgress, "检测 FFmpeg", 0.12);
     const ffmpegPaths = await getFfmpegPaths();
     if (!ffmpegPaths.ffmpeg || !ffmpegPaths.ffprobe) throw new Error("未检测到 Eagle FFmpeg 扩展");
+    reportAnalysisStage(onProgress, "读取媒体时长", 0.15);
     const duration = await probeDuration(sourcePath);
     const times = computeFrameTimes(duration, settings.frameStepSeconds, maxFrames, settings.skipStart, settings.skipEnd);
     if (!times.length) throw new Error("无法计算抽帧时间点");
+    reportAnalysisStage(onProgress, `抽帧 0/${times.length}`, 0.17);
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "vfx-ai-tagger-"));
     const frames = [];
     for (let index = 0; index < times.length; index += 1) {
       const output = path.join(tempDir, `frame-${String(index + 1).padStart(3, "0")}.jpg`);
       await runFfmpegExtract(ffmpegPaths.ffmpeg, sourcePath, output, times[index]);
       if (fs.existsSync(output)) frames.push(output);
+      reportAnalysisStage(onProgress, `抽帧 ${index + 1}/${times.length}`, 0.17 + ((index + 1) / times.length) * 0.18);
     }
     if (!frames.length) throw new Error("抽帧失败，没有生成可分析图片");
     return {
@@ -1620,7 +1756,7 @@
     updateWriteProgress(saved + failed, ready.length, failed, finalStatus);
   }
 
-  function updateAnalysisProgress(processed, total, currentItem) {
+  function updateAnalysisProgress(processed, total, currentItem, detail = {}) {
     if (!els.analysisProgressPanel || !els.analysisProgressBar) return;
     const safeTotal = Math.max(0, Number(total) || 0);
     if (!safeTotal) {
@@ -1628,16 +1764,20 @@
       return;
     }
     const safeDone = Math.min(safeTotal, Math.max(0, Number(processed) || 0));
-    const percent = Math.round((safeDone / safeTotal) * 100);
+    const safeItemProgress = safeDone >= safeTotal ? 0 : Math.min(clampNumber(detail.itemProgress, 0, 1, 0), 0.95);
+    const effectiveDone = safeDone + safeItemProgress;
+    const percent = Math.round((effectiveDone / safeTotal) * 100);
     const counts = getAnalysisProgressCounts();
     const currentName = currentItem ? getItemName(currentItem) : "";
     els.analysisProgressPanel.hidden = false;
+    els.analysisProgressPanel.classList.toggle("is-active", safeDone < safeTotal);
     els.analysisProgressText.textContent = safeDone >= safeTotal ? `分析完成 ${safeDone}/${safeTotal}` : `分析中 ${safeDone}/${safeTotal}`;
     els.analysisProgressPercent.textContent = `${percent}%`;
     els.analysisProgressBar.style.width = `${percent}%`;
     const track = els.analysisProgressPanel.querySelector(".analysis-progress-track");
     if (track) track.setAttribute("aria-valuenow", String(percent));
     els.analysisProgressMeta.textContent = [
+      detail.stage && safeDone < safeTotal ? `阶段：${detail.stage}` : "",
       currentName && safeDone < safeTotal ? `当前：${currentName}` : "",
       `待写入 ${counts.ready}`,
       `已写入 ${counts.applied}`,
@@ -1649,6 +1789,7 @@
   function resetAnalysisProgress() {
     if (!els.analysisProgressPanel || !els.analysisProgressBar) return;
     els.analysisProgressPanel.hidden = true;
+    els.analysisProgressPanel.classList.remove("is-active");
     els.analysisProgressText.textContent = "等待分析";
     els.analysisProgressPercent.textContent = "0%";
     els.analysisProgressBar.style.width = "0%";
@@ -2463,8 +2604,22 @@
       button.addEventListener("click", () => addManualTagToResult(button.dataset.addManualTag));
     });
     els.results.querySelectorAll("[data-manual-tag-input]").forEach((input) => {
+      input.addEventListener("focus", () => renderManualTagSuggestions(input.dataset.manualTagInput));
+      input.addEventListener("input", () => renderManualTagSuggestions(input.dataset.manualTagInput));
       input.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") addManualTagToResult(input.dataset.manualTagInput);
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addManualTagToResult(input.dataset.manualTagInput);
+        }
+        if (event.key === "Escape") closeManualTagMenus();
+      });
+    });
+    els.results.querySelectorAll("[data-manual-tag-menu]").forEach((menu) => {
+      menu.addEventListener("mousedown", (event) => {
+        const option = event.target.closest("[data-manual-tag-option]");
+        if (!option) return;
+        event.preventDefault();
+        selectManualTagSuggestion(menu.dataset.manualTagMenu, option.dataset.manualTagOption);
       });
     });
     els.results.querySelectorAll("[data-reanalyze-result]").forEach((button) => {
@@ -2540,18 +2695,96 @@
 
   function renderResultEditor(result) {
     if (["pending", "running"].includes(result.status)) return "";
-    const options = getAllowedTags()
-      .slice(0, 400)
-      .map((tag) => `<option value="${escapeHtml(tag)}"></option>`)
-      .join("");
-    const listId = `tag-options-${safeDomId(result.id)}`;
+    const menuId = `manual-tag-menu-${safeDomId(result.id)}`;
     return `
       <div class="result-editor">
-        <input type="search" list="${escapeHtml(listId)}" data-manual-tag-input="${escapeHtml(result.id)}" placeholder="搜索或输入标签">
-        <datalist id="${escapeHtml(listId)}">${options}</datalist>
+        <input type="search" data-manual-tag-input="${escapeHtml(result.id)}" aria-controls="${escapeHtml(menuId)}" aria-expanded="false" autocomplete="off" placeholder="搜索或输入标签">
         <button type="button" data-add-manual-tag="${escapeHtml(result.id)}">添加标签</button>
+        <div id="${escapeHtml(menuId)}" class="manual-tag-menu" data-manual-tag-menu="${escapeHtml(result.id)}" hidden></div>
       </div>
     `;
+  }
+
+  function getManualTagInput(resultId) {
+    return Array.from(els.results.querySelectorAll("[data-manual-tag-input]"))
+      .find((candidate) => candidate.dataset.manualTagInput === resultId);
+  }
+
+  function getManualTagMenu(resultId) {
+    return Array.from(els.results.querySelectorAll("[data-manual-tag-menu]"))
+      .find((candidate) => candidate.dataset.manualTagMenu === resultId);
+  }
+
+  function renderManualTagSuggestions(resultId) {
+    const input = getManualTagInput(resultId);
+    const menu = getManualTagMenu(resultId);
+    const result = state.results.find((item) => item.id === resultId);
+    if (!input || !menu || !result) return;
+    const query = cleanTag(input.value);
+    const selected = new Set((Array.isArray(result.reviewTags) ? result.reviewTags : []).map((tag) => tag.name));
+    const matches = getAllowedTags()
+      .filter((tag) => !selected.has(tag))
+      .filter((tag) => !query || tag.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 12);
+    const canCreate = query && !selected.has(query) && !matches.some((tag) => tag === query);
+    const createOption = canCreate
+      ? `<button type="button" class="manual-tag-option create" data-manual-tag-option="${escapeHtml(query)}"><span>新增“${escapeHtml(query)}”</span><small>加入本次标签池</small></button>`
+      : "";
+    const matchOptions = matches.map((tag) => `
+      <button type="button" class="manual-tag-option" data-manual-tag-option="${escapeHtml(tag)}">
+        <span>${escapeHtml(tag)}</span>
+        <small>${state.eagleTags.includes(tag) ? "Eagle 标签" : "本次标签"}</small>
+      </button>
+    `).join("");
+    if (!createOption && !matchOptions) {
+      closeManualTagMenu(resultId);
+      return;
+    }
+    menu.innerHTML = `${createOption}${matchOptions}`;
+    menu.hidden = false;
+    menu.classList.add("is-open");
+    input.setAttribute("aria-expanded", "true");
+    positionManualTagMenu(input, menu);
+  }
+
+  function positionManualTagMenu(input, menu) {
+    const rect = input.getBoundingClientRect();
+    const margin = 8;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1180;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 760;
+    const width = Math.min(Math.max(rect.width, 220), viewportWidth - margin * 2);
+    menu.style.width = `${Math.round(width)}px`;
+    menu.style.left = `${Math.round(clampNumber(rect.left, margin, viewportWidth - width - margin, margin))}px`;
+    const maxHeight = Math.min(260, Math.max(120, viewportHeight - margin * 2));
+    menu.style.maxHeight = `${Math.round(maxHeight)}px`;
+    const menuHeight = Math.min(menu.scrollHeight || maxHeight, maxHeight);
+    const belowTop = rect.bottom + 6;
+    const aboveTop = rect.top - menuHeight - 6;
+    const top = belowTop + menuHeight <= viewportHeight - margin ? belowTop : Math.max(margin, aboveTop);
+    menu.style.top = `${Math.round(top)}px`;
+  }
+
+  function selectManualTagSuggestion(resultId, tagName) {
+    const input = getManualTagInput(resultId);
+    if (input) input.value = tagName || "";
+    addManualTagToResult(resultId);
+  }
+
+  function closeManualTagMenu(resultId) {
+    const menu = getManualTagMenu(resultId);
+    const input = getManualTagInput(resultId);
+    if (menu) {
+      menu.hidden = true;
+      menu.classList.remove("is-open");
+      menu.innerHTML = "";
+    }
+    if (input) input.setAttribute("aria-expanded", "false");
+  }
+
+  function closeManualTagMenus() {
+    els.results.querySelectorAll("[data-manual-tag-menu]").forEach((menu) => {
+      closeManualTagMenu(menu.dataset.manualTagMenu);
+    });
   }
 
   async function retryFailedResults() {
@@ -2684,6 +2917,7 @@
     }
     result.tags = getSelectedReviewTags(result).map((item) => item.name);
     if (input) input.value = "";
+    closeManualTagMenu(resultId);
     saveResultsState();
     renderAll();
   }
