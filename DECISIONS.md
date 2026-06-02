@@ -16,8 +16,16 @@
 - 2026-06-02: Build productivity workbench enhancements on `codex/productivity-workbench` with TDD and package as version `1.2.0`.
 - 2026-06-02: Keep the topbar to primary global actions only; material actions live in the material panel and long material lists open in a local dialog.
 - 2026-06-02: Closed local dialogs must use real hidden/display state so transparent fixed panels cannot intercept clicks.
+- 2026-06-02: Use collection workflow instead of Eagle host-menu injection for right-click analysis.
 
 ## Decision Log
+
+## 2026-06-02 - Collection workflow instead of host injection
+- Status: active
+- Decision: Do not patch or inject Eagle's host context menu. Use Eagle's plugin entry to open/show the plugin, then append current Eagle selection via plugin events; provide plugin-internal context menus through `eagle.contextMenu.open()` and a fallback menu.
+- Reason: Official APIs support plugin-local context menus and selected item reads, while host menu injection would be fragile across Eagle updates and could destabilize the main app.
+- Alternatives considered: Always-on-top full workbench and host DOM/menu patching; skipped because both increase visual friction or upgrade risk.
+- Consequences / follow-up: Eagle smoke must verify that right-click plugin entry still preserves current selection when the plugin is opened or shown.
 
 ## 2026-06-02 - Closed dialog hit testing
 - Status: active

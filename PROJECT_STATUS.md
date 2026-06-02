@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-02 12:12
-- Phase: productivity workbench button-hit fix packaged
+- Last Updated: 2026-06-02 17:03
+- Phase: collection workflow packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
-- Branch: codex/productivity-workbench
-- Goal: 修复 `1.2.1` 中素材完整列表弹窗关闭后仍截获点击，导致很多按钮点不了的问题。
-- Current Focus: Button-hit regression fix is implemented, verified, and packaged as version `1.2.2`.
+- Branch: codex/collection-workflow
+- Goal: 做连续采集工作流：右键/插件入口追加 Eagle 当前选中，支持追加/替换/清空、插件内右键菜单和采集条。
+- Current Focus: Collection workflow is implemented, verified, and packaged as version `1.3.0`.
 - Superpowers Spec: none
-- Superpowers Plan: user-provided plan in chat, 2026-06-02
-- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.2.2` in Eagle and smoke-test buttons, material full list, and settings drawer.
+- Superpowers Plan: `docs/superpowers/plans/2026-06-02-collection-workflow.md`
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.0` in Eagle and smoke-test the collection workflow.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.2.2` in Eagle.
-- Next verification: Eagle real-host smoke for clickable topbar/material/result buttons, material full list open/close, settings drawer open/close, analysis progress, presets, failed retry, manual tag editing, write/undo, and Claude/Codex/Eagle AI backends.
+- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.0` in Eagle.
+- Next verification: Eagle real-host smoke for right-click plugin entry append, append/replace/clear, full list, plugin-internal context menus, collector bar expand/analyze/close, settings drawer, write/undo, and Claude/Codex/Eagle AI backends.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -58,14 +58,19 @@
 - [x] Bumped manifest to `1.2.1`, updated README, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
 - [x] Fixed closed selected-material full-list dialog intercepting clicks by adding real `hidden` state, CSS `display: none`, and JS open/close hidden toggles.
 - [x] Bumped manifest to `1.2.2`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Pushed `codex/productivity-workbench` to `origin/codex/productivity-workbench`.
+- [x] Created branch `codex/collection-workflow` from the packaged productivity workbench state.
+- [x] Added plan `docs/superpowers/plans/2026-06-02-collection-workflow.md`.
+- [x] Implemented append/replace/clear current Eagle selection, plugin event append, internal context menus, and collector bar mode.
+- [x] Bumped manifest to `1.3.0`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
 
 ## Verification
-- Last command: package inspection via `System.IO.Compression.ZipFile`.
+- Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`
 - Result: pass
-- Evidence / notes: Added RED UI contract test for closed selected-material dialog hit testing; it initially failed because `selectedListDialog` lacked `hidden`. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 25 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Browser local smoke was attempted but blocked by current environment network policy for `127.0.0.1`, so no browser workaround was used. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.2.2`, `devTools: false`. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: Added RED UI contract test for collection workflow; it initially failed because append/replace/clear/context-menu/collector controls were absent. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 26 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.0`, `devTools: false`. Browser local smoke was not rerun because the current environment previously blocked local browser access; Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
-- Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially buttons that were previously unclickable.
+- Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially right-click plugin entry append and collector bar sizing.
 - Current UI fix must preserve single-screen body no-scroll and keep material-list scrolling local to the selected-material modal/panel.
 - New health checks must remain lightweight and must not perform real AI requests.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.

@@ -15,7 +15,7 @@
 **Files:**
 - Modify: `tests/ui-workbench.test.js`
 
-- [ ] **Step 1: Write failing UI contract tests**
+- [x] **Step 1: Write failing UI contract tests**
 
 Add tests that assert:
 - material controls expose `appendSelectedBtn`, `replaceSelectedBtn`, `clearSelectedBtn`, `showSelectedListBtn`, and `miniCollectorBtn`
@@ -23,7 +23,7 @@ Add tests that assert:
 - selected rows expose `data-item-id` for item-level context menus
 - collector bar markup and CSS exist
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run:
 
@@ -41,7 +41,7 @@ Expected: FAIL because the new controls/functions are not present yet.
 - Modify: `style.css`
 - Modify: `README.md`
 
-- [ ] **Step 1: Implement material controls**
+- [x] **Step 1: Implement material controls**
 
 Replace the old ambiguous material buttons with:
 - `追加当前选中`
@@ -50,7 +50,7 @@ Replace the old ambiguous material buttons with:
 - `完整列表`
 - `采集条`
 
-- [ ] **Step 2: Implement selection queue helpers**
+- [x] **Step 2: Implement selection queue helpers**
 
 Add helpers:
 - `fetchEagleSelectedItems()`
@@ -65,7 +65,7 @@ Rules:
 - clear clears selected items, results, analysis progress, write progress, and closes the full-list dialog
 - status text reports added/skipped counts
 
-- [ ] **Step 3: Preserve analysis behavior**
+- [x] **Step 3: Preserve analysis behavior**
 
 Keep `analyzeSelected()` reading `state.selectedItems` exactly as before after the queue has been updated.
 
@@ -75,7 +75,7 @@ Keep `analyzeSelected()` reading `state.selectedItems` exactly as before after t
 - Modify: `plugin.js`
 - Modify: `README.md`
 
-- [ ] **Step 1: Bind Eagle plugin events defensively**
+- [x] **Step 1: Bind Eagle plugin events defensively**
 
 Add `bindPluginRunCollection()` during initialization.
 
@@ -85,7 +85,7 @@ Behavior:
 - event binding must no-op outside Eagle or on Eagle versions without these events
 - do not start analysis from these events
 
-- [ ] **Step 2: Avoid duplicate noise**
+- [x] **Step 2: Avoid duplicate noise**
 
 If no new items are added, status says `当前选中素材已在待分析列表中` rather than replacing the queue.
 
@@ -95,7 +95,7 @@ If no new items are added, status says `当前选中素材已在待分析列表�
 - Modify: `plugin.js`
 - Modify: `style.css`
 
-- [ ] **Step 1: Add right-click handlers**
+- [x] **Step 1: Add right-click handlers**
 
 Add plugin-internal context menus using `eagle.contextMenu.open()` when available, with a DOM fallback for unsupported hosts.
 
@@ -105,7 +105,7 @@ Menus:
 - result card: reanalyze item, write this item when ready, copy selected tags, remove result
 - tag chip: copy tag name, remove from this session tag pool
 
-- [ ] **Step 2: Keep disabled states clear**
+- [x] **Step 2: Keep disabled states clear**
 
 Menu items that cannot run should either be omitted or disabled by local checks.
 
@@ -116,7 +116,7 @@ Menu items that cannot run should either be omitted or disabled by local checks.
 - Modify: `style.css`
 - Modify: `plugin.js`
 
-- [ ] **Step 1: Add collector bar shell**
+- [x] **Step 1: Add collector bar shell**
 
 Add a hidden `collectorBar` outside the main workbench with:
 - queue count
@@ -125,11 +125,11 @@ Add a hidden `collectorBar` outside the main workbench with:
 - expand workbench
 - close
 
-- [ ] **Step 2: Implement mode switch**
+- [x] **Step 2: Implement mode switch**
 
 `enterCollectorMode()` stores the current workbench window size when possible, adds `collector-mode` to `body`, and asks Eagle window API for a compact size when available. `exitCollectorMode()` restores the full workbench class and previous size when possible.
 
-- [ ] **Step 3: Keep analysis deliberate**
+- [x] **Step 3: Keep analysis deliberate**
 
 Collector bar `分析` expands the workbench and focuses the normal analysis flow; it does not silently analyze unless the normal analyze button behavior is explicitly invoked by the user.
 
@@ -142,7 +142,7 @@ Collector bar `分析` expands the workbench and focuses the normal analysis flo
 - Modify: `NEXT_ACTIONS.md`
 - Modify: `DECISIONS.md`
 
-- [ ] **Step 1: Run checks**
+- [x] **Step 1: Run checks**
 
 Run:
 
@@ -152,7 +152,7 @@ node --check plugin.js
 node --check cli-backends.js
 ```
 
-- [ ] **Step 2: Bump and package**
+- [x] **Step 2: Bump and package**
 
 Bump manifest to `1.3.0` and repackage only:
 
@@ -166,10 +166,10 @@ README.md
 style.css
 ```
 
-- [ ] **Step 3: Inspect package**
+- [x] **Step 3: Inspect package**
 
 Confirm package manifest is `VFX_AI_TAGGER_CLI`, version `1.3.0`, `devTools=false`.
 
-- [ ] **Step 4: Update ledger and commit**
+- [x] **Step 4: Update ledger and commit**
 
 Record verification evidence, Eagle smoke gaps, and dirty-tree note for `docs/vfx-tag-taxonomy-review.md`.
