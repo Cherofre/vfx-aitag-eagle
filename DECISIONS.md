@@ -15,8 +15,16 @@
 - 2026-06-02: Merge 0601 reliability features on `codex/merge-author-0601-features` and package as version `1.1.4`.
 - 2026-06-02: Build productivity workbench enhancements on `codex/productivity-workbench` with TDD and package as version `1.2.0`.
 - 2026-06-02: Keep the topbar to primary global actions only; material actions live in the material panel and long material lists open in a local dialog.
+- 2026-06-02: Closed local dialogs must use real hidden/display state so transparent fixed panels cannot intercept clicks.
 
 ## Decision Log
+
+## 2026-06-02 - Closed dialog hit testing
+- Status: active
+- Decision: Any closed fixed-position local dialog must be removed from hit testing with `hidden` plus CSS `display: none`, and open/close functions must toggle that state alongside visual classes.
+- Reason: The selected-material full-list dialog used opacity/transform without `hidden`, so it stayed above the workbench and made many underlying buttons unclickable.
+- Alternatives considered: Rely on `aria-hidden` or opacity only; skipped because those affect accessibility/visual state but do not remove the element from pointer hit testing.
+- Consequences / follow-up: Install package `1.2.2` in Eagle and verify buttons are clickable before and after opening/closing “完整列表”.
 
 ## 2026-06-02 - Compact toolbar and material list
 - Status: active

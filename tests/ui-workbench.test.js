@@ -298,3 +298,15 @@ test("compact workbench keeps material actions local and exposes analysis progre
   assert.match(css, /\.analysis-progress\s*{/);
   assert.match(css, /\.analysis-progress-bar\s*{/);
 });
+
+test("closed selected material dialog is removed from hit testing", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  const dialogTag = html.match(/<section id="selectedListDialog"[^>]*>/)?.[0] || "";
+  assert.match(dialogTag, /\shidden(?:\s|>)/);
+  assert.match(css, /\.selected-list-dialog\[hidden\]\s*{[\s\S]*display:\s*none/);
+  assert.match(js, /els\.selectedListDialog\.hidden\s*=\s*false/);
+  assert.match(js, /els\.selectedListDialog\.hidden\s*=\s*true/);
+});

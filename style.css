@@ -477,6 +477,10 @@ h2 {
   transform: translateY(0);
 }
 
+.selected-list-dialog[hidden] {
+  display: none;
+}
+
 .selected-list-dialog-head {
   display: flex;
   align-items: flex-start;

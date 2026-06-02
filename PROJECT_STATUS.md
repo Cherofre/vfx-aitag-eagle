@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-02 11:25
-- Phase: productivity workbench UI fix packaged
+- Last Updated: 2026-06-02 12:12
+- Phase: productivity workbench button-hit fix packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/productivity-workbench
-- Goal: 修复 `1.2.0` 工作台顶栏换行/滚动条错乱，补分析进度，并把素材完整列表收进素材区域。
-- Current Focus: Compact-toolbar UI fix is implemented, verified, and packaged as version `1.2.1`.
+- Goal: 修复 `1.2.1` 中素材完整列表弹窗关闭后仍截获点击，导致很多按钮点不了的问题。
+- Current Focus: Button-hit regression fix is implemented, verified, and packaged as version `1.2.2`.
 - Superpowers Spec: none
 - Superpowers Plan: user-provided plan in chat, 2026-06-02
-- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.2.1` in Eagle and smoke-test the toolbar/material-list/progress layout.
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.2.2` in Eagle and smoke-test buttons, material full list, and settings drawer.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.2.1` in Eagle.
-- Next verification: Eagle real-host smoke for compact topbar, material full list, analysis progress, presets, failed retry, manual tag editing, write/undo, and Claude/Codex/Eagle AI backends.
+- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.2.2` in Eagle.
+- Next verification: Eagle real-host smoke for clickable topbar/material/result buttons, material full list open/close, settings drawer open/close, analysis progress, presets, failed retry, manual tag editing, write/undo, and Claude/Codex/Eagle AI backends.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -56,14 +56,16 @@
 - [x] Moved material import/refresh/full-list actions into the selected-material panel.
 - [x] Added local selected-material full-list dialog and analysis progress bar.
 - [x] Bumped manifest to `1.2.1`, updated README, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Fixed closed selected-material full-list dialog intercepting clicks by adding real `hidden` state, CSS `display: none`, and JS open/close hidden toggles.
+- [x] Bumped manifest to `1.2.2`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
 
 ## Verification
 - Last command: package inspection via `System.IO.Compression.ZipFile`.
 - Result: pass
-- Evidence / notes: Added RED UI contract test for compact toolbar/material actions/full selected list/analysis progress; it initially failed because topbar still contained material/undo actions. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 24 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Browser smoke via local HTTP server: at `1180x760` and `980x640`, `body.scrollHeight` and `html.scrollHeight` equaled viewport height; at `980x640`, top actions stayed inside topbar after fixing the `max-width: 980px` media query. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.2.1`, `devTools: false`. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: Added RED UI contract test for closed selected-material dialog hit testing; it initially failed because `selectedListDialog` lacked `hidden`. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 25 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Browser local smoke was attempted but blocked by current environment network policy for `127.0.0.1`, so no browser workaround was used. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.2.2`, `devTools: false`. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
-- Needs final manual smoke in Eagle with real selected assets and local CLI backends.
+- Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially buttons that were previously unclickable.
 - Current UI fix must preserve single-screen body no-scroll and keep material-list scrolling local to the selected-material modal/panel.
 - New health checks must remain lightweight and must not perform real AI requests.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.

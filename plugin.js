@@ -251,6 +251,7 @@
     if (!els.selectedListDialog || !els.selectedListOverlay) return;
     renderSelectedFullList();
     els.selectedListOverlay.hidden = false;
+    els.selectedListDialog.hidden = false;
     requestAnimationFrame(() => {
       els.selectedListOverlay.classList.add("is-open");
       els.selectedListDialog.classList.add("is-open");
@@ -266,6 +267,7 @@
     window.setTimeout(() => {
       if (!els.selectedListOverlay.classList.contains("is-open")) {
         els.selectedListOverlay.hidden = true;
+        els.selectedListDialog.hidden = true;
       }
     }, 180);
   }
