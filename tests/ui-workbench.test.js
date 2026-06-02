@@ -40,8 +40,8 @@ test("plugin identity and chrome are local, frameless, and draggable", () => {
   assert.equal(manifest.main.resizable, true);
   assert.ok(manifest.main.width >= 1180);
   assert.ok(manifest.main.height >= 760);
-  assert.ok(manifest.main.minWidth <= 720);
-  assert.ok(manifest.main.minHeight <= 120);
+  assert.ok(manifest.main.minWidth <= 780);
+  assert.ok(manifest.main.minHeight <= 140);
 
   assert.match(html, /id="closeWindowBtn"[^>]*class="window-close-btn"/);
   assert.match(html, /id="closeWindowBtn"[^>]*aria-label="关闭窗口"/);
@@ -327,6 +327,7 @@ test("collection workflow exposes append, replace, clear, context menus, and col
   assert.match(html, /id="collectorBar"/);
   assert.match(html, /id="collectorAppendBtn"/);
   assert.match(html, /id="collectorAnalyzeBtn"/);
+  assert.match(html, /id="collectorClearBtn"/);
   assert.match(html, /id="collectorExpandBtn"/);
   assert.match(html, /id="collectorCloseBtn"/);
 
@@ -343,6 +344,7 @@ test("collection workflow exposes append, replace, clear, context menus, and col
   assert.match(js, /function openWorkbenchContextMenu\(/);
   assert.match(js, /function enterCollectorMode\(/);
   assert.match(js, /function exitCollectorMode\(/);
+  assert.match(js, /collectorClearBtn\.addEventListener\("click", \(\) => clearSelectedQueue\(\)\)/);
   assert.match(js, /eagle\.contextMenu\.open/);
   assert.match(js, /data-item-id/);
   assert.match(js, /collector-mode/);
@@ -357,8 +359,8 @@ test("collector bar becomes a real always-on-top floating window", () => {
   const css = read("style.css");
   const manifest = JSON.parse(read("manifest.json"));
 
-  assert.ok(manifest.main.minWidth <= 720, "manifest min width must allow real collector shrink");
-  assert.ok(manifest.main.minHeight <= 120, "manifest min height must allow real collector shrink");
+  assert.ok(manifest.main.minWidth <= 780, "manifest min width must allow real collector shrink");
+  assert.ok(manifest.main.minHeight <= 140, "manifest min height must allow real collector shrink");
   assert.match(js, /COLLECTOR_WINDOW_BOUNDS/);
   assert.match(js, /collectorPreviousBounds/);
   assert.match(js, /collectorPreviousAlwaysOnTop/);
@@ -373,4 +375,32 @@ test("collector bar becomes a real always-on-top floating window", () => {
   assert.match(css, /\.collector-bar\s*{[\s\S]*border:\s*1px solid rgba\(157,\s*191,\s*232,\s*\.72\)/);
   assert.match(css, /\.collector-count-badge/);
   assert.match(css, /\.collector-title/);
+});
+
+test("collector bar uses prominent themed icon actions and concise labels", () => {
+  const html = read("index.html");
+  const css = read("style.css");
+  const js = read("plugin.js");
+  const manifest = JSON.parse(read("manifest.json"));
+
+  assert.equal(manifest.main.minWidth, 760);
+  assert.equal(manifest.main.minHeight, 132);
+  assert.match(js, /height:\s*132/);
+  assert.match(js, /await appendSelectedItems\("进入采集条自动收集当前选中",\s*\{ silentWhenEmpty:\s*true \}\)/);
+  assert.match(html, /<strong>素材采集<\/strong>/);
+  assert.match(html, /<span>边选边收<\/span>/);
+  assert.match(html, /id="collectorAppendBtn"[^>]*class="collector-action collector-action-primary"/);
+  assert.match(html, /id="collectorAnalyzeBtn"[^>]*class="collector-action collector-action-accent"/);
+  assert.match(html, /id="collectorClearBtn"[^>]*class="collector-action collector-action-danger"/);
+  assert.match(html, /id="collectorExpandBtn"[^>]*class="collector-action"/);
+  assert.match(html, /class="collector-icon"/);
+  assert.match(html, />收集选中<\/span>/);
+  assert.match(html, />开始分析<\/span>/);
+  assert.match(html, />清空队列<\/span>/);
+  assert.match(html, />工作台<\/span>/);
+  assert.match(css, /\.collector-action\s*{[\s\S]*min-width:\s*86px[\s\S]*grid-template-rows:\s*28px auto/);
+  assert.match(css, /\.collector-icon\s*{[\s\S]*width:\s*28px[\s\S]*height:\s*28px/);
+  assert.match(css, /\.collector-action-primary\s*{[\s\S]*background:\s*linear-gradient\(135deg,\s*rgba\(157,\s*191,\s*232,\s*\.28\)/);
+  assert.match(css, /\.collector-action-accent\s*{[\s\S]*background:\s*linear-gradient\(135deg,\s*#8cb8de,\s*#a69ae0\)/);
+  assert.match(css, /\.collector-action-danger\s*{[\s\S]*border-color:\s*rgba\(223,\s*118,\s*109,\s*\.48\)/);
 });

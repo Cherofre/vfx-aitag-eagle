@@ -182,10 +182,54 @@ body.collector-mode .collector-bar {
   font-weight: 650;
 }
 
-.collector-bar button {
+.collector-action {
+  display: grid;
+  min-width: 86px;
+  grid-template-rows: 28px auto;
+  place-items: center;
+  gap: 5px;
   flex: 0 0 auto;
-  min-height: 40px;
+  min-height: 72px;
+  border-color: rgba(157, 191, 232, .36);
+  background: linear-gradient(180deg, rgba(39, 46, 55, .98), rgba(24, 28, 34, .98));
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 650;
   -webkit-app-region: no-drag;
+}
+
+.collector-action span {
+  color: inherit;
+}
+
+.collector-icon {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.collector-action-primary {
+  background: linear-gradient(135deg, rgba(157, 191, 232, .28), rgba(166, 154, 224, .18));
+  border-color: rgba(157, 191, 232, .64);
+  color: var(--accent);
+}
+
+.collector-action-accent {
+  background: linear-gradient(135deg, #8cb8de, #a69ae0);
+  border-color: rgba(157, 191, 232, .78);
+  color: #071019;
+  box-shadow: 0 10px 26px rgba(140, 184, 222, .2);
+}
+
+.collector-action-danger {
+  border-color: rgba(223, 118, 109, .48);
+  background: linear-gradient(135deg, rgba(223, 118, 109, .18), rgba(223, 118, 109, .08));
+  color: #f2b4af;
 }
 
 .collector-bar .window-close-btn {

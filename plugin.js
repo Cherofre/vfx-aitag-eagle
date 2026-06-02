@@ -91,8 +91,8 @@
     }
   };
   const COLLECTOR_WINDOW_BOUNDS = {
-    width: 680,
-    height: 96,
+    width: 760,
+    height: 132,
     topOffset: 72
   };
 
@@ -131,7 +131,7 @@
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
       "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedSummary",
       "selectedItems", "showSelectedListBtn", "selectedListOverlay", "selectedListDialog", "selectedItemsFullList", "closeSelectedListBtn",
-      "collectorBar", "collectorCount", "collectorAppendBtn", "collectorAnalyzeBtn", "collectorExpandBtn", "collectorCloseBtn",
+      "collectorBar", "collectorCount", "collectorAppendBtn", "collectorAnalyzeBtn", "collectorClearBtn", "collectorExpandBtn", "collectorCloseBtn",
       "results", "clearResultsBtn", "analysisProgressPanel", "analysisProgressText", "analysisProgressPercent", "analysisProgressBar", "analysisProgressMeta",
       "writeProgressPanel", "writeProgressText", "writeProgressPercent", "writeProgressBar", "writeProgressMeta",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
@@ -179,6 +179,7 @@
       await exitCollectorMode();
       await analyzeSelected();
     });
+    els.collectorClearBtn.addEventListener("click", () => clearSelectedQueue());
     els.collectorExpandBtn.addEventListener("click", exitCollectorMode);
     els.collectorCloseBtn.addEventListener("click", closePluginWindow);
     els.selectedItems.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "selected-panel"));
@@ -349,6 +350,7 @@
     closeSettingsDrawer();
     document.body.classList.add("collector-mode");
     if (els.collectorBar) els.collectorBar.hidden = false;
+    await appendSelectedItems("进入采集条自动收集当前选中", { silentWhenEmpty: true });
     updateCollectorBar();
     try {
       const eagleWindow = getPluginWindowApi();
@@ -2278,6 +2280,9 @@
     }
     if (els.collectorAppendBtn) {
       els.collectorAppendBtn.disabled = state.running || state.writing;
+    }
+    if (els.collectorClearBtn) {
+      els.collectorClearBtn.disabled = state.running || state.writing || (!state.selectedItems.length && !state.results.length);
     }
     if (els.clearSelectedBtn) {
       els.clearSelectedBtn.disabled = state.running || state.writing || (!state.selectedItems.length && !state.results.length);

@@ -18,8 +18,16 @@
 - 2026-06-02: Closed local dialogs must use real hidden/display state so transparent fixed panels cannot intercept clicks.
 - 2026-06-02: Use collection workflow instead of Eagle host-menu injection for right-click analysis.
 - 2026-06-02: Collector bar mode should be a real small always-on-top floating window.
+- 2026-06-02: Collector bar should be a prominent top collection control with icon actions, auto-collect-on-enter, and a clear queue action.
 
 ## Decision Log
+
+## 2026-06-02 - Prominent collector action bar
+- Status: active
+- Decision: Use a `760×132` top floating collector window with large themed icon actions for collecting, starting analysis, clearing the queue, and returning to the workbench; entering collector mode silently appends the current Eagle selection.
+- Reason: The smaller strip was easy to miss while browsing Eagle and still required extra clicks to add the current selection or clear the queue.
+- Alternatives considered: Keep the `680×96` compact strip and only change text; skipped because it did not solve visibility or the missing queue-management action.
+- Consequences / follow-up: Eagle smoke must verify the larger minimum still feels lightweight, stays top/always-on-top in collector mode, and restores full workbench bounds after returning.
 
 ## 2026-06-02 - Real collector bar window
 - Status: active
