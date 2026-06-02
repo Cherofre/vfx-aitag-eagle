@@ -8,12 +8,14 @@
 
   function createAnalysisPrompt(options) {
     const itemName = options.itemName || "未命名素材";
+    const includeTitleInPrompt = options.includeTitleInPrompt === true;
     const mediaKind = options.mediaKind || "image";
     const frameCount = Number(options.frameCount) || 1;
     const maxTags = Number(options.maxTags) || 10;
     const allowedTags = Array.isArray(options.allowedTags) ? options.allowedTags : [];
     const imagePaths = Array.isArray(options.imagePaths) ? options.imagePaths : [];
     const globalPrompt = String(options.globalPrompt || "").trim();
+    const chunkInfo = options.chunkInfo || {};
     const kindText = mediaKind === "video"
       ? `视频抽帧，共 ${frameCount} 张代表帧`
       : mediaKind === "animated"
@@ -21,7 +23,9 @@
         : "静态图或预览图";
     const parts = [
       "你是游戏视觉特效素材标签管理员。",
-      `请分析素材：${itemName}`,
+      includeTitleInPrompt
+        ? `请分析素材：${itemName}`
+        : "请分析这个素材。不要依据文件名或标题猜测标签，只根据实际图片内容判断。",
       `素材类型：${kindText}`,
       "只能从标签池中选择标签，禁止创造新标签，禁止输出不在标签池里的同义词。",
       `每个素材最多选择 ${maxTags} 个最有检索价值的标签。`,
@@ -32,6 +36,12 @@
       "JSON 格式：{\"tags\":[{\"name\":\"标签1\",\"confidence\":0.92},{\"name\":\"标签2\",\"confidence\":0.66}],\"confidence\":0.8,\"reason\":\"简短原因\"}",
       `标签池：${allowedTags.join("、")}`
     ];
+    if (chunkInfo.chunkCount > 1) {
+      const chunkParts = [`这是 AI 请求分块 ${chunkInfo.chunkIndex + 1}/${chunkInfo.chunkCount}`];
+      if (chunkInfo.mediaChunkCount > 1) chunkParts.push(`图片组 ${chunkInfo.mediaChunkIndex + 1}/${chunkInfo.mediaChunkCount}`);
+      if (chunkInfo.tagChunkCount > 1) chunkParts.push(`标签池组 ${chunkInfo.tagChunkIndex + 1}/${chunkInfo.tagChunkCount}`);
+      parts.splice(3, 0, `${chunkParts.join("，")}。只从本次请求给出的标签池中选择；最终结果会由插件合并。`);
+    }
     if (globalPrompt) {
       parts.splice(6, 0, `用户全局分析偏好：\n${globalPrompt}`, "用户全局分析偏好不能覆盖标签池、JSON 格式和置信度要求。");
     }
@@ -48,12 +58,12 @@
   function parseCliJson(output) {
     const text = String(output || "").trim();
     if (!text) throw new Error("CLI 没有返回内容");
-    const direct = tryParseJson(text);
+    const direct = tryParseJson(repairJsonText(text));
     if (direct) return normalizeCliObject(direct);
 
     const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fenced) {
-      const parsed = tryParseJson(fenced[1].trim());
+      const parsed = tryParseJson(repairJsonText(fenced[1].trim()));
       if (parsed) return normalizeCliObject(parsed);
     }
 
@@ -61,21 +71,35 @@
       if (text[start] !== "{") continue;
       for (let end = text.length - 1; end > start; end -= 1) {
         if (text[end] !== "}") continue;
-        const parsed = tryParseJson(text.slice(start, end + 1));
+        const parsed = tryParseJson(repairJsonText(text.slice(start, end + 1)));
         if (parsed) return normalizeCliObject(parsed);
       }
+    }
+    if (text.startsWith("[") && text.endsWith("]")) {
+      const parsed = tryParseJson(repairJsonText(text));
+      if (parsed) return normalizeCliObject(parsed);
     }
     throw new Error("CLI 返回内容中没有可解析的标签 JSON");
   }
 
   function normalizeCliObject(value) {
     if (typeof value === "string") return parseCliJson(value);
+    if (Array.isArray(value)) return { tags: value, confidence: 0.5, reason: "" };
     if (!value || typeof value !== "object") throw new Error("CLI 返回的 JSON 不是对象");
     if (Array.isArray(value.tags)) return value;
+    if (Array.isArray(value.labels)) return { ...value, tags: value.labels };
+    if (Array.isArray(value.result)) return { ...value, tags: value.result };
     for (const key of ["result", "text", "message", "content", "output"]) {
       if (typeof value[key] === "string") return parseCliJson(value[key]);
     }
     throw new Error("CLI 返回 JSON 缺少 tags 数组");
+  }
+
+  function repairJsonText(text) {
+    return String(text || "")
+      .replace(/[“”]/g, "\"")
+      .replace(/[‘’]/g, "'")
+      .replace(/,\s*([}\]])/g, "$1");
   }
 
   function tryParseJson(text) {

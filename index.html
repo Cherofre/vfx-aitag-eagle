@@ -86,6 +86,16 @@
             <h2>分析结果</h2>
             <button id="clearResultsBtn" type="button">清空结果</button>
           </div>
+          <div id="writeProgressPanel" class="write-progress" hidden>
+            <div class="write-progress-head">
+              <strong id="writeProgressText">正在写入 0/0 个素材...</strong>
+              <span id="writeProgressPercent">0%</span>
+            </div>
+            <div class="write-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="writeProgressBar" class="write-progress-bar"></div>
+            </div>
+            <div id="writeProgressMeta" class="write-progress-meta"></div>
+          </div>
           <div id="results" class="results"></div>
         </section>
       </section>
@@ -171,6 +181,14 @@
               <input id="concurrency" type="number" min="1" max="5" value="2">
             </label>
             <label>
+              AI 重试次数
+              <input id="aiRetryCount" type="number" min="0" max="10" value="2">
+            </label>
+            <label>
+              AI 请求分块(K)
+              <input id="requestChunkK" type="number" min="4" max="256" step="4" value="256">
+            </label>
+            <label>
               自动写入置信度
               <input id="autoConfidence" type="number" min="0" max="1" step="0.05" value="0.8">
             </label>
@@ -227,8 +245,10 @@
             <label><input id="previewBeforeWrite" type="checkbox" checked> 分析后预览，再手动写入</label>
             <label><input id="autoApplyHighConfidence" type="checkbox"> 自动写入高置信标签</label>
             <label><input id="writeAnnotation" type="checkbox" checked> 将 AI 分析说明追加到注释</label>
+            <label><input id="includeTitleInPrompt" type="checkbox"> 将素材标题传给 AI</label>
             <label><input id="diagnosticEnabled" type="checkbox"> 保存诊断帧和路径信息</label>
           </div>
+          <p class="hint">默认不把素材标题传给 AI，避免标题或文件名误导画面识别。</p>
           <label class="diagnostic-path-field">
             诊断保存文件夹
             <div class="inline-form">

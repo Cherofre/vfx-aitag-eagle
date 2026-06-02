@@ -10,7 +10,8 @@
   const STORAGE_KEYS = {
     customAllowedTags: "vfxAiTagger.customAllowedTags",
     disabledTags: "vfxAiTagger.disabledTags",
-    settings: "vfxAiTagger.settings"
+    settings: "vfxAiTagger.settings",
+    results: "vfxAiTagger.results"
   };
 
   const DEFAULT_VFX_TAGS = [
@@ -28,6 +29,14 @@
   const VIDEO_EXTS = new Set(["mp4", "mov", "webm", "avi", "mkv", "ts", "m4v", "wmv"]);
   const PREVIEW_EXTS = new Set(["svg", "psd", "ai", "pdf", "eps", "sketch"]);
   const DIAGNOSTIC_PREVIEW_LIMIT = 8;
+  const AI_RETRY_COUNT = 2;
+  const AI_RETRY_BASE_DELAY_MS = 1200;
+  const DEFAULT_REQUEST_CHUNK_K = 256;
+  const MIN_REQUEST_CHUNK_K = 4;
+  const MAX_REQUEST_CHUNK_K = 256;
+  const REQUEST_SAFETY_TOKENS = 512;
+  const MIN_TAG_BUDGET_TOKENS = 512;
+  const ESTIMATED_IMAGE_TOKENS = 3072;
 
   const els = {};
   const state = {
@@ -44,7 +53,8 @@
     undoStack: [],
     results: [],
     pauseRequested: false,
-    paused: false
+    paused: false,
+    writing: false
   };
 
   document.addEventListener("DOMContentLoaded", init);
@@ -53,9 +63,10 @@
     [
       "statusText", "openAiBtn", "importBtn", "refreshBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn", "undoBtn", "closeWindowBtn", "selectedCount", "tagPoolCount",
       "readyCount", "failedCount", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
-      "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
+      "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "aiRetryCount", "requestChunkK", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
-      "writeAnnotation", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedItems", "results", "clearResultsBtn",
+      "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedItems", "results", "clearResultsBtn",
+      "writeProgressPanel", "writeProgressText", "writeProgressPercent", "writeProgressBar", "writeProgressMeta",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
       "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
       "settingsOverlay", "settingsDrawer", "closeSettingsBtn", "eagleAiSettingsBtn"
@@ -107,6 +118,8 @@
     els.globalPrompt.addEventListener("input", saveSettings);
     els.clearResultsBtn.addEventListener("click", () => {
       state.results = [];
+      saveResultsState();
+      resetWriteProgress();
       renderResults();
     });
     els.refreshBackendStatusBtn.addEventListener("click", () => {
@@ -114,8 +127,8 @@
       saveSettings();
     });
     [
-      "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit", "maxVideoFrames",
-      "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence", "writeAnnotation", "diagnosticEnabled",
+      "maxTags", "concurrency", "aiRetryCount", "requestChunkK", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit", "maxVideoFrames",
+      "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence", "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled",
       "enableClaudeCli", "enableCodexCli", "enableEagleAi", "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel",
       "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir"
     ].forEach((id) => {
@@ -227,7 +240,11 @@
         state.selectedItems = [];
       }
       state.itemSource = "eagle";
-      state.results = [];
+      if (state.selectedItems.length) {
+        const selectedIds = new Set(state.selectedItems.map(getItemId));
+        state.results = state.results.filter((result) => selectedIds.has(result.id));
+      }
+      saveResultsState();
       setStatus(`${actionName}：已读取 ${state.selectedItems.length} 个 Eagle 选中素材`);
     } catch (error) {
       state.selectedItems = [];
@@ -372,6 +389,7 @@
       return;
     }
     settings.enabledBackends = usableBackends;
+    if (!ensureDiagnosticSettings(settings)) return;
     const existingResults = new Map(state.results.map((result) => [result.id, result]));
     const hasPendingResults = state.results.some((result) => result.status === "pending");
     const itemsToAnalyze = hasPendingResults
@@ -389,6 +407,8 @@
     state.paused = false;
     if (!hasPendingResults) {
       state.results = state.selectedItems.map((item) => createPendingResult(item));
+      resetWriteProgress();
+      saveResultsState();
     }
     renderAll();
     setControlsBusy(true);
@@ -460,7 +480,7 @@
       const savedDiagnostics = saveDiagnostics(item, media, settings);
       diagnosticPath = savedDiagnostics.path;
       diagnostics = savedDiagnostics.diagnostics;
-      const object = await requestAiTags(item, model, allowedTags, settings, media);
+      const object = await requestAiTagsWithRetry(item, model, allowedTags, settings, media);
       const candidates = normalizeTagCandidates(Array.isArray(object.tags) ? object.tags : [], object.confidence);
       const allowed = new Set(allowedTags);
       const filteredTags = candidates.filter((tag) => !allowed.has(tag.name)).map((tag) => tag.name);
@@ -498,6 +518,9 @@
         aiReason: object.reason || "",
         aiBackend: object.backend || "",
         frameCount: media.frameCount,
+        requestCount: object.__requestPlan ? object.__requestPlan.requestCount : 0,
+        mediaChunkCount: object.__requestPlan ? object.__requestPlan.mediaChunkCount : 0,
+        tagChunkCount: object.__requestPlan ? object.__requestPlan.tagChunkCount : 0,
         diagnosticPath,
         diagnostics,
         confidence: clampNumber(object.confidence, 0, 1, 0)
@@ -511,12 +534,61 @@
     }
   }
 
+  async function requestAiTagsWithRetry(item, model, allowedTags, settings, media) {
+    let lastError = null;
+    const retryCount = clampNumber(settings.aiRetryCount, 0, 10, AI_RETRY_COUNT);
+    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+      try {
+        return await requestAiTags(item, model, allowedTags, settings, media);
+      } catch (error) {
+        lastError = error;
+        if (attempt >= retryCount || !isRetryableAiError(error)) break;
+        await delay(AI_RETRY_BASE_DELAY_MS * Math.pow(2, attempt));
+      }
+    }
+    throw new Error(`AI 请求失败，已重试 ${retryCount} 次：${formatError(lastError)}`);
+  }
+
   async function requestAiTags(item, model, allowedTags, settings, media) {
+    const plan = buildAiRequestPlan(item, allowedTags, settings, media);
+    if (plan.requestCount > 1) {
+      const message = `AI 请求将分为 ${plan.requestCount} 次：图片组 ${plan.mediaChunkCount}，标签组 ${plan.maxTagChunkCount}。`;
+      setStatus(message);
+      updateResult(getItemId(item), {
+        message,
+        requestCount: plan.requestCount,
+        mediaChunkCount: plan.mediaChunkCount,
+        tagChunkCount: plan.maxTagChunkCount
+      });
+    }
+    const objects = [];
+    for (let index = 0; index < plan.requests.length; index += 1) {
+      if (state.pauseRequested) throw new Error("分析已暂停");
+      const request = plan.requests[index];
+      const object = await requestAiTagsSingle(item, model, request.allowedTags, settings, request.media, {
+        ...request.chunkInfo,
+        chunkIndex: index,
+        chunkCount: plan.requestCount
+      });
+      object.__allowedTags = request.allowedTags;
+      object.__chunkInfo = request.chunkInfo;
+      objects.push(object);
+    }
+    const merged = mergeAiObjects(objects, plan.requestCount > 1 ? Math.max(settings.maxTags * 3, settings.maxTags + 12) : settings.maxTags);
+    merged.__requestPlan = {
+      requestCount: plan.requestCount,
+      mediaChunkCount: plan.mediaChunkCount,
+      tagChunkCount: plan.maxTagChunkCount
+    };
+    return merged;
+  }
+
+  async function requestAiTagsSingle(item, model, allowedTags, settings, media, chunkInfo = {}) {
     const cliBackendsToTry = settings.enabledBackends.filter((backend) => backend !== "eagle");
     let cliError = null;
     if (cliBackendsToTry.length) {
       try {
-        return await requestCliTags(item, cliBackendsToTry, allowedTags, settings, media);
+        return await requestCliTags(item, cliBackendsToTry, allowedTags, settings, media, chunkInfo);
       } catch (error) {
         cliError = error;
         if (!settings.enabledBackends.includes("eagle")) throw error;
@@ -528,22 +600,26 @@
     if (!model) {
       throw cliError || new Error("未配置默认视觉模型，请先打开 AI 设置。");
     }
-    return requestEagleAiTags(item, model, allowedTags, settings, media);
+    return requestEagleAiTags(item, model, allowedTags, settings, media, chunkInfo);
   }
 
-  async function requestCliTags(item, backends, allowedTags, settings, media) {
+  async function requestCliTags(item, backends, allowedTags, settings, media, chunkInfo = {}) {
     if (!cliBackends || !cp || typeof cp.execFile !== "function") {
       throw new Error("当前 Eagle 插件环境无法调用本地 CLI");
     }
-    const imagePaths = media.images.map(fileUrlToPath).filter(Boolean);
+    const imagePaths = Array.isArray(media.filePaths) && media.filePaths.length
+      ? media.filePaths
+      : media.images.map(fileUrlToPath).filter(Boolean);
     const prompt = cliBackends.createAnalysisPrompt({
       itemName: getItemName(item),
+      includeTitleInPrompt: settings.includeTitleInPrompt,
       mediaKind: media.kind,
       frameCount: media.frameCount,
       allowedTags,
       maxTags: settings.maxTags,
       globalPrompt: settings.globalPrompt,
-      imagePaths
+      imagePaths,
+      chunkInfo
     });
     const result = await cliBackends.runCliBackends({
       backends,
@@ -566,17 +642,17 @@
     };
   }
 
-  async function requestEagleAiTags(item, model, allowedTags, settings, media) {
+  async function requestEagleAiTags(item, model, allowedTags, settings, media, chunkInfo = {}) {
     const ai = eagle.extraModule.ai;
     const messages = [
       {
         role: "system",
-        content: buildSystemPrompt(allowedTags, settings.maxTags, settings.globalPrompt)
+        content: buildSystemPrompt(allowedTags, settings.maxTags, settings.globalPrompt, chunkInfo)
       },
       {
         role: "user",
         content: [
-          { type: "text", text: buildUserPrompt(item, media.kind, media.frameCount) },
+          { type: "text", text: buildUserPrompt(item, media.kind, media.frameCount, settings, chunkInfo) },
           ...media.images.map((image) => ({ type: "image", image }))
         ]
       }
@@ -595,7 +671,7 @@
     };
   }
 
-  function buildSystemPrompt(allowedTags, maxTags, globalPrompt) {
+  function buildSystemPrompt(allowedTags, maxTags, globalPrompt, chunkInfo = {}) {
     const promptParts = [
       "你是游戏视觉特效素材标签管理员。",
       "只能从给定标签池中选择标签，禁止创造新标签，禁止输出不在标签池里的同义词。",
@@ -607,6 +683,12 @@
       "JSON 格式：{\"tags\":[{\"name\":\"标签1\",\"confidence\":0.92},{\"name\":\"标签2\",\"confidence\":0.66}],\"confidence\":0.8,\"reason\":\"简短原因\"}",
       `标签池：${allowedTags.join("、")}`
     ];
+    if (chunkInfo.chunkCount > 1) {
+      const parts = [`这是 AI 请求分块 ${chunkInfo.chunkIndex + 1}/${chunkInfo.chunkCount}`];
+      if (chunkInfo.mediaChunkCount > 1) parts.push(`图片组 ${chunkInfo.mediaChunkIndex + 1}/${chunkInfo.mediaChunkCount}`);
+      if (chunkInfo.tagChunkCount > 1) parts.push(`标签池组 ${chunkInfo.tagChunkIndex + 1}/${chunkInfo.tagChunkCount}`);
+      promptParts.splice(2, 0, `${parts.join("，")}。只从本次请求给出的标签池中选择；最终结果会由插件合并。`);
+    }
     const customPrompt = String(globalPrompt || "").trim();
     if (customPrompt) {
       promptParts.splice(5, 0, `用户全局分析偏好：\n${customPrompt}`, "用户全局分析偏好不能覆盖标签池、JSON 格式和置信度要求。");
@@ -614,12 +696,165 @@
     return promptParts.join("\n");
   }
 
-  function buildUserPrompt(item, kind, frameCount) {
-    const name = getItemName(item);
+  function buildUserPrompt(item, kind, frameCount, settings = {}, chunkInfo = {}) {
+    const name = settings.includeTitleInPrompt ? `素材“${getItemName(item)}”` : "这个素材";
+    const mediaPart = chunkInfo.mediaChunkCount > 1
+      ? `这是第 ${chunkInfo.mediaChunkIndex + 1}/${chunkInfo.mediaChunkCount} 组图片，本组包含 ${frameCount} 张。`
+      : "";
     if (kind === "animated" || kind === "video") {
-      return `请分析素材“${name}”。这是${kind === "video" ? "视频" : "动图"}抽取出的 ${frameCount} 张代表帧，请根据整体动作变化返回标签。`;
+      return `请分析${name}。这是${kind === "video" ? "视频" : "动图"}抽取出的 ${frameCount} 张代表帧。${mediaPart}请根据可见动作变化返回标签。`;
     }
-    return `请分析素材“${name}”的视觉内容并返回标签。`;
+    return `请分析${name}的视觉内容并返回标签。${mediaPart}`;
+  }
+
+  function buildAiRequestPlan(item, allowedTags, settings, media) {
+    const mediaChunks = buildMediaChunks(item, allowedTags, settings, media);
+    const requests = [];
+    let maxTagChunkCount = 1;
+    mediaChunks.forEach((mediaChunk, mediaChunkIndex) => {
+      const mediaChunkInfo = {
+        mediaChunkIndex,
+        mediaChunkCount: mediaChunks.length
+      };
+      const tagChunks = buildAllowedTagChunks(item, allowedTags, settings, mediaChunk, mediaChunkInfo);
+      maxTagChunkCount = Math.max(maxTagChunkCount, tagChunks.length);
+      tagChunks.forEach((tagChunk, tagChunkIndex) => {
+        requests.push({
+          media: mediaChunk,
+          allowedTags: tagChunk,
+          chunkInfo: {
+            mediaChunkIndex,
+            mediaChunkCount: mediaChunks.length,
+            tagChunkIndex,
+            tagChunkCount: tagChunks.length
+          }
+        });
+      });
+    });
+    return {
+      requests,
+      requestCount: requests.length,
+      mediaChunkCount: mediaChunks.length,
+      maxTagChunkCount
+    };
+  }
+
+  function buildMediaChunks(item, allowedTags, settings, media) {
+    const images = Array.isArray(media.images) ? media.images : [];
+    const filePaths = Array.isArray(media.filePaths) ? media.filePaths : [];
+    if (images.length <= 1) return [media];
+    const tokenLimit = getRequestTokenLimit(settings);
+    const baseTokens = estimateBasePromptTokens(item, settings, media, { mediaChunkIndex: 0, mediaChunkCount: 1 });
+    const sampleTagTokens = estimateSampleTagBudget(allowedTags);
+    const imageBudget = Math.max(
+      ESTIMATED_IMAGE_TOKENS,
+      tokenLimit - baseTokens - sampleTagTokens - REQUEST_SAFETY_TOKENS
+    );
+    const maxImagesPerRequest = Math.max(1, Math.floor(imageBudget / ESTIMATED_IMAGE_TOKENS));
+    if (images.length <= maxImagesPerRequest) return [media];
+    const chunks = [];
+    for (let start = 0; start < images.length; start += maxImagesPerRequest) {
+      const chunkImages = images.slice(start, start + maxImagesPerRequest);
+      chunks.push({
+        ...media,
+        images: chunkImages,
+        filePaths: filePaths.slice(start, start + maxImagesPerRequest),
+        frameCount: chunkImages.length,
+        totalFrameCount: media.frameCount,
+        frameStartIndex: start
+      });
+    }
+    return chunks;
+  }
+
+  function buildAllowedTagChunks(item, allowedTags, settings, media, mediaChunkInfo = {}) {
+    const tokenLimit = getRequestTokenLimit(settings);
+    const imageTokens = estimateImageTokens(media);
+    const baseTokens = estimateBasePromptTokens(item, settings, media, mediaChunkInfo);
+    const tagBudget = Math.max(
+      MIN_TAG_BUDGET_TOKENS,
+      tokenLimit - baseTokens - imageTokens - REQUEST_SAFETY_TOKENS
+    );
+    const chunks = [];
+    let current = [];
+    let currentTokens = 0;
+    allowedTags.forEach((tag) => {
+      const tagTokens = estimateTextTokens(tag) + 2;
+      if (current.length && currentTokens + tagTokens > tagBudget) {
+        chunks.push(current);
+        current = [];
+        currentTokens = 0;
+      }
+      current.push(tag);
+      currentTokens += tagTokens;
+    });
+    if (current.length) chunks.push(current);
+    return chunks.length ? chunks : [allowedTags];
+  }
+
+  function estimateBasePromptTokens(item, settings, media, mediaChunkInfo = {}) {
+    return estimateTextTokens(
+      buildSystemPrompt([], settings.maxTags, settings.globalPrompt, { chunkIndex: 0, chunkCount: 1, ...mediaChunkInfo }) +
+      "\n" +
+      buildUserPrompt(item, media.kind, media.frameCount, settings, mediaChunkInfo)
+    );
+  }
+
+  function estimateImageTokens(media) {
+    const count = Array.isArray(media.images) ? media.images.length : 0;
+    return count * ESTIMATED_IMAGE_TOKENS;
+  }
+
+  function estimateSampleTagBudget(allowedTags) {
+    if (!Array.isArray(allowedTags) || !allowedTags.length) return MIN_TAG_BUDGET_TOKENS;
+    const sampleTokens = allowedTags
+      .slice(0, Math.min(allowedTags.length, 120))
+      .reduce((sum, tag) => sum + estimateTextTokens(tag) + 2, 0);
+    return Math.max(MIN_TAG_BUDGET_TOKENS, Math.min(sampleTokens, MIN_TAG_BUDGET_TOKENS * 2));
+  }
+
+  function getRequestTokenLimit(settings) {
+    return Math.max(MIN_REQUEST_CHUNK_K, Math.min(MAX_REQUEST_CHUNK_K, settings.requestChunkK || DEFAULT_REQUEST_CHUNK_K)) * 1024;
+  }
+
+  function mergeAiObjects(objects, maxTags) {
+    const byName = new Map();
+    const reasons = [];
+    let confidenceTotal = 0;
+    let confidenceCount = 0;
+    const backends = new Set();
+    objects.forEach((object) => {
+      if (!object || typeof object !== "object") return;
+      if (object.backend) backends.add(object.backend);
+      if (object.reason) reasons.push(object.reason);
+      const confidence = normalizeConfidenceValue(object.confidence, NaN);
+      if (Number.isFinite(confidence)) {
+        confidenceTotal += confidence;
+        confidenceCount += 1;
+      }
+      normalizeTagCandidates(Array.isArray(object.tags) ? object.tags : [], object.confidence).forEach((tag) => {
+        const existing = byName.get(tag.name);
+        if (!existing || tag.confidence > existing.confidence) byName.set(tag.name, tag);
+      });
+    });
+    return {
+      tags: [...byName.values()].sort((a, b) => b.confidence - a.confidence).slice(0, maxTags),
+      confidence: confidenceCount ? confidenceTotal / confidenceCount : 0.5,
+      reason: dedupeReasonParts(reasons).join("；"),
+      backend: [...backends].join(" + ")
+    };
+  }
+
+  function dedupeReasonParts(parts) {
+    const seen = new Set();
+    const output = [];
+    parts.forEach((part) => {
+      const text = String(part || "").trim();
+      if (!text || seen.has(text)) return;
+      seen.add(text);
+      output.push(text);
+    });
+    return output;
   }
 
   async function prepareMedia(item, settings) {
@@ -656,6 +891,7 @@
     return {
       kind,
       images: [toFileUrl(filePath)],
+      filePaths: [filePath],
       frameCount: 1,
       tempDir: null,
       sourcePath: filePath,
@@ -682,6 +918,7 @@
     return {
       kind,
       images: frames.map(toFileUrl),
+      filePaths: frames,
       frameCount: frames.length,
       tempDir,
       sourcePath,
@@ -830,48 +1067,99 @@
   }
 
   async function applyReadyResults() {
+    if (state.writing) return;
     const ready = state.results.filter((result) => result.status === "ready" && getSelectedReviewTags(result).length);
     if (!ready.length) {
+      resetWriteProgress();
       setStatus("没有可写入的分析结果。");
       return;
     }
+    state.writing = true;
     els.applyBtn.disabled = true;
+    updateWriteProgress(0, ready.length, 0);
     let saved = 0;
     let failed = 0;
     try {
       const settings = readSettings();
       for (const result of ready) {
+        updateWriteProgress(saved + failed, ready.length, failed);
         const item = state.selectedItems.find((candidate) => getItemId(candidate) === result.id);
-        if (!item) continue;
+        if (!item) {
+          failed += 1;
+          updateResult(result.id, { status: "ready", message: "找不到对应素材，请重新导入当前选中素材后再试", errorType: "write" });
+          updateWriteProgress(saved + failed, ready.length, failed);
+          continue;
+        }
         if (item.external || typeof item.save !== "function") {
-          updateResult(result.id, { status: "skipped", message: "外部导入文件无法写回 Eagle，请先把文件加入 Eagle 资源库" });
+          failed += 1;
+          updateResult(result.id, { status: "ready", message: "外部导入文件无法写回 Eagle，请先把文件加入 Eagle 资源库", errorType: "write" });
+          updateWriteProgress(saved + failed, ready.length, failed);
           continue;
         }
         try {
           await mergeTagsIntoItem(item, getSelectedReviewTags(result).map((tag) => tag.name), settings.writeAnnotation ? result.aiReason : "", "手动确认写入标签");
           saved += 1;
-          updateResult(result.id, { status: "applied", message: "已写入 Eagle" });
+          updateResult(result.id, { status: "applied", message: "已写入 Eagle", errorType: "" });
         } catch (error) {
           failed += 1;
-          updateResult(result.id, { status: "failed", message: `写入失败：${formatError(error)}` });
+          updateResult(result.id, { status: "ready", message: `写入失败：${formatError(error)}`, errorType: "write" });
         }
+        updateWriteProgress(saved + failed, ready.length, failed);
       }
     } finally {
+      state.writing = false;
       renderAll();
     }
-    setStatus(failed ? `已写入 ${saved} 个素材，${failed} 个写入失败。` : `已写入 ${saved} 个素材。`);
+    const finalStatus = failed ? `已写入 ${saved} 个素材，${failed} 个写入失败。` : `已写入 ${saved} 个素材。`;
+    setStatus(finalStatus);
+    updateWriteProgress(saved + failed, ready.length, failed, finalStatus);
+  }
+
+  function updateWriteProgress(done, total, failed = 0, message = "") {
+    if (!els.writeProgressPanel || !els.writeProgressBar) return;
+    const safeTotal = Math.max(0, Number(total) || 0);
+    const safeDone = Math.min(safeTotal, Math.max(0, Number(done) || 0));
+    const percent = safeTotal ? Math.round((safeDone / safeTotal) * 100) : 0;
+    const text = message || `正在写入 ${safeDone}/${safeTotal} 个素材...`;
+    els.writeProgressPanel.hidden = false;
+    els.writeProgressPanel.classList.toggle("has-failures", failed > 0);
+    els.writeProgressText.textContent = text;
+    els.writeProgressPercent.textContent = `${percent}%`;
+    els.writeProgressBar.style.width = `${percent}%`;
+    const track = els.writeProgressPanel.querySelector(".write-progress-track");
+    if (track) track.setAttribute("aria-valuenow", String(percent));
+    if (els.writeProgressMeta) els.writeProgressMeta.textContent = failed ? `${safeDone}/${safeTotal}，失败 ${failed}` : `${safeDone}/${safeTotal}`;
+    if (!message) setStatus(text);
+  }
+
+  function resetWriteProgress() {
+    if (!els.writeProgressPanel || !els.writeProgressBar) return;
+    els.writeProgressPanel.hidden = true;
+    els.writeProgressPanel.classList.remove("has-failures");
+    els.writeProgressText.textContent = "";
+    els.writeProgressPercent.textContent = "0%";
+    els.writeProgressBar.style.width = "0%";
+    if (els.writeProgressMeta) els.writeProgressMeta.textContent = "";
+    const track = els.writeProgressPanel.querySelector(".write-progress-track");
+    if (track) track.setAttribute("aria-valuenow", "0");
   }
 
   function readSettings() {
     const frequency = clampAndShowFrameRate();
     const maxTags = readInt(els.maxTags.value, 10, 1, 20);
+    const aiRetryCount = readInt(els.aiRetryCount.value, AI_RETRY_COUNT, 0, 10);
+    const requestChunkK = readInt(els.requestChunkK.value, DEFAULT_REQUEST_CHUNK_K, MIN_REQUEST_CHUNK_K, MAX_REQUEST_CHUNK_K);
     const autoConfidence = readFloat(els.autoConfidence.value, 0.8, 0, 1);
     const hideConfidence = Math.min(autoConfidence, readFloat(els.hideConfidence.value, 0.45, 0, 1));
+    els.aiRetryCount.value = String(aiRetryCount);
+    els.requestChunkK.value = String(requestChunkK);
     els.autoConfidence.value = String(autoConfidence);
     els.hideConfidence.value = String(hideConfidence);
     return {
       maxTags,
       concurrency: readInt(els.concurrency.value, 2, 1, 5),
+      aiRetryCount,
+      requestChunkK,
       autoConfidence,
       hideConfidence,
       frameStepSeconds: frequency.stepSeconds,
@@ -884,6 +1172,7 @@
       autoApplyHighConfidence: els.autoApplyHighConfidence.checked,
       globalPrompt: String(els.globalPrompt.value || "").trim(),
       writeAnnotation: els.writeAnnotation.checked,
+      includeTitleInPrompt: els.includeTitleInPrompt.checked,
       diagnosticEnabled: els.diagnosticEnabled.checked,
       diagnosticDir: String(els.diagnosticDir.value || "").trim(),
       enabledBackends: [
@@ -918,6 +1207,8 @@
       tagGroupName: state.selectedTagGroupName || "__all",
       maxTags: els.maxTags.value,
       concurrency: els.concurrency.value,
+      aiRetryCount: els.aiRetryCount.value,
+      requestChunkK: els.requestChunkK.value,
       autoConfidence: els.autoConfidence.value,
       hideConfidence: els.hideConfidence.value,
       frameRateValue: els.frameRateValue.value,
@@ -931,6 +1222,7 @@
       autoApplyHighConfidence: els.autoApplyHighConfidence.checked,
       globalPrompt: els.globalPrompt.value,
       writeAnnotation: els.writeAnnotation.checked,
+      includeTitleInPrompt: els.includeTitleInPrompt.checked,
       diagnosticEnabled: els.diagnosticEnabled.checked,
       diagnosticDir: els.diagnosticDir.value,
       enableClaudeCli: els.enableClaudeCli.checked,
@@ -948,14 +1240,11 @@
 
   async function chooseDiagnosticDir() {
     try {
-      const dialog = window.eagle && eagle.dialog;
-      if (!dialog || typeof dialog.showOpenDialog !== "function") {
+      const folder = await openDirectoryPicker();
+      if (!folder) {
         setStatus("当前环境无法打开文件夹选择器，请手动粘贴本地文件夹路径。");
         return;
       }
-      const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
-      const folder = Array.isArray(result) ? result[0] : result && Array.isArray(result.filePaths) ? result.filePaths[0] : "";
-      if (!folder) return;
       els.diagnosticDir.value = folder;
       saveSettings();
     } catch (error) {
@@ -963,9 +1252,64 @@
     }
   }
 
+  async function openDirectoryPicker() {
+    const dialog = getElectronDialog();
+    if (dialog && typeof dialog.showOpenDialog === "function") {
+      const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
+      const filePaths = result && result.filePaths;
+      return Array.isArray(filePaths) && filePaths.length ? filePaths[0] : "";
+    }
+    const eagleDialog = window.eagle && eagle.dialog;
+    if (eagleDialog && typeof eagleDialog.showOpenDialog === "function") {
+      const result = await eagleDialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
+      if (Array.isArray(result)) return result[0] || "";
+      const filePaths = result && result.filePaths;
+      return Array.isArray(filePaths) && filePaths.length ? filePaths[0] : "";
+    }
+    return "";
+  }
+
+  function getElectronDialog() {
+    if (!nodeRequire) return null;
+    try {
+      const electron = nodeRequire("electron");
+      return electron && ((electron.remote && electron.remote.dialog) || electron.dialog);
+    } catch (error) {
+      try {
+        const remote = nodeRequire("@electron/remote");
+        return remote && remote.dialog;
+      } catch (remoteError) {
+        return null;
+      }
+    }
+  }
+
+  function ensureDiagnosticSettings(settings) {
+    if (!settings.diagnosticEnabled) return true;
+    if (!settings.diagnosticDir) {
+      setStatus("已开启诊断保存，请先选择诊断保存文件夹。");
+      return false;
+    }
+    if (!fs || !path) {
+      setStatus("当前插件环境缺少 Node.js 能力，无法验证诊断保存文件夹。");
+      return false;
+    }
+    try {
+      fs.mkdirSync(settings.diagnosticDir, { recursive: true });
+      const stat = fs.statSync(settings.diagnosticDir);
+      if (!stat.isDirectory()) throw new Error("不是文件夹");
+      return true;
+    } catch (error) {
+      setStatus(`诊断保存文件夹不可用：${formatError(error)}`);
+      return false;
+    }
+  }
+
   function loadStoredState() {
     state.customAllowedTags = readJsonArray(STORAGE_KEYS.customAllowedTags);
     state.disabledTags = readJsonArray(STORAGE_KEYS.disabledTags);
+    state.results = readStoredResults();
+    state.paused = state.results.some((result) => result.status === "pending");
     const settings = readJsonObject(STORAGE_KEYS.settings);
     state.selectedTagGroupName = settings.tagGroupName || "__all";
     Object.keys(settings).forEach((key) => {
@@ -992,6 +1336,75 @@
   function saveStoredTagState() {
     localStorage.setItem(STORAGE_KEYS.customAllowedTags, JSON.stringify(state.customAllowedTags));
     localStorage.setItem(STORAGE_KEYS.disabledTags, JSON.stringify(state.disabledTags));
+  }
+
+  function saveResultsState() {
+    try {
+      const results = state.results.map((result) => ({
+        id: result.id,
+        name: result.name,
+        status: result.status === "running" ? "pending" : result.status,
+        message: result.message,
+        tags: result.tags,
+        autoTags: result.autoTags,
+        reviewTags: result.reviewTags,
+        aiReason: result.aiReason,
+        aiBackend: result.aiBackend,
+        frameCount: result.frameCount,
+        requestCount: result.requestCount,
+        mediaChunkCount: result.mediaChunkCount,
+        tagChunkCount: result.tagChunkCount,
+        diagnosticPath: result.diagnosticPath,
+        diagnostics: null,
+        filteredTags: result.filteredTags,
+        hiddenCount: result.hiddenCount,
+        confidence: result.confidence,
+        errorType: result.errorType
+      }));
+      localStorage.setItem(STORAGE_KEYS.results, JSON.stringify(results));
+    } catch (error) {
+      // Result cache is a recovery aid. Analysis/write flow should continue if storage is full.
+    }
+  }
+
+  function readStoredResults() {
+    try {
+      const value = JSON.parse(localStorage.getItem(STORAGE_KEYS.results) || "[]");
+      if (!Array.isArray(value)) return [];
+      return value
+        .filter((result) => result && typeof result === "object" && result.id)
+        .map((result) => ({
+          ...createStoredResultSkeleton(result),
+          ...result,
+          status: result.status === "running" ? "pending" : result.status
+        }));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function createStoredResultSkeleton(result) {
+    return {
+      id: String(result.id || ""),
+      name: String(result.name || "未命名素材"),
+      status: "pending",
+      message: "从上次会话恢复",
+      tags: [],
+      autoTags: [],
+      reviewTags: [],
+      aiReason: "",
+      aiBackend: "",
+      frameCount: 0,
+      requestCount: 0,
+      mediaChunkCount: 0,
+      tagChunkCount: 0,
+      diagnosticPath: "",
+      diagnostics: null,
+      filteredTags: [],
+      hiddenCount: 0,
+      confidence: 0,
+      errorType: ""
+    };
   }
 
   function renderAll() {
@@ -1071,8 +1484,8 @@
     const failedCount = state.results.filter((result) => result.status === "failed" || result.status === "skipped").length;
     els.readyCount.textContent = String(readyCount);
     els.failedCount.textContent = String(failedCount);
-    els.applyBtn.disabled = state.running || readyCount === 0;
-    els.undoBtn.disabled = state.running || state.undoStack.length === 0;
+    els.applyBtn.disabled = state.running || state.writing || readyCount === 0;
+    els.undoBtn.disabled = state.running || state.writing || state.undoStack.length === 0;
     updateAnalysisControls();
     els.results.innerHTML = "";
     if (!state.results.length) {
@@ -1091,6 +1504,7 @@
               ${result.aiBackend ? `<span class="badge">${escapeHtml(formatBackendLabel(result.aiBackend))}</span>` : ""}
               ${typeof result.confidence === "number" ? `<span class="badge">整体 ${formatConfidence(result.confidence)}</span>` : ""}
               ${result.frameCount ? `<span class="badge">${escapeHtml(String(result.frameCount))} 张图像</span>` : ""}
+              ${result.requestCount > 1 ? `<span class="badge">${escapeHtml(String(result.requestCount))} 次请求</span>` : ""}
             </div>
           </div>
           <div class="result-actions">
@@ -1187,6 +1601,7 @@
       return;
     }
     settings.enabledBackends = usableBackends;
+    if (!ensureDiagnosticSettings(settings)) return;
     state.running = true;
     state.pauseRequested = false;
     setControlsBusy(true);
@@ -1237,6 +1652,7 @@
     const tag = result.reviewTags.find((item) => item.name === tagName);
     if (tag) tag.selected = selected;
     result.tags = getSelectedReviewTags(result).map((item) => item.name);
+    saveResultsState();
     renderResults();
   }
 
@@ -1250,8 +1666,14 @@
       autoTags: [],
       reviewTags: [],
       aiReason: "",
+      aiBackend: "",
       frameCount: 0,
+      requestCount: 0,
+      mediaChunkCount: 0,
+      tagChunkCount: 0,
       diagnosticPath: "",
+      confidence: 0,
+      errorType: "",
       diagnostics: null,
       filteredTags: []
     };
@@ -1261,6 +1683,7 @@
     const index = state.results.findIndex((result) => result.id === id);
     if (index >= 0) {
       state.results[index] = { ...state.results[index], ...patch };
+      saveResultsState();
       renderResults();
     }
   }
@@ -1370,7 +1793,8 @@
     els.refreshBtn.disabled = busy;
     els.refreshTagsBtn.disabled = busy;
     els.importDefaultsBtn.disabled = busy;
-    els.undoBtn.disabled = busy || state.undoStack.length === 0;
+    els.applyBtn.disabled = busy || state.writing || state.results.filter((result) => result.status === "ready" && getSelectedReviewTags(result).length).length === 0;
+    els.undoBtn.disabled = busy || state.writing || state.undoStack.length === 0;
   }
 
   function updateAnalysisControls() {
@@ -1498,11 +1922,20 @@
       if (!name || seen.has(name)) return;
       seen.add(name);
       const confidence = typeof tag === "object" && tag
-        ? clampNumber(tag.confidence ?? tag.score ?? fallbackConfidence, 0, 1, 0.5)
-        : clampNumber(fallbackConfidence, 0, 1, 0.5);
+        ? normalizeConfidenceValue(tag.confidence ?? tag.score ?? fallbackConfidence, 0.5)
+        : normalizeConfidenceValue(fallbackConfidence, 0.5);
       output.push({ name, confidence });
     });
     return output;
+  }
+
+  function normalizeConfidenceValue(value, fallback = 0.5) {
+    if (typeof value === "string" && value.trim().endsWith("%")) {
+      return clampNumber(Number(value.trim().slice(0, -1)) / 100, 0, 1, fallback);
+    }
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return clampNumber(number > 1 ? number / 100 : number, 0, 1, fallback);
   }
 
   function cleanTag(tag) {
@@ -1556,6 +1989,24 @@
       .replace(/'/g, "&#039;");
   }
 
+  function delay(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+  }
+
+  function isRetryableAiError(error) {
+    const message = formatError(error).toLowerCase();
+    if (message.includes("未配置默认视觉模型") || message.includes("没有启用可用") || message.includes("无法调用本地 cli")) return false;
+    return true;
+  }
+
+  function estimateTextSize(text) {
+    return String(text || "").length;
+  }
+
+  function estimateTextTokens(text) {
+    return Math.ceil(estimateTextSize(text) / 2);
+  }
+
   function parseAiJson(text) {
     const raw = String(text || "").trim();
     if (!raw) throw new Error("AI 没有返回内容");
@@ -1564,18 +2015,41 @@
       .replace(/```$/i, "")
       .trim();
     try {
-      return JSON.parse(cleaned);
+      return normalizeAiObject(JSON.parse(repairJsonText(cleaned)));
     } catch (firstError) {
       const match = cleaned.match(/\{[\s\S]*\}/);
       if (match) {
         try {
-          return JSON.parse(match[0]);
+          return normalizeAiObject(JSON.parse(repairJsonText(match[0])));
         } catch (secondError) {
           throw new Error(`AI 返回内容不是有效 JSON：${cleaned.slice(0, 160)}`);
         }
       }
+      if (cleaned.startsWith("[") && cleaned.endsWith("]")) {
+        try {
+          return normalizeAiObject(JSON.parse(repairJsonText(cleaned)));
+        } catch (arrayError) {}
+      }
       throw new Error(`AI 返回内容不是 JSON：${cleaned.slice(0, 160)}`);
     }
+  }
+
+  function repairJsonText(text) {
+    return String(text || "")
+      .replace(/,\s*([}\]])/g, "$1")
+      .replace(/[“”]/g, "\"")
+      .replace(/[‘’]/g, "'");
+  }
+
+  function normalizeAiObject(value) {
+    if (Array.isArray(value)) return { tags: value, confidence: 0.5, reason: "" };
+    if (!value || typeof value !== "object") {
+      throw new Error(`AI 返回内容不是 JSON：${String(value).slice(0, 160)}`);
+    }
+    if (Array.isArray(value.tags)) return value;
+    if (Array.isArray(value.labels)) return { ...value, tags: value.labels };
+    if (Array.isArray(value.result)) return { ...value, tags: value.result };
+    return value;
   }
 
   function stateLabel(status) {

@@ -26,6 +26,7 @@ test("parseCliJson extracts tag JSON from plain and wrapped CLI output", () => {
 test("createAnalysisPrompt includes allowed tags, media paths, and JSON contract", () => {
   const prompt = backends.createAnalysisPrompt({
     itemName: "skill_fire.mov",
+    includeTitleInPrompt: true,
     mediaKind: "video",
     frameCount: 2,
     allowedTags: ["火焰", "冰冻"],
@@ -40,6 +41,45 @@ test("createAnalysisPrompt includes allowed tags, media paths, and JSON contract
   assert.match(prompt, /C:\\tmp\\frame-001\.jpg/);
   assert.match(prompt, /优先判断技能用途/);
   assert.match(prompt, /"tags"/);
+});
+
+test("createAnalysisPrompt omits misleading titles unless explicitly enabled", () => {
+  const withoutTitle = backends.createAnalysisPrompt({
+    itemName: "皮肤教程标题可能误导.mov",
+    includeTitleInPrompt: false,
+    mediaKind: "video",
+    frameCount: 3,
+    allowedTags: ["火焰", "教程"],
+    maxTags: 2,
+    imagePaths: ["C:\\tmp\\frame-001.jpg"]
+  });
+
+  assert.doesNotMatch(withoutTitle, /皮肤教程标题可能误导/);
+  assert.match(withoutTitle, /这个素材|素材类型/);
+
+  const withTitle = backends.createAnalysisPrompt({
+    itemName: "皮肤教程标题可能误导.mov",
+    includeTitleInPrompt: true,
+    mediaKind: "video",
+    frameCount: 3,
+    allowedTags: ["火焰", "教程"],
+    maxTags: 2,
+    imagePaths: ["C:\\tmp\\frame-001.jpg"]
+  });
+
+  assert.match(withTitle, /皮肤教程标题可能误导\.mov/);
+});
+
+test("parseCliJson repairs common AI JSON variants", () => {
+  assert.deepEqual(
+    backends.parseCliJson("```json\n{“labels”:[{“name”:“烟雾”,“confidence”:0.74,}],“reason”:“soft smoke”,}\n```"),
+    { labels: [{ name: "烟雾", confidence: 0.74 }], reason: "soft smoke", tags: [{ name: "烟雾", confidence: 0.74 }] }
+  );
+
+  assert.deepEqual(
+    backends.parseCliJson('["火焰","闪电"]'),
+    { tags: ["火焰", "闪电"], confidence: 0.5, reason: "" }
+  );
 });
 
 test("createCliPlan builds Claude and Codex non-interactive commands", () => {

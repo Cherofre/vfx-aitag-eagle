@@ -175,3 +175,35 @@ test("settings, release metadata, and long text are production-ready", () => {
   assert.match(css, /\.settings-drawer-head\s*{[\s\S]*-webkit-app-region:\s*drag/);
   assert.match(css, /\.result-message,\s*\.diagnostic-saved,\s*\.result-reason,\s*\.review-tag span\s*{[\s\S]*overflow-wrap:\s*anywhere/);
 });
+
+test("0601 reliability features are selectively exposed in the CLI workbench", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(html, /id="aiRetryCount"/);
+  assert.match(html, /id="requestChunkK"/);
+  assert.match(html, /id="includeTitleInPrompt"/);
+  assert.match(html, /id="writeProgressPanel"/);
+  assert.match(html, /id="writeProgressBar"/);
+  assert.match(html, /<script src="cli-backends\.js"><\/script>/);
+
+  assert.match(js, /results:\s*"vfxAiTagger\.results"/);
+  assert.match(js, /"aiRetryCount"/);
+  assert.match(js, /"requestChunkK"/);
+  assert.match(js, /"includeTitleInPrompt"/);
+  assert.match(js, /function requestAiTagsWithRetry\(/);
+  assert.match(js, /function buildAiRequestPlan\(/);
+  assert.match(js, /function mergeAiObjects\(/);
+  assert.match(js, /function ensureDiagnosticSettings\(/);
+  assert.match(js, /function updateWriteProgress\(/);
+  assert.match(js, /function saveResultsState\(/);
+  assert.match(js, /function readStoredResults\(/);
+  assert.match(js, /saveResultsState\(\)/);
+  assert.match(js, /includeTitleInPrompt:\s*els\.includeTitleInPrompt\.checked/);
+  assert.match(js, /requestChunkK:\s*els\.requestChunkK\.value/);
+
+  assert.match(css, /\.write-progress\s*{/);
+  assert.match(css, /\.write-progress-bar\s*{/);
+  assert.match(css, /\.write-progress\.has-failures\s+\.write-progress-bar/);
+});

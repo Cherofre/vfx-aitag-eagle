@@ -393,6 +393,62 @@ h2 {
   padding-right: 2px;
 }
 
+.write-progress {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  margin-bottom: 10px;
+  padding: 10px;
+}
+
+.write-progress[hidden] {
+  display: none;
+}
+
+.write-progress-head,
+.write-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.write-progress-head strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.write-progress-head span,
+.write-progress-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.write-progress-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--panel-3);
+}
+
+.write-progress-bar {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  transition: width .18s ease;
+}
+
+.write-progress.has-failures .write-progress-bar {
+  background: linear-gradient(90deg, var(--warn), var(--error));
+}
+
 .empty {
   color: var(--muted);
   padding: 30px 0;
