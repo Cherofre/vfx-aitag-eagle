@@ -1,20 +1,19 @@
 # Next Actions
 
 ## Now
-- [ ] Download and install the GitHub Release asset `vfx-aitag-eagle-cli-1.0.0.eagleplugin` from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.0` on a clean Eagle host.
-- [ ] Install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle and confirm the new ID `VFX_AI_TAGGER_CLI` appears as a separate plugin.
+- [ ] Install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.1.4` in Eagle and confirm the ID `VFX_AI_TAGGER_CLI` appears as a separate plugin.
 - [ ] Smoke-test on the other PC where Codex lives at `C:\Users\feiyu\AppData\Local\OpenAI\Codex\bin\codex.exe`; bare `codex` in plugin settings should resolve automatically.
 - [ ] Smoke-test the reported `1999同人皮肤...Magesbox.mp4` case again: Codex CLI should no longer fail with `The command line is too long`, and diagnostic frame thumbnails should display.
+- [ ] Smoke-test 0601 merged controls: title toggle off/on, AI retry count, request chunk K with many tags/frames, result restore after window reopen, and write progress on batch write.
 - [ ] Smoke-test that the frameless rounded window can be dragged from the topbar, closed from the new top-right close button, and that buttons/inputs remain clickable.
 - [ ] Smoke-test settings drawer tabs, diagnostic saving, selection refresh failure recovery, write/undo failure recovery, pause/continue/restart, and Claude/Codex CLI analysis on real selected assets.
-- [ ] If Eagle smoke passes, decide whether to port any remaining author features such as i18n/theme toggle or AI retry count.
 
 ## Handoff Notes
 - Start here: packaged local CLI plugin is `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin`.
-- Do not redo: ledger initialization, branch creation, workbench implementation, post-review reliability/layout fixes, static tests, bundled Playwright layout measurements, and CLI temp-frame smoke are done.
+- Do not redo: ledger initialization, branch creation, workbench implementation, post-review reliability/layout fixes, 0601 selective feature merge, static tests, and package inspection are done.
 - Verify next: after installing the packaged local CLI plugin, inspect `C:\Users\mumengfei\AppData\Roaming\Eagle\log.log` and test a real selected asset.
-- Do not claim: Eagle real-host smoke has passed; Browser MCP timed out during local HTML verification, but bundled Playwright layout measurement succeeded.
-- Watch out for: `dist/特效AI标签管理-cli.eagleplugin` is a tracked release artifact and should be intentionally replaced when packaging changes.
+- Do not claim: Eagle real-host smoke has passed; in-app Browser rejected the local `file://` URL this turn, so browser layout smoke was not performed.
+- Watch out for: `dist/特效AI标签管理-cli.eagleplugin` is a tracked release artifact and should be intentionally replaced when packaging changes; the 0601 package should be treated as a feature reference, not as a replacement artifact.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later
@@ -40,3 +39,5 @@
 - [x] Fixed Codex long-command failures and temporary diagnostic thumbnail breakage; repackaged version `1.1.2`.
 - [x] Added cross-machine Codex CLI discovery for `LOCALAPPDATA\OpenAI\Codex\bin` and bounded local search roots; repackaged version `1.1.3`.
 - [x] Published GitHub Release `v1.0.0` with asset `vfx-aitag-eagle-cli-1.0.0.eagleplugin`.
+- [x] Evaluated `C:\Users\mumengfei\Downloads\AI 标签工具0601.eagleplugin`; useful candidates are selective feature ports, while manifest/package/layout should not be merged wholesale.
+- [x] Merged 0601 reliability features into local CLI plugin and repackaged version `1.1.4`.

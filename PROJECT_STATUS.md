@@ -1,15 +1,15 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-01 11:09
-- Phase: Release published
+- Last Updated: 2026-06-02 10:10
+- Phase: 0601 selective merge packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
-- Branch: codex/single-screen-workbench
+- Branch: codex/merge-author-0601-features
 - Goal: 特效 AI 标签管理 Eagle 插件单屏工作台优化、CLI 图像读取修复、验证并重新打包；评估作者新版插件可合并内容
-- Current Focus: Published the current packaged Eagle plugin artifact to GitHub Releases as `v1.0.0`.
+- Current Focus: Selectively merged 0601 reliability features into the local CLI workbench and repackaged version `1.1.4`.
 - Superpowers Spec: none
 - Superpowers Plan: `docs/superpowers/plans/2026-05-26-author-ui-merge.md`
-- Current Task: Hand off GitHub release `v1.0.0` and continue Eagle real-host smoke testing when available.
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test CLI/Eagle AI analysis with the new settings.
 
 ## Resume Here
 - Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test selection refresh failures, write failures, frameless dragging, settings tabs, diagnostics, and pause/continue/restart controls.
@@ -43,15 +43,20 @@
 - [x] Fixed broken diagnostic frame previews by embedding preview data URLs before temporary frame cleanup; saved diagnostics still use persistent file URLs.
 - [x] Fixed Codex CLI discovery for other PCs where Codex is installed at `C:\Users\<user>\AppData\Local\OpenAI\Codex\bin\codex.exe`; added bounded discovery under `LOCALAPPDATA\OpenAI`, `LOCALAPPDATA\Programs`, and npm roots.
 - [x] Published GitHub Release `v1.0.0` with asset `vfx-aitag-eagle-cli-1.0.0.eagleplugin`.
+- [x] Extracted and evaluated author package `AI 标签工具0601.eagleplugin`; identified useful feature candidates but confirmed whole-package merge would regress CLI support and single-screen workbench behavior.
+- [x] Selectively merged 0601 features: title-in-prompt toggle, AI retry count, request chunking, write progress, result cache, JSON repair, diagnostic directory validation, and directory picker fallback.
+- [x] Bumped manifest to `1.1.4` and repackaged `dist\特效AI标签管理-cli.eagleplugin`.
 
 ## Verification
-- Last command: `Compress-Archive` packaged `dist\特效AI标签管理-cli.eagleplugin` and inspected archive entries.
+- Last command: `System.IO.Compression.ZipFile` listed entries in `dist\特效AI标签管理-cli.eagleplugin`.
 - Result: pass
-- Evidence / notes: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 18 tests. `node --check plugin.js` and `node --check cli-backends.js` passed. Node smoke for a 40,000-character Codex prompt plus 60 long frame paths produced argv length 1406, stdin length 40000, imageCount 16, final arg `-`. Package inspection confirmed `manifest.json`, `index.html`, `style.css`, `plugin.js`, `cli-backends.js`, `README.md`, and `logo.png` are present. `gh release view v1.0.0` confirmed release URL `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.0`, asset `vfx-aitag-eagle-cli-1.0.0.eagleplugin`, size 32931, sha256 `2465d9a5ef78969268c1d834d7f3a3189ae57ad84c9d59bdd5774cd218c1230b`. Eagle real-host smoke is still required.
+- Evidence / notes: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 21 tests. `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.1.4`, `devTools: false`. In-app Browser rejected `file:///I:/AI/Vibe%20Coding/vfx-aitag-eagle/index.html` by URL policy, so no browser layout smoke was performed this turn. Eagle real-host smoke is still required.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.
+- The 0601 package is not install/release clean as-is: it embeds nested packages, keeps the author plugin ID, leaves `devTools` enabled, and keeps the localized manifest shape that previously caused Eagle import/open ambiguity.
+- Request chunking is covered by static tests and syntax checks, but still needs real Eagle/CLI smoke with many tags or many frames.
 - Working tree may contain unrelated user file `docs/vfx-tag-taxonomy-review.md`; do not include or delete it unless explicitly requested.
 
 ## History

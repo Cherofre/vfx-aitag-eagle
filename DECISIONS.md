@@ -11,8 +11,24 @@
 - 2026-05-26: Change the local plugin ID to `VFX_AI_TAGGER_CLI` so it does not collide with the author plugin.
 - 2026-05-26: Merge author UI selectively into the local workbench instead of adopting the author page structure.
 - 2026-05-26: Treat version `1.1.0` as the hardened CLI release package with release devTools disabled.
+- 2026-06-02: Treat author 0601 as a selective feature source; prioritize behavior ports, not package/layout replacement.
+- 2026-06-02: Merge 0601 reliability features on `codex/merge-author-0601-features` and package as version `1.1.4`.
 
 ## Decision Log
+
+## 2026-06-02 - 0601 reliability feature merge branch
+- Status: active
+- Decision: Use branch `codex/merge-author-0601-features` for the 0601 selective merge, keep `VFX_AI_TAGGER_CLI`, and package the merged artifact as `1.1.4`.
+- Reason: The merge changes user-facing analysis behavior and packaging, so it should be isolated from `master` until Eagle smoke confirms it.
+- Alternatives considered: Continue directly on `master`; skipped because the work includes multiple behavior ports and a tracked release artifact.
+- Consequences / follow-up: Do not push unless explicitly requested; install the local package in Eagle and smoke-test before merging back.
+
+## 2026-06-02 - Author 0601 selective merge
+- Status: active
+- Decision: Do not merge `C:\Users\mumengfei\Downloads\AI 标签工具0601.eagleplugin` wholesale; evaluate and port compatible behavior such as title-in-prompt toggle, AI retry controls, request chunking, write progress, and result cache into the current CLI workbench.
+- Reason: The 0601 package still uses the author plugin ID, has release/package hygiene issues, lacks Claude/Codex CLI backend support, and uses a page layout that conflicts with the current single-screen drawer workbench.
+- Alternatives considered: Replace the current `plugin.js`, `index.html`, and `style.css` with 0601 versions; skipped because that would regress the local CLI/OAuth direction and likely reintroduce whole-page UI tradeoffs.
+- Consequences / follow-up: Any merge should be staged behind focused tests and must preserve `VFX_AI_TAGGER_CLI`, CLI backend settings, no whole-page scrolling, and existing storage compatibility where possible.
 
 ## 2026-05-26 - Hardened CLI release package
 - Status: active
