@@ -188,6 +188,39 @@ test("createCliPlan discovers Codex under variable local install folders", () =>
   }
 });
 
+test("createCliHealthChecks builds lightweight command plans without AI prompts", () => {
+  const env = {
+    APPDATA: "C:\\Users\\me\\AppData\\Roaming",
+    LOCALAPPDATA: "C:\\Users\\me\\AppData\\Local",
+    USERPROFILE: "C:\\Users\\me",
+    PATH: "C:\\Windows\\System32"
+  };
+  const existing = new Set([
+    "C:\\Users\\me\\.local\\bin\\claude.exe",
+    "C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe"
+  ]);
+  const checks = backends.createCliHealthChecks(["claude", "codex", "eagle"], {
+    claudeCommand: "claude",
+    codexCommand: "codex",
+    cliWorkingDir: "I:\\AI\\Vibe Coding\\vfx-aitag-eagle"
+  }, {
+    env,
+    fileExists: (filePath) => existing.has(filePath)
+  });
+
+  assert.deepEqual(checks.map((check) => check.backend), ["claude", "codex", "eagle"]);
+  assert.equal(checks[0].ok, true);
+  assert.equal(checks[0].command, "C:\\Users\\me\\.local\\bin\\claude.exe");
+  assert.deepEqual(checks[0].args, ["--version"]);
+  assert.equal(checks[1].ok, true);
+  assert.equal(checks[1].command, "C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe");
+  assert.deepEqual(checks[1].args, ["--version"]);
+  assert.equal(checks[2].ok, false);
+  assert.equal(checks[2].command, "");
+  assert.match(checks[2].message, /Eagle AI/);
+  assert.equal(checks.some((check) => check.args && check.args.includes("PROMPT")), false);
+});
+
 test("runCliBackends falls back after a failed backend and parses the first success", async () => {
   const attempts = [];
   const result = await backends.runCliBackends({

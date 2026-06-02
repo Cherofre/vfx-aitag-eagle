@@ -156,6 +156,53 @@
     throw new Error(`未知 CLI 后端：${backend}`);
   }
 
+  function createCliHealthChecks(backends, settings, runtime) {
+    const requested = Array.isArray(backends) && backends.length ? backends : DEFAULT_BACKENDS;
+    return requested.map((backend) => createCliHealthCheck(backend, settings || {}, runtime || {}));
+  }
+
+  function createCliHealthCheck(backend, settings, runtime) {
+    const normalized = String(backend || "").toLowerCase();
+    if (normalized === "eagle") {
+      return {
+        backend: normalized,
+        ok: false,
+        command: "",
+        args: [],
+        message: "Eagle AI 需要在插件宿主中检查默认视觉模型"
+      };
+    }
+    if (!["claude", "codex"].includes(normalized)) {
+      return {
+        backend: normalized || "unknown",
+        ok: false,
+        command: "",
+        args: [],
+        message: `未知 CLI 后端：${backend}`
+      };
+    }
+
+    const configured = normalized === "claude"
+      ? stringOrDefault(settings && settings.claudeCommand, "claude")
+      : stringOrDefault(settings && settings.codexCommand, "codex");
+    const command = resolveCliCommand(configured, normalized, runtime);
+    const fileExists = runtime && runtime.fileExists || makeFileExists(runtime && runtime.fs);
+    const hasExplicitPath = hasPathSeparator(command);
+    const exists = hasExplicitPath ? fileExists(command) : null;
+    const ok = hasExplicitPath ? Boolean(exists) : Boolean(command);
+    const message = ok
+      ? (hasExplicitPath ? "命令已解析，可用 --version 做轻量检查" : "命令将通过 PATH 解析，可用 --version 做轻量检查")
+      : "未找到可执行命令，请填写 CLI 的绝对路径";
+    return {
+      backend: normalized,
+      ok,
+      command,
+      args: ["--version"],
+      fallbackArgs: ["--help"],
+      message
+    };
+  }
+
   function runCliBackend(options) {
     const execFile = options.execFile;
     const spawn = options.spawn;
@@ -521,6 +568,7 @@
     createAnalysisPrompt,
     parseCliJson,
     createCliPlan,
+    createCliHealthChecks,
     runCliBackend,
     runCliBackends,
     splitExtraArgs

@@ -393,6 +393,32 @@ h2 {
   padding-right: 2px;
 }
 
+.result-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 10px;
+}
+
+.result-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.result-filters button {
+  padding: 5px 9px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.result-filters button.is-active {
+  border-color: #36537c;
+  background: #172033;
+  color: var(--accent);
+}
+
 .write-progress {
   display: grid;
   gap: 7px;
@@ -617,6 +643,30 @@ h2 {
   font-weight: 500;
 }
 
+.review-tag.manual {
+  border-color: #2e7a4f;
+  background: #16261d;
+}
+
+.review-tag-remove {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.result-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.result-editor button {
+  white-space: nowrap;
+}
+
 .diagnostic-path-field {
   display: grid;
   gap: 6px;
@@ -810,8 +860,89 @@ h2 {
   margin-bottom: 10px;
 }
 
+.health-check-panel {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .03);
+  padding: 10px;
+}
+
+.health-check-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.health-check-head strong,
+.health-check-head span {
+  display: block;
+}
+
+.health-check-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.health-status-list {
+  display: grid;
+  gap: 6px;
+}
+
+.health-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  border-radius: 7px;
+  background: var(--panel-3);
+  padding: 7px 8px;
+  font-size: 12px;
+}
+
+.health-item span {
+  min-width: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.health-item.ok strong {
+  color: var(--success);
+}
+
+.health-item.warn strong {
+  color: var(--warn);
+}
+
+.health-item.fail strong {
+  color: var(--error);
+}
+
 .backend-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.preset-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.preset-panel label {
+  color: var(--muted);
+}
+
+.preset-panel select {
+  margin-top: 6px;
+}
+
+.preset-panel .hint {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 .wide-field {

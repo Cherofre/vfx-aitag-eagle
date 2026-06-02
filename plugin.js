@@ -37,6 +37,59 @@
   const REQUEST_SAFETY_TOKENS = 512;
   const MIN_TAG_BUDGET_TOKENS = 512;
   const ESTIMATED_IMAGE_TOKENS = 3072;
+  const ANALYSIS_PRESETS = {
+    "快速粗标": {
+      maxTags: 6,
+      concurrency: 3,
+      aiRetryCount: 1,
+      requestChunkK: 128,
+      autoConfidence: 0.85,
+      hideConfidence: 0.55,
+      frameRateValue: 1,
+      frameRateUnit: "spf",
+      maxVideoFrames: 18,
+      maxAnimatedFrames: 10
+    },
+    "精细分析": {
+      maxTags: 12,
+      concurrency: 1,
+      aiRetryCount: 3,
+      requestChunkK: 192,
+      autoConfidence: 0.78,
+      hideConfidence: 0.35,
+      frameRateValue: 1,
+      frameRateUnit: "fps",
+      maxVideoFrames: 72,
+      maxAnimatedFrames: 36
+    },
+    "长视频省钱": {
+      maxTags: 8,
+      concurrency: 1,
+      aiRetryCount: 1,
+      requestChunkK: 96,
+      autoConfidence: 0.82,
+      hideConfidence: 0.5,
+      frameRateValue: 2,
+      frameRateUnit: "spf",
+      maxVideoFrames: 20,
+      maxAnimatedFrames: 12
+    },
+    "只用 Claude": {
+      enableClaudeCli: true,
+      enableCodexCli: false,
+      enableEagleAi: false
+    },
+    "只用 Codex": {
+      enableClaudeCli: false,
+      enableCodexCli: true,
+      enableEagleAi: false
+    },
+    "Eagle AI 兜底": {
+      enableClaudeCli: true,
+      enableCodexCli: true,
+      enableEagleAi: true
+    }
+  };
 
   const els = {};
   const state = {
@@ -52,6 +105,9 @@
     sessionRemovedTags: [],
     undoStack: [],
     results: [],
+    healthStatus: [],
+    activeResultFilter: "all",
+    activePresetName: "",
     pauseRequested: false,
     paused: false,
     writing: false
@@ -69,14 +125,18 @@
       "writeProgressPanel", "writeProgressText", "writeProgressPercent", "writeProgressBar", "writeProgressMeta",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
       "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
+      "healthCheckPanel", "healthSummary", "healthStatusList", "runHealthCheckBtn",
+      "analysisPresetSelect", "applyPresetBtn", "presetHint", "retryFailedBtn",
       "settingsOverlay", "settingsDrawer", "closeSettingsBtn", "eagleAiSettingsBtn"
     ].forEach((id) => { els[id] = document.getElementById(id); });
     els.settingsTabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
     els.settingsPanels = Array.from(document.querySelectorAll("[data-settings-panel]"));
+    els.resultFilterButtons = Array.from(document.querySelectorAll("[data-result-filter]"));
 
     loadStoredState();
     bindEvents();
     await refreshAll();
+    await runHealthCheck({ silent: true });
   }
 
   function bindEvents() {
@@ -122,6 +182,20 @@
       resetWriteProgress();
       renderResults();
     });
+    els.resultFilterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        state.activeResultFilter = button.dataset.resultFilter || "all";
+        renderResults();
+      });
+    });
+    els.retryFailedBtn.addEventListener("click", retryFailedResults);
+    els.runHealthCheckBtn.addEventListener("click", () => runHealthCheck({ silent: false }));
+    els.analysisPresetSelect.addEventListener("change", () => {
+      state.activePresetName = els.analysisPresetSelect.value || "";
+      saveSettings();
+      renderPresetHint();
+    });
+    els.applyPresetBtn.addEventListener("click", () => applyAnalysisPreset(els.analysisPresetSelect.value));
     els.refreshBackendStatusBtn.addEventListener("click", () => {
       refreshModelStatus();
       saveSettings();
@@ -383,6 +457,7 @@
     }
     const settings = readSettings();
     const model = settings.enabledBackends.includes("eagle") ? getAiModel() : null;
+    if (!await ensureHealthyBeforeAnalysis(settings, model)) return;
     const usableBackends = getUsableBackends(settings, model);
     if (!usableBackends.length) {
       setStatus("没有可用 AI 后端：请启用 Claude/Codex CLI，或配置 Eagle 默认视觉模型。");
@@ -1186,8 +1261,45 @@
       codexModel: String(els.codexModel.value || "").trim(),
       codexExtraArgs: String(els.codexExtraArgs.value || "").trim(),
       cliTimeoutSeconds: readInt(els.cliTimeoutSeconds.value, 120, 10, 600),
-      cliWorkingDir: String(els.cliWorkingDir.value || "").trim()
+      cliWorkingDir: String(els.cliWorkingDir.value || "").trim(),
+      analysisPresetName: state.activePresetName
     };
+  }
+
+  function applyAnalysisPreset(name) {
+    const presetName = String(name || "").trim();
+    const preset = ANALYSIS_PRESETS[presetName];
+    state.activePresetName = presetName;
+    if (els.analysisPresetSelect) els.analysisPresetSelect.value = presetName;
+    if (!preset) {
+      saveSettings();
+      renderPresetHint();
+      return;
+    }
+    Object.keys(preset).forEach((key) => {
+      if (!els[key]) return;
+      if (els[key].type === "checkbox") {
+        els[key].checked = Boolean(preset[key]);
+      } else {
+        els[key].value = String(preset[key]);
+      }
+    });
+    clampAndShowFrameRate();
+    saveSettings();
+    refreshModelStatus();
+    renderPresetHint();
+    runHealthCheck({ silent: true });
+    setStatus(`已应用分析预设：${presetName}`);
+  }
+
+  function renderPresetHint() {
+    if (!els.presetHint) return;
+    const presetName = state.activePresetName || "";
+    if (!presetName) {
+      els.presetHint.textContent = "预设只覆盖分析关键参数，不改全局提示词和诊断目录。";
+      return;
+    }
+    els.presetHint.textContent = `当前预设：${presetName}。应用后会保存到下次打开。`;
   }
 
   function clampAndShowFrameRate() {
@@ -1234,7 +1346,9 @@
       codexModel: els.codexModel.value,
       codexExtraArgs: els.codexExtraArgs.value,
       cliTimeoutSeconds: els.cliTimeoutSeconds.value,
-      cliWorkingDir: els.cliWorkingDir.value
+      cliWorkingDir: els.cliWorkingDir.value,
+      activePresetName: state.activePresetName,
+      analysisPresetName: state.activePresetName
     }));
   }
 
@@ -1250,6 +1364,264 @@
     } catch (error) {
       setStatus(`选择诊断目录失败：${formatError(error)}`);
     }
+  }
+
+  async function runHealthCheck(options = {}) {
+    const settings = options.settings || readSettings();
+    const model = Object.prototype.hasOwnProperty.call(options, "model")
+      ? options.model
+      : (settings.enabledBackends.includes("eagle") ? getAiModel() : null);
+    state.healthStatus = await buildHealthStatus(settings, model);
+    renderHealthStatus();
+    if (!options.silent) {
+      const blockers = state.healthStatus.filter((check) => check.blocking && !check.ok);
+      setStatus(blockers.length ? `环境检查发现 ${blockers.length} 个阻断项。` : "环境检查完成，未发现阻断项。");
+    }
+    return state.healthStatus;
+  }
+
+  async function ensureHealthyBeforeAnalysis(settings, model) {
+    const checks = await runHealthCheck({ silent: true, settings, model });
+    const blockers = checks.filter((check) => check.blocking && !check.ok);
+    if (!blockers.length) return true;
+    openSettingsDrawer();
+    activateSettingsTab("backend");
+    setStatus(`开始分析前请先处理：${blockers.map((check) => check.label).join("、")}`);
+    return false;
+  }
+
+  async function buildHealthStatus(settings, model) {
+    const checks = [];
+    const enabledCliBackends = (settings.enabledBackends || []).filter((backend) => backend !== "eagle");
+    const selectedNeedsFfmpeg = state.selectedItems.some(itemNeedsFfmpeg);
+
+    checks.push({
+      id: "node",
+      label: "Node 能力",
+      ok: Boolean(nodeRequire && fs && path),
+      blocking: Boolean(enabledCliBackends.length || selectedNeedsFfmpeg || settings.diagnosticEnabled),
+      message: nodeRequire && fs && path ? "Node、fs、path 可用" : "当前插件环境缺少 Node.js 文件能力"
+    });
+    checks.push({
+      id: "child_process",
+      label: "child_process",
+      ok: Boolean(cp && typeof cp.execFile === "function"),
+      blocking: Boolean(enabledCliBackends.length || selectedNeedsFfmpeg),
+      message: cp && typeof cp.execFile === "function" ? "可调用本地命令" : "无法调用本地 CLI 或 FFmpeg"
+    });
+
+    if (enabledCliBackends.length) {
+      if (!cliBackends || typeof cliBackends.createCliHealthChecks !== "function") {
+        enabledCliBackends.forEach((backend) => {
+          checks.push({
+            id: `cli-${backend}`,
+            label: formatBackendLabel(backend),
+            ok: false,
+            blocking: true,
+            message: "CLI 后端模块未加载"
+          });
+        });
+      } else {
+        cliBackends.createCliHealthChecks(enabledCliBackends, settings, {
+          fs,
+          path,
+          env: typeof process !== "undefined" ? process.env : undefined
+        }).forEach((plan) => {
+          checks.push({
+            id: `cli-${plan.backend}`,
+            label: formatBackendLabel(plan.backend),
+            ok: Boolean(plan.ok && cp && typeof cp.execFile === "function"),
+            blocking: true,
+            command: plan.command,
+            message: `${plan.message}${plan.command ? `：${plan.command}` : ""}`
+          });
+        });
+      }
+    } else {
+      checks.push({
+        id: "cli-disabled",
+        label: "本地 CLI",
+        ok: true,
+        blocking: false,
+        message: "未启用 Claude/Codex CLI"
+      });
+    }
+
+    if (settings.enabledBackends.includes("eagle")) {
+      checks.push({
+        id: "eagle-ai",
+        label: "Eagle AI 模型",
+        ok: Boolean(model),
+        blocking: true,
+        message: model ? "已配置默认视觉模型" : "未配置 Eagle 默认视觉模型"
+      });
+    }
+
+    checks.push(await checkFfmpegHealth(selectedNeedsFfmpeg));
+    checks.push(checkDiagnosticHealth(settings));
+    checks.push(checkSelectedPathHealth());
+    return checks.map(normalizeHealthCheck);
+  }
+
+  function normalizeHealthCheck(check) {
+    const ok = Boolean(check && check.ok);
+    const blocking = Boolean(check && check.blocking);
+    return {
+      id: check.id || check.label || "check",
+      label: check.label || "检查项",
+      ok,
+      blocking,
+      severity: ok ? "ok" : (blocking ? "fail" : "warn"),
+      message: check.message || (ok ? "通过" : "需要处理"),
+      command: check.command || ""
+    };
+  }
+
+  async function checkFfmpegHealth(required) {
+    if (!required) {
+      return {
+        id: "ffmpeg",
+        label: "FFmpeg",
+        ok: true,
+        blocking: false,
+        message: "当前素材不需要抽帧"
+      };
+    }
+    const ffmpeg = getFfmpegApi();
+    if (!ffmpeg) {
+      return {
+        id: "ffmpeg",
+        label: "FFmpeg",
+        ok: false,
+        blocking: true,
+        message: "未检测到 Eagle FFmpeg 扩展"
+      };
+    }
+    try {
+      if (typeof ffmpeg.isInstalled === "function" && !await ffmpeg.isInstalled()) {
+        return { id: "ffmpeg", label: "FFmpeg", ok: false, blocking: true, message: "Eagle FFmpeg 扩展未安装" };
+      }
+      if (ffmpeg.isInstalled === false) {
+        return { id: "ffmpeg", label: "FFmpeg", ok: false, blocking: true, message: "Eagle FFmpeg 扩展未安装" };
+      }
+      const paths = typeof ffmpeg.getPaths === "function" ? await ffmpeg.getPaths() : ffmpeg.paths;
+      const ok = Boolean(paths && paths.ffmpeg && paths.ffprobe);
+      return {
+        id: "ffmpeg",
+        label: "FFmpeg",
+        ok,
+        blocking: true,
+        message: ok ? "FFmpeg/ffprobe 路径可用" : "无法读取 FFmpeg/ffprobe 路径"
+      };
+    } catch (error) {
+      return {
+        id: "ffmpeg",
+        label: "FFmpeg",
+        ok: false,
+        blocking: true,
+        message: formatError(error)
+      };
+    }
+  }
+
+  function checkDiagnosticHealth(settings) {
+    if (!settings.diagnosticEnabled) {
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: true,
+        blocking: false,
+        message: "未启用诊断保存"
+      };
+    }
+    if (!settings.diagnosticDir) {
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: false,
+        blocking: true,
+        message: "已开启诊断保存，但尚未选择文件夹"
+      };
+    }
+    if (!fs || !path) {
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: false,
+        blocking: true,
+        message: "缺少 Node.js 文件能力，无法写入诊断目录"
+      };
+    }
+    try {
+      fs.mkdirSync(settings.diagnosticDir, { recursive: true });
+      const probe = path.join(settings.diagnosticDir, `.vfx-ai-tagger-health-${Date.now()}.tmp`);
+      fs.writeFileSync(probe, "ok", "utf8");
+      fs.rmSync(probe, { force: true });
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: true,
+        blocking: true,
+        message: "诊断目录可写"
+      };
+    } catch (error) {
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: false,
+        blocking: true,
+        message: formatError(error)
+      };
+    }
+  }
+
+  function checkSelectedPathHealth() {
+    if (!state.selectedItems.length) {
+      return {
+        id: "selected-paths",
+        label: "素材路径",
+        ok: true,
+        blocking: false,
+        message: "尚未导入素材，开始分析前会再次检查"
+      };
+    }
+    const missing = state.selectedItems.filter((item) => {
+      const candidates = [getItemFilePath(item), getItemPreviewPath(item)]
+        .map((candidate) => candidate && fileUrlToPath(candidate))
+        .filter(Boolean);
+      if (!candidates.length) return true;
+      return Boolean(fs && !candidates.some((candidate) => fs.existsSync(candidate)));
+    });
+    return {
+      id: "selected-paths",
+      label: "素材路径",
+      ok: missing.length === 0,
+      blocking: true,
+      message: missing.length
+        ? `${missing.length} 个素材路径不存在或不可访问`
+        : `${state.selectedItems.length} 个素材路径可访问`
+    };
+  }
+
+  function itemNeedsFfmpeg(item) {
+    const filePath = getItemFilePath(item);
+    const ext = getItemExt(item, filePath);
+    return VIDEO_EXTS.has(ext) || ANIMATED_EXTS.has(ext) || ext === WEBP_EXT;
+  }
+
+  function renderHealthStatus() {
+    if (!els.healthStatusList || !els.healthSummary) return;
+    const checks = Array.isArray(state.healthStatus) ? state.healthStatus : [];
+    const blockers = checks.filter((check) => check.blocking && !check.ok);
+    els.healthSummary.textContent = checks.length
+      ? (blockers.length ? `${blockers.length} 个阻断项` : "环境可用")
+      : "等待检查";
+    els.healthStatusList.innerHTML = checks.map((check) => `
+      <div class="health-item ${escapeHtml(check.severity)}">
+        <strong>${check.ok ? "通过" : (check.blocking ? "阻断" : "提醒")}</strong>
+        <span>${escapeHtml(check.label)}：${escapeHtml(check.message)}</span>
+      </div>
+    `).join("");
   }
 
   async function openDirectoryPicker() {
@@ -1320,6 +1692,9 @@
         els[key].value = settings[key];
       }
     });
+    state.activePresetName = settings.analysisPresetName || settings.activePresetName || "";
+    if (els.analysisPresetSelect) els.analysisPresetSelect.value = state.activePresetName;
+    renderPresetHint();
   }
 
   function coerceStoredBoolean(value, fallback) {
@@ -1486,13 +1861,20 @@
     els.failedCount.textContent = String(failedCount);
     els.applyBtn.disabled = state.running || state.writing || readyCount === 0;
     els.undoBtn.disabled = state.running || state.writing || state.undoStack.length === 0;
+    if (els.retryFailedBtn) els.retryFailedBtn.disabled = state.running || state.writing || !state.results.some((result) => result.status === "failed");
+    updateResultFilterButtons();
     updateAnalysisControls();
     els.results.innerHTML = "";
     if (!state.results.length) {
       els.results.innerHTML = `<div class="empty">导入选中素材后点击“开始分析”，这里会显示待确认标签、置信度和写入状态。</div>`;
       return;
     }
-    state.results.forEach((result) => {
+    const visibleResults = getFilteredResults();
+    if (!visibleResults.length) {
+      els.results.innerHTML = `<div class="empty">当前过滤条件下没有结果。</div>`;
+      return;
+    }
+    visibleResults.forEach((result) => {
       const item = document.createElement("article");
       item.className = "result";
       item.innerHTML = `
@@ -1518,6 +1900,7 @@
         </div>
         ${renderAutoTags(result.autoTags)}
         ${renderReviewTags(result)}
+        ${renderResultEditor(result)}
         ${result.aiReason ? `<div class="result-reason">AI 说明：${escapeHtml(result.aiReason)}</div>` : ""}
         ${result.filteredTags && result.filteredTags.length ? `<div class="filtered">已过滤：${escapeHtml(result.filteredTags.join("、"))}</div>` : ""}
         ${result.hiddenCount ? `<div class="muted">${result.hiddenCount} 个低置信标签已隐藏</div>` : ""}
@@ -1528,8 +1911,40 @@
     els.results.querySelectorAll("[data-review-tag]").forEach((input) => {
       input.addEventListener("change", () => toggleReviewTag(input.dataset.resultId, input.dataset.reviewTag, input.checked));
     });
+    els.results.querySelectorAll("[data-remove-review-tag]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        removeReviewTag(button.dataset.resultId, button.dataset.removeReviewTag);
+      });
+    });
+    els.results.querySelectorAll("[data-add-manual-tag]").forEach((button) => {
+      button.addEventListener("click", () => addManualTagToResult(button.dataset.addManualTag));
+    });
+    els.results.querySelectorAll("[data-manual-tag-input]").forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") addManualTagToResult(input.dataset.manualTagInput);
+      });
+    });
     els.results.querySelectorAll("[data-reanalyze-result]").forEach((button) => {
       button.addEventListener("click", () => reanalyzeResult(button.dataset.reanalyzeResult));
+    });
+  }
+
+  function getFilteredResults() {
+    const filter = state.activeResultFilter || "all";
+    if (filter === "all") return state.results;
+    if (filter === "ready") return state.results.filter((result) => result.status === "ready");
+    if (filter === "failed") return state.results.filter((result) => result.status === "failed");
+    if (filter === "applied") return state.results.filter((result) => result.status === "applied");
+    if (filter === "skipped") return state.results.filter((result) => result.status === "skipped");
+    return state.results;
+  }
+
+  function updateResultFilterButtons() {
+    if (!els.resultFilterButtons) return;
+    els.resultFilterButtons.forEach((button) => {
+      button.classList.toggle("is-active", (button.dataset.resultFilter || "all") === (state.activeResultFilter || "all"));
     });
   }
 
@@ -1571,14 +1986,49 @@
       <div class="tag-section-title">待确认</div>
       <div class="review-tags">
         ${result.reviewTags.map((tag) => `
-          <label class="review-tag">
+          <label class="review-tag ${tag.source === "manual" ? "manual" : ""}">
             <input type="checkbox" data-result-id="${escapeHtml(result.id)}" data-review-tag="${escapeHtml(tag.name)}" ${tag.selected ? "checked" : ""}>
             <span>${escapeHtml(tag.name)}</span>
-            <strong>${formatConfidence(tag.confidence)}</strong>
+            <strong>${tag.source === "manual" ? "人工" : formatConfidence(tag.confidence)}</strong>
+            <button class="review-tag-remove" type="button" data-result-id="${escapeHtml(result.id)}" data-remove-review-tag="${escapeHtml(tag.name)}" title="删除标签">×</button>
           </label>
         `).join("")}
       </div>
     `;
+  }
+
+  function renderResultEditor(result) {
+    if (["pending", "running"].includes(result.status)) return "";
+    const options = getAllowedTags()
+      .slice(0, 400)
+      .map((tag) => `<option value="${escapeHtml(tag)}"></option>`)
+      .join("");
+    const listId = `tag-options-${safeDomId(result.id)}`;
+    return `
+      <div class="result-editor">
+        <input type="search" list="${escapeHtml(listId)}" data-manual-tag-input="${escapeHtml(result.id)}" placeholder="搜索或输入标签">
+        <datalist id="${escapeHtml(listId)}">${options}</datalist>
+        <button type="button" data-add-manual-tag="${escapeHtml(result.id)}">添加标签</button>
+      </div>
+    `;
+  }
+
+  async function retryFailedResults() {
+    if (state.running) return;
+    const failedIds = state.results.filter((result) => result.status === "failed").map((result) => result.id);
+    if (!failedIds.length) {
+      setStatus("没有失败项需要重试。");
+      return;
+    }
+    const failedSet = new Set(failedIds);
+    state.results = state.results.map((result) => failedSet.has(result.id)
+      ? { ...createPendingResult({ id: result.id, name: result.name }), message: "等待重试" }
+      : result);
+    state.paused = false;
+    saveResultsState();
+    renderResults();
+    setStatus(`准备重试 ${failedIds.length} 个失败项。`);
+    await analyzeSelected();
   }
 
   async function reanalyzeResult(resultId) {
@@ -1595,6 +2045,7 @@
     }
     const settings = readSettings();
     const model = settings.enabledBackends.includes("eagle") ? getAiModel() : null;
+    if (!await ensureHealthyBeforeAnalysis(settings, model)) return;
     const usableBackends = getUsableBackends(settings, model);
     if (!usableBackends.length) {
       setStatus("没有可用 AI 后端：请启用 Claude/Codex CLI，或配置 Eagle 默认视觉模型。");
@@ -1654,6 +2105,46 @@
     result.tags = getSelectedReviewTags(result).map((item) => item.name);
     saveResultsState();
     renderResults();
+  }
+
+  function removeReviewTag(resultId, tagName) {
+    const result = state.results.find((item) => item.id === resultId);
+    if (!result || !Array.isArray(result.reviewTags)) return;
+    result.reviewTags = result.reviewTags.filter((tag) => tag.name !== tagName);
+    result.tags = getSelectedReviewTags(result).map((item) => item.name);
+    saveResultsState();
+    renderResults();
+  }
+
+  function addManualTagToResult(resultId) {
+    const result = state.results.find((item) => item.id === resultId);
+    if (!result) return;
+    const input = Array.from(els.results.querySelectorAll("[data-manual-tag-input]"))
+      .find((candidate) => candidate.dataset.manualTagInput === resultId);
+    const tagName = cleanTag(input && input.value);
+    if (!tagName) return;
+    const existing = new Set((Array.isArray(result.reviewTags) ? result.reviewTags : []).map((tag) => tag.name));
+    if (!existing.has(tagName)) {
+      result.reviewTags = [
+        ...(Array.isArray(result.reviewTags) ? result.reviewTags : []),
+        { name: tagName, confidence: 1, selected: true, source: "manual" }
+      ];
+    } else {
+      result.reviewTags = result.reviewTags.map((tag) => tag.name === tagName ? { ...tag, selected: true } : tag);
+    }
+    if (!getAllowedTags().includes(tagName)) {
+      state.customAllowedTags = normalizeTagList([...state.customAllowedTags, tagName]);
+      saveStoredTagState();
+    }
+    if (["failed", "skipped", "applied"].includes(result.status)) {
+      result.status = "ready";
+      result.message = "已人工添加标签，可直接写入或重新分析。";
+      result.errorType = "";
+    }
+    result.tags = getSelectedReviewTags(result).map((item) => item.name);
+    if (input) input.value = "";
+    saveResultsState();
+    renderAll();
   }
 
   function createPendingResult(item) {
@@ -1940,6 +2431,13 @@
 
   function cleanTag(tag) {
     return String(tag || "").trim().replace(/\s+/g, " ");
+  }
+
+  function safeDomId(value) {
+    return String(value || "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      || "item";
   }
 
   function readJsonArray(key) {

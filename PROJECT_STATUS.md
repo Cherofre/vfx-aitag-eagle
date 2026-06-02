@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-02 10:10
-- Phase: 0601 selective merge packaged
+- Last Updated: 2026-06-02 10:47
+- Phase: productivity workbench implementation
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
-- Branch: codex/merge-author-0601-features
-- Goal: 特效 AI 标签管理 Eagle 插件单屏工作台优化、CLI 图像读取修复、验证并重新打包；评估作者新版插件可合并内容
-- Current Focus: Selectively merged 0601 reliability features into the local CLI workbench and repackaged version `1.1.4`.
+- Branch: codex/productivity-workbench
+- Goal: 在 `1.1.4` CLI 单屏工作台基础上实现生产力四件套：环境健康检查、分析预设、失败项一键重试、结果手动编辑，并打包 `1.2.0`。
+- Current Focus: Productivity workbench source implementation is green; next step is version bump and packaging.
 - Superpowers Spec: none
-- Superpowers Plan: `docs/superpowers/plans/2026-05-26-author-ui-merge.md`
-- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test CLI/Eagle AI analysis with the new settings.
+- Superpowers Plan: user-provided plan in chat, 2026-06-02
+- Current Task: Bump manifest to `1.2.0`, repackage, inspect archive, then update final ledger and commit package stage.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test selection refresh failures, write failures, frameless dragging, settings tabs, diagnostics, and pause/continue/restart controls.
-- Next verification: after merge, run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, `node --check cli-backends.js`, then repackage and inspect archive.
+- Start with: bump `manifest.json` to `1.2.0` and repackage `dist\特效AI标签管理-cli.eagleplugin`.
+- Next verification: run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, `node --check cli-backends.js`, then bump manifest to `1.2.0`, repackage, and inspect archive.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -46,14 +46,20 @@
 - [x] Extracted and evaluated author package `AI 标签工具0601.eagleplugin`; identified useful feature candidates but confirmed whole-package merge would regress CLI support and single-screen workbench behavior.
 - [x] Selectively merged 0601 features: title-in-prompt toggle, AI retry count, request chunking, write progress, result cache, JSON repair, diagnostic directory validation, and directory picker fallback.
 - [x] Bumped manifest to `1.1.4` and repackaged `dist\特效AI标签管理-cli.eagleplugin`.
+- [x] Created branch `codex/productivity-workbench` from `codex/merge-author-0601-features`.
+- [x] Baseline verified before productivity implementation.
+- [x] Add RED tests for health checks, presets, failed-result retry, result editing, and packaging contract.
+- [x] Implemented environment health checks, analysis presets, failed-result retry/filtering, and manual result tag editing.
+- [x] Verified source implementation with unit/static tests and syntax checks.
 
 ## Verification
-- Last command: `System.IO.Compression.ZipFile` listed entries in `dist\特效AI标签管理-cli.eagleplugin`.
+- Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`; `node --check plugin.js`; `node --check cli-backends.js`.
 - Result: pass
-- Evidence / notes: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 21 tests. `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.1.4`, `devTools: false`. In-app Browser rejected `file:///I:/AI/Vibe%20Coding/vfx-aitag-eagle/index.html` by URL policy, so no browser layout smoke was performed this turn. Eagle real-host smoke is still required.
+- Evidence / notes: Baseline on branch `codex/productivity-workbench` passed 21 tests before implementation. RED tests failed for missing `createCliHealthChecks` and missing productivity UI contract. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 23 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends.
+- New health checks must remain lightweight and must not perform real AI requests.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.
 - The 0601 package is not install/release clean as-is: it embeds nested packages, keeps the author plugin ID, leaves `devTools` enabled, and keeps the localized manifest shape that previously caused Eagle import/open ambiguity.
 - Request chunking is covered by static tests and syntax checks, but still needs real Eagle/CLI smoke with many tags or many frames.

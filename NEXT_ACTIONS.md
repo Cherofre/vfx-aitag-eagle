@@ -1,19 +1,19 @@
 # Next Actions
 
 ## Now
-- [ ] Install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.1.4` in Eagle and confirm the ID `VFX_AI_TAGGER_CLI` appears as a separate plugin.
-- [ ] Smoke-test on the other PC where Codex lives at `C:\Users\feiyu\AppData\Local\OpenAI\Codex\bin\codex.exe`; bare `codex` in plugin settings should resolve automatically.
-- [ ] Smoke-test the reported `1999同人皮肤...Magesbox.mp4` case again: Codex CLI should no longer fail with `The command line is too long`, and diagnostic frame thumbnails should display.
-- [ ] Smoke-test 0601 merged controls: title toggle off/on, AI retry count, request chunk K with many tags/frames, result restore after window reopen, and write progress on batch write.
-- [ ] Smoke-test that the frameless rounded window can be dragged from the topbar, closed from the new top-right close button, and that buttons/inputs remain clickable.
-- [ ] Smoke-test settings drawer tabs, diagnostic saving, selection refresh failure recovery, write/undo failure recovery, pause/continue/restart, and Claude/Codex CLI analysis on real selected assets.
+- [x] Add RED tests for CLI health check planning and workbench UI contracts.
+- [x] Implement health check UI/state and lightweight checks before analysis.
+- [x] Implement analysis presets, failed-result filtering/retry, and manual result tag editing.
+- [x] Run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
+- [ ] Bump manifest to `1.2.0`, repackage `dist\特效AI标签管理-cli.eagleplugin`, and inspect archive contents.
+- [ ] Update ledger and commit in stages, leaving `docs/vfx-tag-taxonomy-review.md` untouched.
 
 ## Handoff Notes
-- Start here: packaged local CLI plugin is `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin`.
-- Do not redo: ledger initialization, branch creation, workbench implementation, post-review reliability/layout fixes, 0601 selective feature merge, static tests, and package inspection are done.
-- Verify next: after installing the packaged local CLI plugin, inspect `C:\Users\mumengfei\AppData\Roaming\Eagle\log.log` and test a real selected asset.
+- Start here: bump manifest/package on branch `codex/productivity-workbench`; source tests are already green.
+- Do not redo: RED test verification, source implementation, and source static verification are done.
+- Verify next: after packaging, inspect the `.eagleplugin` archive contents and manifest version.
 - Do not claim: Eagle real-host smoke has passed; in-app Browser rejected the local `file://` URL this turn, so browser layout smoke was not performed.
-- Watch out for: `dist/特效AI标签管理-cli.eagleplugin` is a tracked release artifact and should be intentionally replaced when packaging changes; the 0601 package should be treated as a feature reference, not as a replacement artifact.
+- Watch out for: `dist/特效AI标签管理-cli.eagleplugin` is a tracked release artifact and should be intentionally replaced when packaging changes; the new health checks must not make real AI requests.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later

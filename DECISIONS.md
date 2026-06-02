@@ -13,8 +13,16 @@
 - 2026-05-26: Treat version `1.1.0` as the hardened CLI release package with release devTools disabled.
 - 2026-06-02: Treat author 0601 as a selective feature source; prioritize behavior ports, not package/layout replacement.
 - 2026-06-02: Merge 0601 reliability features on `codex/merge-author-0601-features` and package as version `1.1.4`.
+- 2026-06-02: Build productivity workbench enhancements on `codex/productivity-workbench` with TDD and package as version `1.2.0`.
 
 ## Decision Log
+
+## 2026-06-02 - Productivity workbench branch
+- Status: active
+- Decision: Start `codex/productivity-workbench` from `codex/merge-author-0601-features` and implement health checks, presets, failed-result retry, and manual result editing with test-first slices.
+- Reason: The requested enhancements touch CLI planning, settings UI, result state, and packaging, so an isolated branch and staged verification reduce regressions in the already-tested `1.1.4` workbench.
+- Alternatives considered: Continue directly on `codex/merge-author-0601-features`; skipped because the work changes multiple user-facing workflows and should be easy to merge or abandon independently.
+- Consequences / follow-up: Keep `VFX_AI_TAGGER_CLI`, single-screen layout, Claude/Codex/Eagle AI support, and existing storage compatibility; do not include unrelated `docs/vfx-tag-taxonomy-review.md`.
 
 ## 2026-06-02 - 0601 reliability feature merge branch
 - Status: active

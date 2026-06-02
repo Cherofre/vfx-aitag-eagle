@@ -207,3 +207,48 @@ test("0601 reliability features are selectively exposed in the CLI workbench", (
   assert.match(css, /\.write-progress-bar\s*{/);
   assert.match(css, /\.write-progress\.has-failures\s+\.write-progress-bar/);
 });
+
+test("productivity workbench exposes health checks, presets, retry filters, and result editing", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+  const css = read("style.css");
+  const manifest = JSON.parse(read("manifest.json"));
+
+  assert.equal(manifest.id, "VFX_AI_TAGGER_CLI");
+
+  assert.match(html, /id="healthCheckPanel"/);
+  assert.match(html, /id="runHealthCheckBtn"[^>]*>环境检查<\/button>/);
+  assert.match(html, /id="healthStatusList"/);
+  assert.match(html, /id="analysisPresetSelect"/);
+  ["快速粗标", "精细分析", "长视频省钱", "只用 Claude", "只用 Codex", "Eagle AI 兜底"].forEach((label) => {
+    assert.match(html, new RegExp(label));
+  });
+  assert.match(html, /class="result-filters"/);
+  assert.match(html, /data-result-filter="failed"/);
+  assert.match(html, /id="retryFailedBtn"[^>]*>重试失败项<\/button>/);
+
+  assert.match(js, /healthStatus:\s*\[\]/);
+  assert.match(js, /activeResultFilter:\s*"all"/);
+  assert.match(js, /activePresetName:\s*""/);
+  assert.match(js, /function runHealthCheck\(/);
+  assert.match(js, /function ensureHealthyBeforeAnalysis\(/);
+  assert.match(js, /function applyAnalysisPreset\(/);
+  assert.match(js, /function retryFailedResults\(/);
+  assert.match(js, /function getFilteredResults\(/);
+  assert.match(js, /function removeReviewTag\(/);
+  assert.match(js, /function addManualTagToResult\(/);
+  assert.match(js, /source:\s*"manual"/);
+  assert.match(js, /activePresetName:\s*state\.activePresetName/);
+  assert.match(js, /analysisPresetName:\s*state\.activePresetName/);
+  assert.match(js, /runHealthCheckBtn\.addEventListener\("click", \(\) => runHealthCheck\(/);
+  assert.match(js, /retryFailedBtn\.addEventListener\("click", retryFailedResults\)/);
+  assert.match(js, /data-remove-review-tag/);
+  assert.match(js, /data-add-manual-tag/);
+  assert.match(js, /data-manual-tag-input/);
+
+  assert.match(css, /\.health-check-panel/);
+  assert.match(css, /\.preset-panel/);
+  assert.match(css, /\.result-filters/);
+  assert.match(css, /\.result-editor/);
+  assert.match(css, /\.review-tag\.manual/);
+});
