@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-02 17:03
-- Phase: collection workflow packaged
+- Last Updated: 2026-06-02 17:16
+- Phase: collector bar visibility fix packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/collection-workflow
-- Goal: 做连续采集工作流：右键/插件入口追加 Eagle 当前选中，支持追加/替换/清空、插件内右键菜单和采集条。
-- Current Focus: Collection workflow is implemented, verified, and packaged as version `1.3.0`.
+- Goal: 修复采集条不够显眼且没有真缩小的问题，让采集条成为自动置顶的小浮窗。
+- Current Focus: Collector bar visibility/always-on-top fix is implemented, verified, and packaged as version `1.3.1`.
 - Superpowers Spec: none
 - Superpowers Plan: `docs/superpowers/plans/2026-06-02-collection-workflow.md`
-- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.0` in Eagle and smoke-test the collection workflow.
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.1` in Eagle and smoke-test collector bar shrink/always-on-top/restore.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.0` in Eagle.
-- Next verification: Eagle real-host smoke for right-click plugin entry append, append/replace/clear, full list, plugin-internal context menus, collector bar expand/analyze/close, settings drawer, write/undo, and Claude/Codex/Eagle AI backends.
+- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.1` in Eagle.
+- Next verification: Eagle real-host smoke for collector bar shrinking to `680×96`, moving near the top of the screen, staying always-on-top while collapsed, restoring full workbench bounds/normal top state on expand, plus right-click plugin entry append and analysis/write flows.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -63,14 +63,16 @@
 - [x] Added plan `docs/superpowers/plans/2026-06-02-collection-workflow.md`.
 - [x] Implemented append/replace/clear current Eagle selection, plugin event append, internal context menus, and collector bar mode.
 - [x] Bumped manifest to `1.3.0`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Fixed collector bar so it can really shrink by lowering manifest minimum window size, moving it to a top-center floating position, making it always-on-top while collapsed, and restoring window bounds/top state on expand.
+- [x] Bumped manifest to `1.3.1`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
 
 ## Verification
 - Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`
 - Result: pass
-- Evidence / notes: Added RED UI contract test for collection workflow; it initially failed because append/replace/clear/context-menu/collector controls were absent. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 26 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.0`, `devTools: false`. Browser local smoke was not rerun because the current environment previously blocked local browser access; Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: Added RED UI contract test for real collector shrink/always-on-top behavior; it initially failed because manifest minimum size was `980×640`. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 27 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.1`, `minWidth: 680`, `minHeight: 96`, `devTools: false`. Browser local smoke was not rerun because the current environment previously blocked local browser access; Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
-- Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially right-click plugin entry append and collector bar sizing.
+- Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.
 - Current UI fix must preserve single-screen body no-scroll and keep material-list scrolling local to the selected-material modal/panel.
 - New health checks must remain lightweight and must not perform real AI requests.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.

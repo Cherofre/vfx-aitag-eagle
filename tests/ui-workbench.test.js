@@ -38,8 +38,10 @@ test("plugin identity and chrome are local, frameless, and draggable", () => {
   assert.notEqual(manifest.id, "81ae8109-ee4d-42e3-ab69-9bb73765d866");
   assert.equal(manifest.main.frame, false);
   assert.equal(manifest.main.resizable, true);
-  assert.equal(manifest.main.minWidth, 980);
-  assert.equal(manifest.main.minHeight, 640);
+  assert.ok(manifest.main.width >= 1180);
+  assert.ok(manifest.main.height >= 760);
+  assert.ok(manifest.main.minWidth <= 720);
+  assert.ok(manifest.main.minHeight <= 120);
 
   assert.match(html, /id="closeWindowBtn"[^>]*class="window-close-btn"/);
   assert.match(html, /id="closeWindowBtn"[^>]*aria-label="关闭窗口"/);
@@ -348,4 +350,27 @@ test("collection workflow exposes append, replace, clear, context menus, and col
   assert.match(css, /\.collector-bar\s*{/);
   assert.match(css, /body\.collector-mode\s+\.workbench-shell/);
   assert.match(css, /body\.collector-mode\s+\.collector-bar/);
+});
+
+test("collector bar becomes a real always-on-top floating window", () => {
+  const js = read("plugin.js");
+  const css = read("style.css");
+  const manifest = JSON.parse(read("manifest.json"));
+
+  assert.ok(manifest.main.minWidth <= 720, "manifest min width must allow real collector shrink");
+  assert.ok(manifest.main.minHeight <= 120, "manifest min height must allow real collector shrink");
+  assert.match(js, /COLLECTOR_WINDOW_BOUNDS/);
+  assert.match(js, /collectorPreviousBounds/);
+  assert.match(js, /collectorPreviousAlwaysOnTop/);
+  assert.match(js, /setAlwaysOnTop\(true\)/);
+  assert.match(js, /setAlwaysOnTop\(state\.collectorPreviousAlwaysOnTop/);
+  assert.match(js, /setResizable\(false\)/);
+  assert.match(js, /setResizable\(true\)/);
+  assert.match(js, /setWindowBounds\(eagleWindow,\s*await getCollectorWindowBounds\(/);
+  assert.match(js, /setWindowBounds\(eagleWindow,\s*state\.collectorPreviousBounds\)/);
+  assert.match(js, /function getCollectorWindowBounds\(/);
+  assert.match(js, /function getCurrentWindowBounds\(/);
+  assert.match(css, /\.collector-bar\s*{[\s\S]*border:\s*1px solid rgba\(157,\s*191,\s*232,\s*\.72\)/);
+  assert.match(css, /\.collector-count-badge/);
+  assert.match(css, /\.collector-title/);
 });

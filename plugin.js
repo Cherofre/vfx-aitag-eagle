@@ -90,6 +90,11 @@
       enableEagleAi: true
     }
   };
+  const COLLECTOR_WINDOW_BOUNDS = {
+    width: 680,
+    height: 96,
+    topOffset: 72
+  };
 
   const els = {};
   const state = {
@@ -108,7 +113,8 @@
     healthStatus: [],
     activeResultFilter: "all",
     activePresetName: "",
-    collectorPreviousSize: null,
+    collectorPreviousBounds: null,
+    collectorPreviousAlwaysOnTop: false,
     pluginRunCollectionBound: false,
     pauseRequested: false,
     paused: false,
@@ -282,21 +288,78 @@
     return window.eagle && (eagle.window || eagle.pluginWindow);
   }
 
+  async function getCurrentWindowBounds(eagleWindow) {
+    if (eagleWindow && typeof eagleWindow.getBounds === "function") {
+      const bounds = await eagleWindow.getBounds();
+      if (bounds && typeof bounds === "object") return normalizeBounds(bounds);
+    }
+    return {
+      x: Math.max(0, window.screenX || 0),
+      y: Math.max(0, window.screenY || 0),
+      width: Math.max(1180, window.outerWidth || 1180),
+      height: Math.max(760, window.outerHeight || 760)
+    };
+  }
+
+  function normalizeBounds(bounds) {
+    return {
+      x: Number(bounds.x ?? bounds.left ?? 0) || 0,
+      y: Number(bounds.y ?? bounds.top ?? 0) || 0,
+      width: Number(bounds.width ?? COLLECTOR_WINDOW_BOUNDS.width) || COLLECTOR_WINDOW_BOUNDS.width,
+      height: Number(bounds.height ?? COLLECTOR_WINDOW_BOUNDS.height) || COLLECTOR_WINDOW_BOUNDS.height
+    };
+  }
+
+  async function getCurrentAlwaysOnTop(eagleWindow) {
+    if (eagleWindow && typeof eagleWindow.isAlwaysOnTop === "function") {
+      return Boolean(await eagleWindow.isAlwaysOnTop());
+    }
+    return false;
+  }
+
+  async function getCollectorWindowBounds(eagleWindow) {
+    const current = await getCurrentWindowBounds(eagleWindow);
+    const screenWidth = window.screen && window.screen.availWidth ? window.screen.availWidth : current.width;
+    const screenLeft = window.screen && typeof window.screen.availLeft === "number" ? window.screen.availLeft : 0;
+    const screenTop = window.screen && typeof window.screen.availTop === "number" ? window.screen.availTop : 0;
+    return {
+      x: Math.round(screenLeft + Math.max(0, (screenWidth - COLLECTOR_WINDOW_BOUNDS.width) / 2)),
+      y: Math.round(screenTop + COLLECTOR_WINDOW_BOUNDS.topOffset),
+      width: COLLECTOR_WINDOW_BOUNDS.width,
+      height: COLLECTOR_WINDOW_BOUNDS.height
+    };
+  }
+
+  async function setWindowBounds(eagleWindow, bounds) {
+    if (!eagleWindow || !bounds) return;
+    if (typeof eagleWindow.setBounds === "function") {
+      await eagleWindow.setBounds(bounds);
+      return;
+    }
+    if (typeof eagleWindow.setSize === "function") {
+      await eagleWindow.setSize(bounds.width, bounds.height);
+    }
+    if (typeof eagleWindow.setPosition === "function") {
+      await eagleWindow.setPosition(bounds.x, bounds.y);
+    }
+  }
+
   async function enterCollectorMode() {
     closeSelectedListDialog();
     closeSettingsDrawer();
-    state.collectorPreviousSize = state.collectorPreviousSize || {
-      width: window.outerWidth || 1180,
-      height: window.outerHeight || 760
-    };
     document.body.classList.add("collector-mode");
     if (els.collectorBar) els.collectorBar.hidden = false;
     updateCollectorBar();
     try {
       const eagleWindow = getPluginWindowApi();
-      if (eagleWindow && typeof eagleWindow.setSize === "function") {
-        await eagleWindow.setSize(560, 72);
+      if (eagleWindow && !state.collectorPreviousBounds) {
+        state.collectorPreviousBounds = await getCurrentWindowBounds(eagleWindow);
+        state.collectorPreviousAlwaysOnTop = await getCurrentAlwaysOnTop(eagleWindow);
       }
+      if (eagleWindow && typeof eagleWindow.setResizable === "function") await eagleWindow.setResizable(false);
+      if (eagleWindow && typeof eagleWindow.setAlwaysOnTop === "function") await eagleWindow.setAlwaysOnTop(true);
+      await setWindowBounds(eagleWindow, await getCollectorWindowBounds(eagleWindow));
+      if (eagleWindow && typeof eagleWindow.showInactive === "function") await eagleWindow.showInactive();
     } catch (error) {
       setStatus(`切换采集条失败：${formatError(error)}`);
     }
@@ -307,10 +370,10 @@
     if (els.collectorBar) els.collectorBar.hidden = true;
     try {
       const eagleWindow = getPluginWindowApi();
-      const previous = state.collectorPreviousSize;
-      if (previous && eagleWindow && typeof eagleWindow.setSize === "function") {
-        await eagleWindow.setSize(previous.width, previous.height);
-      }
+      if (eagleWindow && typeof eagleWindow.setResizable === "function") await eagleWindow.setResizable(true);
+      await setWindowBounds(eagleWindow, state.collectorPreviousBounds);
+      if (eagleWindow && typeof eagleWindow.setAlwaysOnTop === "function") await eagleWindow.setAlwaysOnTop(state.collectorPreviousAlwaysOnTop);
+      state.collectorPreviousBounds = null;
     } catch (error) {
       setStatus(`展开工作台失败：${formatError(error)}`);
     }

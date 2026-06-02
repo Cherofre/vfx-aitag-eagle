@@ -116,7 +116,8 @@ textarea {
 body.collector-mode {
   display: grid;
   place-items: center;
-  padding: 8px;
+  padding: 0;
+  background: transparent;
 }
 
 body.collector-mode .workbench-shell {
@@ -126,14 +127,14 @@ body.collector-mode .workbench-shell {
 .collector-bar {
   display: none;
   align-items: center;
-  gap: 8px;
-  width: min(560px, calc(100vw - 16px));
-  min-height: 52px;
-  border: 1px solid var(--line-strong);
+  gap: 10px;
+  width: 100%;
+  min-height: 100%;
+  border: 1px solid rgba(157, 191, 232, .72);
   border-radius: 8px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  padding: 8px;
+  background: linear-gradient(180deg, rgba(24, 28, 34, .98), rgba(14, 17, 22, .98));
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .46), 0 0 0 1px rgba(157, 191, 232, .16) inset;
+  padding: 10px 12px;
   -webkit-app-region: drag;
 }
 
@@ -155,8 +156,35 @@ body.collector-mode .collector-bar {
   color: var(--muted);
 }
 
+.collector-title {
+  display: grid;
+  min-width: 92px;
+  gap: 1px;
+}
+
+.collector-title strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.collector-title span {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.collector-count-badge {
+  border: 1px solid rgba(157, 191, 232, .34);
+  border-radius: 999px;
+  background: rgba(157, 191, 232, .13);
+  color: var(--text) !important;
+  padding: 6px 10px;
+  font-weight: 650;
+}
+
 .collector-bar button {
   flex: 0 0 auto;
+  min-height: 40px;
   -webkit-app-region: no-drag;
 }
 

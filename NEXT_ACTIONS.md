@@ -5,13 +5,14 @@
 - [x] Created branch `codex/collection-workflow` and wrote `docs/superpowers/plans/2026-06-02-collection-workflow.md`.
 - [x] Implemented append/replace/clear selection collection, plugin-run append, internal context menus, and collector bar mode.
 - [x] `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js` pass.
-- [x] Manifest bumped to `1.3.0`, `dist\特效AI标签管理-cli.eagleplugin` repackaged, and archive contents inspected.
-- [ ] Install version `1.3.0` in Eagle and smoke-test collection workflow with real right-click plugin entry.
+- [x] Collector bar now has real shrink bounds, automatic always-on-top, top-center placement, and stronger visual hierarchy.
+- [x] Manifest bumped to `1.3.1`, `dist\特效AI标签管理-cli.eagleplugin` repackaged, and archive contents inspected.
+- [ ] Install version `1.3.1` in Eagle and smoke-test collector bar with real right-click plugin entry.
 
 ## Handoff Notes
-- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.0` in Eagle.
-- Do not redo: collection workflow implementation, static tests, syntax checks, version bump, and package inspection are done.
-- Verify next: Eagle smoke-test right-click plugin entry append, append duplicates, replace, clear, full list, plugin-internal right-click menus, collector bar shrink/expand/analyze/close.
+- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.1` in Eagle.
+- Do not redo: collection workflow implementation, collector bar visibility fix, static tests, syntax checks, version bump, and package inspection are done.
+- Verify next: Eagle smoke-test right-click plugin entry append, collector bar shrinks to a small top floating window, stays always-on-top, expands back to the full workbench, and restores normal top state.
 - Do not claim: Eagle real-host smoke has passed; Browser local smoke was not rerun because current environment policy previously blocked local browser access.
 - Watch out for: `dist/特效AI标签管理-cli.eagleplugin` is a tracked release artifact and should be intentionally replaced when packaging changes; the new collection event hooks must not auto-start analysis.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.

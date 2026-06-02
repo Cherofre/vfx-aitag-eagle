@@ -17,8 +17,16 @@
 - 2026-06-02: Keep the topbar to primary global actions only; material actions live in the material panel and long material lists open in a local dialog.
 - 2026-06-02: Closed local dialogs must use real hidden/display state so transparent fixed panels cannot intercept clicks.
 - 2026-06-02: Use collection workflow instead of Eagle host-menu injection for right-click analysis.
+- 2026-06-02: Collector bar mode should be a real small always-on-top floating window.
 
 ## Decision Log
+
+## 2026-06-02 - Real collector bar window
+- Status: active
+- Decision: Lower manifest minimum window size enough for collector mode, then use Eagle window APIs to set a small top-center always-on-top floating window and restore previous bounds/top state on expand.
+- Reason: Keeping `minWidth: 980` and `minHeight: 640` made collector mode appear as a small strip inside a large black window, which felt fake and was not visible enough while browsing Eagle.
+- Alternatives considered: Keep the large window and only restyle the strip; skipped because it would still block Eagle content and fail the purpose of a collector bar.
+- Consequences / follow-up: Eagle smoke must verify full workbench still opens at the configured default size and collector mode restores correctly after collapse/expand.
 
 ## 2026-06-02 - Collection workflow instead of host injection
 - Status: active
