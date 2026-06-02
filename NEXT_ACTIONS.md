@@ -1,18 +1,18 @@
 # Next Actions
 
 ## Now
-- [x] Add RED tests for CLI health check planning and workbench UI contracts.
-- [x] Implement health check UI/state and lightweight checks before analysis.
-- [x] Implement analysis presets, failed-result filtering/retry, and manual result tag editing.
+- [x] Add RED tests for compact topbar, material actions in selected panel, full material list modal, and analysis progress.
+- [x] Implement the UI fix without changing backend analysis behavior.
 - [x] Run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
-- [x] Bump manifest to `1.2.0`, repackage `dist\特效AI标签管理-cli.eagleplugin`, and inspect archive contents.
-- [x] Update ledger and commit in stages, leaving `docs/vfx-tag-taxonomy-review.md` untouched.
-- [ ] Install version `1.2.0` in Eagle and smoke-test the new productivity controls.
+- [x] Browser-smoke `1180x760` and `980x640` via temporary local HTTP server; confirm no whole-page scroll and topbar actions stay inside topbar.
+- [x] Bump manifest to `1.2.1`, repackage `dist\特效AI标签管理-cli.eagleplugin`, and inspect archive contents.
+- [x] Update ledger and commit, leaving `docs/vfx-tag-taxonomy-review.md` untouched.
+- [ ] Install version `1.2.1` in Eagle and smoke-test the compact toolbar/material-list/progress layout.
 
 ## Handoff Notes
-- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle.
-- Do not redo: RED test verification, source implementation, source static verification, version bump, and package inspection are done.
-- Verify next: Eagle smoke-test health check, presets, result filters, retry failed, manual tag add/remove, write/undo, and backend analysis.
+- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.2.1` in Eagle.
+- Do not redo: compact-toolbar UI fix, static tests, browser smoke, version bump, and package inspection are done.
+- Verify next: Eagle smoke-test the real plugin window, especially at minimum width `980x640`.
 - Do not claim: Eagle real-host smoke has passed; in-app Browser rejected the local `file://` URL this turn, so browser layout smoke was not performed.
 - Watch out for: `dist/特效AI标签管理-cli.eagleplugin` is a tracked release artifact and should be intentionally replaced when packaging changes; the new health checks must not make real AI requests.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.

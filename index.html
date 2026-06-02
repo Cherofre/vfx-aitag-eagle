@@ -37,14 +37,11 @@
       </div>
       <div class="top-actions">
         <button id="openAiBtn" type="button">设置</button>
-        <button id="importBtn" type="button">导入选中素材</button>
-        <button id="refreshBtn" type="button">刷新选择</button>
         <button id="analyzeBtn" type="button" class="primary">开始分析</button>
         <button id="pauseBtn" type="button" disabled>暂停</button>
         <button id="continueBtn" type="button" class="primary" hidden>继续</button>
         <button id="restartBtn" type="button" hidden>重新开始</button>
         <button id="applyBtn" type="button" class="success" disabled>写入标签</button>
-        <button id="undoBtn" type="button" disabled>撤销写入</button>
         <button id="closeWindowBtn" class="window-close-btn" type="button" aria-label="关闭窗口" title="关闭窗口">×</button>
       </div>
     </header>
@@ -77,14 +74,19 @@
         <section class="panel selected-panel">
           <div class="panel-header">
             <h2>待分析素材</h2>
+            <div class="material-actions">
+              <button id="importBtn" type="button">导入</button>
+              <button id="refreshBtn" type="button">刷新</button>
+              <button id="showSelectedListBtn" type="button">完整列表</button>
+            </div>
           </div>
+          <div id="selectedSummary" class="selected-summary"></div>
           <div id="selectedItems" class="selected-list"></div>
         </section>
 
         <section class="panel results-panel">
           <div class="panel-header">
             <h2>分析结果</h2>
-            <button id="clearResultsBtn" type="button">清空结果</button>
           </div>
           <div class="result-toolbar">
             <div class="result-filters" role="group" aria-label="结果过滤">
@@ -94,7 +96,21 @@
               <button type="button" data-result-filter="applied">已写入</button>
               <button type="button" data-result-filter="skipped">跳过</button>
             </div>
-            <button id="retryFailedBtn" type="button">重试失败项</button>
+            <div class="result-batch-actions">
+              <button id="retryFailedBtn" type="button">重试失败项</button>
+              <button id="undoBtn" type="button" disabled>撤销写入</button>
+              <button id="clearResultsBtn" type="button">清空结果</button>
+            </div>
+          </div>
+          <div id="analysisProgressPanel" class="analysis-progress" hidden>
+            <div class="analysis-progress-head">
+              <strong id="analysisProgressText">等待分析</strong>
+              <span id="analysisProgressPercent">0%</span>
+            </div>
+            <div class="analysis-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="analysisProgressBar" class="analysis-progress-bar"></div>
+            </div>
+            <div id="analysisProgressMeta" class="analysis-progress-meta"></div>
           </div>
           <div id="writeProgressPanel" class="write-progress" hidden>
             <div class="write-progress-head">
@@ -109,6 +125,18 @@
           <div id="results" class="results"></div>
         </section>
       </section>
+    </section>
+
+    <div id="selectedListOverlay" class="selected-list-overlay" hidden></div>
+    <section id="selectedListDialog" class="panel selected-list-dialog" role="dialog" aria-modal="true" aria-labelledby="selectedListTitle" aria-hidden="true">
+      <div class="selected-list-dialog-head">
+        <div>
+          <h2 id="selectedListTitle">待分析素材完整列表</h2>
+          <p class="hint">列表只在这里滚动，不占用主工作区高度。</p>
+        </div>
+        <button id="closeSelectedListBtn" type="button">关闭</button>
+      </div>
+      <div id="selectedItemsFullList" class="selected-full-list"></div>
     </section>
 
     <div id="settingsOverlay" class="settings-overlay" hidden></div>

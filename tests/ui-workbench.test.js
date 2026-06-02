@@ -252,3 +252,49 @@ test("productivity workbench exposes health checks, presets, retry filters, and 
   assert.match(css, /\.result-editor/);
   assert.match(css, /\.review-tag\.manual/);
 });
+
+test("compact workbench keeps material actions local and exposes analysis progress", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  const topActions = html.match(/<div class="top-actions">([\s\S]*?)<\/div>/)?.[1] || "";
+  assert.match(topActions, /id="openAiBtn"/);
+  assert.match(topActions, /id="analyzeBtn"/);
+  assert.match(topActions, /id="applyBtn"/);
+  assert.match(topActions, /id="closeWindowBtn"/);
+  assert.doesNotMatch(topActions, /id="importBtn"|id="refreshBtn"|id="undoBtn"/);
+
+  const selectedPanel = html.slice(html.indexOf('class="panel selected-panel"'), html.indexOf('class="panel results-panel"'));
+  assert.match(selectedPanel, /id="importBtn"/);
+  assert.match(selectedPanel, /id="refreshBtn"/);
+  assert.match(selectedPanel, /id="showSelectedListBtn"/);
+  assert.match(selectedPanel, /id="selectedSummary"/);
+  assert.match(selectedPanel, /id="selectedItems"/);
+
+  assert.match(html, /id="selectedListOverlay"/);
+  assert.match(html, /id="selectedListDialog"/);
+  assert.match(html, /id="selectedItemsFullList"/);
+  assert.match(html, /id="closeSelectedListBtn"/);
+  assert.match(html, /id="analysisProgressPanel"/);
+  assert.match(html, /id="analysisProgressText"/);
+  assert.match(html, /id="analysisProgressBar"/);
+  assert.match(html, /id="analysisProgressMeta"/);
+
+  assert.match(js, /"showSelectedListBtn"/);
+  assert.match(js, /function openSelectedListDialog\(/);
+  assert.match(js, /function closeSelectedListDialog\(/);
+  assert.match(js, /function renderSelectedSummary\(/);
+  assert.match(js, /function renderSelectedFullList\(/);
+  assert.match(js, /function updateAnalysisProgress\(/);
+  assert.match(js, /function resetAnalysisProgress\(/);
+  assert.match(js, /updateAnalysisProgress\(processed,\s*itemsToAnalyze\.length/);
+
+  assert.match(css, /\.top-actions\s*{[\s\S]*flex-wrap:\s*nowrap[\s\S]*overflow:\s*hidden/);
+  assert.doesNotMatch(css, /@media \(max-width:\s*980px\)\s*{[\s\S]*?\.topbar\s*{[\s\S]*?flex-direction:\s*column/);
+  assert.match(css, /\.material-actions/);
+  assert.match(css, /\.selected-list-dialog/);
+  assert.match(css, /\.selected-full-list\s*{[\s\S]*overflow:\s*auto/);
+  assert.match(css, /\.analysis-progress\s*{/);
+  assert.match(css, /\.analysis-progress-bar\s*{/);
+});

@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-02 10:49
-- Phase: productivity workbench packaged
+- Last Updated: 2026-06-02 11:25
+- Phase: productivity workbench UI fix packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/productivity-workbench
-- Goal: 在 `1.1.4` CLI 单屏工作台基础上实现生产力四件套：环境健康检查、分析预设、失败项一键重试、结果手动编辑，并打包 `1.2.0`。
-- Current Focus: Productivity workbench enhancements are implemented, verified, and packaged as version `1.2.0`.
+- Goal: 修复 `1.2.0` 工作台顶栏换行/滚动条错乱，补分析进度，并把素材完整列表收进素材区域。
+- Current Focus: Compact-toolbar UI fix is implemented, verified, and packaged as version `1.2.1`.
 - Superpowers Spec: none
 - Superpowers Plan: user-provided plan in chat, 2026-06-02
-- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test the new 1.2.0 productivity controls.
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.2.1` in Eagle and smoke-test the toolbar/material-list/progress layout.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.2.0` in Eagle.
-- Next verification: Eagle real-host smoke for health check, presets, failed retry, manual tag editing, write/undo, and Claude/Codex/Eagle AI backends.
+- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.2.1` in Eagle.
+- Next verification: Eagle real-host smoke for compact topbar, material full list, analysis progress, presets, failed retry, manual tag editing, write/undo, and Claude/Codex/Eagle AI backends.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -52,14 +52,19 @@
 - [x] Implemented environment health checks, analysis presets, failed-result retry/filtering, and manual result tag editing.
 - [x] Verified source implementation with unit/static tests and syntax checks.
 - [x] Bumped manifest to `1.2.0`, updated README, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Fixed Eagle-reported UI regression where topbar wraps and creates page scrollbars.
+- [x] Moved material import/refresh/full-list actions into the selected-material panel.
+- [x] Added local selected-material full-list dialog and analysis progress bar.
+- [x] Bumped manifest to `1.2.1`, updated README, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
 
 ## Verification
 - Last command: package inspection via `System.IO.Compression.ZipFile`.
 - Result: pass
-- Evidence / notes: Baseline on branch `codex/productivity-workbench` passed 21 tests before implementation. RED tests failed for missing `createCliHealthChecks` and missing productivity UI contract. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 23 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.2.0`, `devTools: false`. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: Added RED UI contract test for compact toolbar/material actions/full selected list/analysis progress; it initially failed because topbar still contained material/undo actions. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 24 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Browser smoke via local HTTP server: at `1180x760` and `980x640`, `body.scrollHeight` and `html.scrollHeight` equaled viewport height; at `980x640`, top actions stayed inside topbar after fixing the `max-width: 980px` media query. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.2.1`, `devTools: false`. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends.
+- Current UI fix must preserve single-screen body no-scroll and keep material-list scrolling local to the selected-material modal/panel.
 - New health checks must remain lightweight and must not perform real AI requests.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.
 - The 0601 package is not install/release clean as-is: it embeds nested packages, keeps the author plugin ID, leaves `devTools` enabled, and keeps the localized manifest shape that previously caused Eagle import/open ambiguity.

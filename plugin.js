@@ -121,7 +121,9 @@
       "readyCount", "failedCount", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
       "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "aiRetryCount", "requestChunkK", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
-      "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedItems", "results", "clearResultsBtn",
+      "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedSummary",
+      "selectedItems", "showSelectedListBtn", "selectedListOverlay", "selectedListDialog", "selectedItemsFullList", "closeSelectedListBtn",
+      "results", "clearResultsBtn", "analysisProgressPanel", "analysisProgressText", "analysisProgressPercent", "analysisProgressBar", "analysisProgressMeta",
       "writeProgressPanel", "writeProgressText", "writeProgressPercent", "writeProgressBar", "writeProgressMeta",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
       "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
@@ -141,6 +143,9 @@
 
   function bindEvents() {
     els.openAiBtn.addEventListener("click", openSettingsDrawer);
+    els.showSelectedListBtn.addEventListener("click", openSelectedListDialog);
+    els.closeSelectedListBtn.addEventListener("click", closeSelectedListDialog);
+    els.selectedListOverlay.addEventListener("click", closeSelectedListDialog);
     els.closeSettingsBtn.addEventListener("click", closeSettingsDrawer);
     els.settingsOverlay.addEventListener("click", closeSettingsDrawer);
     els.eagleAiSettingsBtn.addEventListener("click", openAiSettings);
@@ -150,7 +155,10 @@
       tab.addEventListener("click", () => activateSettingsTab(tab.dataset.settingsTab));
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeSettingsDrawer();
+      if (event.key === "Escape") {
+        closeSelectedListDialog();
+        closeSettingsDrawer();
+      }
     });
     els.importBtn.addEventListener("click", importSelectedItems);
     els.refreshBtn.addEventListener("click", refreshSelection);
@@ -179,6 +187,7 @@
     els.clearResultsBtn.addEventListener("click", () => {
       state.results = [];
       saveResultsState();
+      resetAnalysisProgress();
       resetWriteProgress();
       renderResults();
     });
@@ -236,6 +245,29 @@
     } catch (error) {
       setStatus(`关闭窗口失败：${formatError(error)}`);
     }
+  }
+
+  function openSelectedListDialog() {
+    if (!els.selectedListDialog || !els.selectedListOverlay) return;
+    renderSelectedFullList();
+    els.selectedListOverlay.hidden = false;
+    requestAnimationFrame(() => {
+      els.selectedListOverlay.classList.add("is-open");
+      els.selectedListDialog.classList.add("is-open");
+      els.selectedListDialog.setAttribute("aria-hidden", "false");
+    });
+  }
+
+  function closeSelectedListDialog() {
+    if (!els.selectedListDialog || !els.selectedListOverlay || els.selectedListOverlay.hidden) return;
+    els.selectedListOverlay.classList.remove("is-open");
+    els.selectedListDialog.classList.remove("is-open");
+    els.selectedListDialog.setAttribute("aria-hidden", "true");
+    window.setTimeout(() => {
+      if (!els.selectedListOverlay.classList.contains("is-open")) {
+        els.selectedListOverlay.hidden = true;
+      }
+    }, 180);
   }
 
   async function refreshTags() {
@@ -480,6 +512,8 @@
     state.running = true;
     state.pauseRequested = false;
     state.paused = false;
+    let processed = 0;
+    updateAnalysisProgress(processed, itemsToAnalyze.length, itemsToAnalyze[0]);
     if (!hasPendingResults) {
       state.results = state.selectedItems.map((item) => createPendingResult(item));
       resetWriteProgress();
@@ -491,9 +525,10 @@
     try {
       await runWithConcurrency(itemsToAnalyze, settings.concurrency, async (item) => {
         const current = state.results.find((result) => result.id === getItemId(item));
-        if (!current) return;
-        updateResult(current.id, { status: "running", message: "分析中" });
         try {
+          if (!current) return;
+          updateAnalysisProgress(processed, itemsToAnalyze.length, item);
+          updateResult(current.id, { status: "running", message: "分析中" });
           if (settings.skipTagged && Array.isArray(item.tags) && item.tags.length) {
             updateResult(current.id, { status: "skipped", message: "已有标签，已跳过" });
             return;
@@ -512,6 +547,9 @@
             autoTags: [],
             filteredTags: []
           });
+        } finally {
+          processed += 1;
+          updateAnalysisProgress(processed, itemsToAnalyze.length, item);
         }
       });
     } finally {
@@ -1190,6 +1228,53 @@
     updateWriteProgress(saved + failed, ready.length, failed, finalStatus);
   }
 
+  function updateAnalysisProgress(processed, total, currentItem) {
+    if (!els.analysisProgressPanel || !els.analysisProgressBar) return;
+    const safeTotal = Math.max(0, Number(total) || 0);
+    if (!safeTotal) {
+      resetAnalysisProgress();
+      return;
+    }
+    const safeDone = Math.min(safeTotal, Math.max(0, Number(processed) || 0));
+    const percent = Math.round((safeDone / safeTotal) * 100);
+    const counts = getAnalysisProgressCounts();
+    const currentName = currentItem ? getItemName(currentItem) : "";
+    els.analysisProgressPanel.hidden = false;
+    els.analysisProgressText.textContent = safeDone >= safeTotal ? `分析完成 ${safeDone}/${safeTotal}` : `分析中 ${safeDone}/${safeTotal}`;
+    els.analysisProgressPercent.textContent = `${percent}%`;
+    els.analysisProgressBar.style.width = `${percent}%`;
+    const track = els.analysisProgressPanel.querySelector(".analysis-progress-track");
+    if (track) track.setAttribute("aria-valuenow", String(percent));
+    els.analysisProgressMeta.textContent = [
+      currentName && safeDone < safeTotal ? `当前：${currentName}` : "",
+      `待写入 ${counts.ready}`,
+      `已写入 ${counts.applied}`,
+      `失败 ${counts.failed}`,
+      `跳过 ${counts.skipped}`
+    ].filter(Boolean).join(" · ");
+  }
+
+  function resetAnalysisProgress() {
+    if (!els.analysisProgressPanel || !els.analysisProgressBar) return;
+    els.analysisProgressPanel.hidden = true;
+    els.analysisProgressText.textContent = "等待分析";
+    els.analysisProgressPercent.textContent = "0%";
+    els.analysisProgressBar.style.width = "0%";
+    if (els.analysisProgressMeta) els.analysisProgressMeta.textContent = "";
+    const track = els.analysisProgressPanel.querySelector(".analysis-progress-track");
+    if (track) track.setAttribute("aria-valuenow", "0");
+  }
+
+  function getAnalysisProgressCounts() {
+    return state.results.reduce((counts, result) => {
+      if (result.status === "ready") counts.ready += 1;
+      if (result.status === "applied") counts.applied += 1;
+      if (result.status === "failed") counts.failed += 1;
+      if (result.status === "skipped") counts.skipped += 1;
+      return counts;
+    }, { ready: 0, applied: 0, failed: 0, skipped: 0 });
+  }
+
   function updateWriteProgress(done, total, failed = 0, message = "") {
     if (!els.writeProgressPanel || !els.writeProgressBar) return;
     const safeTotal = Math.max(0, Number(total) || 0);
@@ -1785,10 +1870,27 @@
   function renderAll() {
     renderTagGroupSelect();
     renderTagPool();
+    renderSelectedSummary();
     renderSelectedItems();
+    renderSelectedFullList();
     renderResults();
     els.selectedCount.textContent = String(state.selectedItems.length);
     els.tagPoolCount.textContent = String(getAllowedTags().length);
+  }
+
+  function renderSelectedSummary() {
+    if (!els.selectedSummary) return;
+    const total = state.selectedItems.length;
+    const withTags = state.selectedItems.filter((item) => Array.isArray(item.tags) && item.tags.length).length;
+    const pending = state.results.filter((result) => result.status === "pending" || result.status === "running").length;
+    const failed = state.results.filter((result) => result.status === "failed").length;
+    els.selectedSummary.innerHTML = [
+      `<span>已导入 ${total} 个</span>`,
+      `<span>已有标签 ${withTags} 个</span>`,
+      pending ? `<span>待处理 ${pending} 个</span>` : "",
+      failed ? `<span>失败 ${failed} 个</span>` : ""
+    ].filter(Boolean).join("");
+    if (els.showSelectedListBtn) els.showSelectedListBtn.disabled = total === 0;
   }
 
   function renderSelectedItems() {
@@ -1798,22 +1900,44 @@
       els.selectedItems.innerHTML = `<div class="empty">请先在 Eagle 中选择素材，然后点击“导入选中素材”。</div>`;
       return;
     }
-    state.selectedItems.forEach((item) => {
-      const filePath = getItemFilePath(item);
-      const ext = getItemExt(item, filePath) || "未知";
-      const tags = Array.isArray(item.tags) ? item.tags : [];
-      const row = document.createElement("div");
-      row.className = "selected-item";
-      row.innerHTML = `
-        <div class="selected-name" title="${escapeHtml(getItemName(item))}">${escapeHtml(getItemName(item))}</div>
-        <div class="selected-meta">
-          <span>${escapeHtml(ext.toUpperCase())}</span>
-          <span>${tags.length} 个已有标签</span>
-          <span title="${escapeHtml(filePath)}">${escapeHtml(shortPath(filePath))}</span>
-        </div>
-      `;
-      els.selectedItems.appendChild(row);
+    state.selectedItems.slice(0, 3).forEach((item) => {
+      els.selectedItems.appendChild(createSelectedItemRow(item));
     });
+    if (state.selectedItems.length > 3) {
+      const more = document.createElement("div");
+      more.className = "selected-more";
+      more.textContent = `还有 ${state.selectedItems.length - 3} 个素材，点击“完整列表”查看。`;
+      els.selectedItems.appendChild(more);
+    }
+  }
+
+  function renderSelectedFullList() {
+    if (!els.selectedItemsFullList) return;
+    els.selectedItemsFullList.innerHTML = "";
+    if (!state.selectedItems.length) {
+      els.selectedItemsFullList.innerHTML = `<div class="empty">还没有导入素材。</div>`;
+      return;
+    }
+    state.selectedItems.forEach((item) => {
+      els.selectedItemsFullList.appendChild(createSelectedItemRow(item));
+    });
+  }
+
+  function createSelectedItemRow(item) {
+    const filePath = getItemFilePath(item);
+    const ext = getItemExt(item, filePath) || "未知";
+    const tags = Array.isArray(item.tags) ? item.tags : [];
+    const row = document.createElement("div");
+    row.className = "selected-item";
+    row.innerHTML = `
+      <div class="selected-name" title="${escapeHtml(getItemName(item))}">${escapeHtml(getItemName(item))}</div>
+      <div class="selected-meta">
+        <span>${escapeHtml(ext.toUpperCase())}</span>
+        <span>${tags.length} 个已有标签</span>
+        <span title="${escapeHtml(filePath)}">${escapeHtml(shortPath(filePath))}</span>
+      </div>
+    `;
+    return row;
   }
 
   function renderTagPool() {

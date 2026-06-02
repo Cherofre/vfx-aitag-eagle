@@ -14,8 +14,16 @@
 - 2026-06-02: Treat author 0601 as a selective feature source; prioritize behavior ports, not package/layout replacement.
 - 2026-06-02: Merge 0601 reliability features on `codex/merge-author-0601-features` and package as version `1.1.4`.
 - 2026-06-02: Build productivity workbench enhancements on `codex/productivity-workbench` with TDD and package as version `1.2.0`.
+- 2026-06-02: Keep the topbar to primary global actions only; material actions live in the material panel and long material lists open in a local dialog.
 
 ## Decision Log
+
+## 2026-06-02 - Compact toolbar and material list
+- Status: active
+- Decision: Keep topbar actions to settings, analysis controls, write, and close; move import/refresh/full-list into the material panel; move undo/clear/retry into result controls; show analysis progress in the result panel.
+- Reason: Eagle smoke showed topbar wrapping and creating visible page scrollbars. Material actions and long material lists are local to selected assets, while analysis progress needs to stay visible near results.
+- Alternatives considered: Keep import/refresh in topbar and only shrink button text; skipped because the minimum `980px` window still leaves too many same-level controls in the drag bar.
+- Consequences / follow-up: Install package `1.2.1` in Eagle and verify no whole-page scrollbar appears at the plugin minimum size.
 
 ## 2026-06-02 - Productivity workbench branch
 - Status: active
