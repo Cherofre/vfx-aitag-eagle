@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-02 10:47
-- Phase: productivity workbench implementation
+- Last Updated: 2026-06-02 10:49
+- Phase: productivity workbench packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/productivity-workbench
 - Goal: 在 `1.1.4` CLI 单屏工作台基础上实现生产力四件套：环境健康检查、分析预设、失败项一键重试、结果手动编辑，并打包 `1.2.0`。
-- Current Focus: Productivity workbench source implementation is green; next step is version bump and packaging.
+- Current Focus: Productivity workbench enhancements are implemented, verified, and packaged as version `1.2.0`.
 - Superpowers Spec: none
 - Superpowers Plan: user-provided plan in chat, 2026-06-02
-- Current Task: Bump manifest to `1.2.0`, repackage, inspect archive, then update final ledger and commit package stage.
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test the new 1.2.0 productivity controls.
 
 ## Resume Here
-- Start with: bump `manifest.json` to `1.2.0` and repackage `dist\特效AI标签管理-cli.eagleplugin`.
-- Next verification: run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, `node --check cli-backends.js`, then bump manifest to `1.2.0`, repackage, and inspect archive.
+- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.2.0` in Eagle.
+- Next verification: Eagle real-host smoke for health check, presets, failed retry, manual tag editing, write/undo, and Claude/Codex/Eagle AI backends.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -51,11 +51,12 @@
 - [x] Add RED tests for health checks, presets, failed-result retry, result editing, and packaging contract.
 - [x] Implemented environment health checks, analysis presets, failed-result retry/filtering, and manual result tag editing.
 - [x] Verified source implementation with unit/static tests and syntax checks.
+- [x] Bumped manifest to `1.2.0`, updated README, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
 
 ## Verification
-- Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`; `node --check plugin.js`; `node --check cli-backends.js`.
+- Last command: package inspection via `System.IO.Compression.ZipFile`.
 - Result: pass
-- Evidence / notes: Baseline on branch `codex/productivity-workbench` passed 21 tests before implementation. RED tests failed for missing `createCliHealthChecks` and missing productivity UI contract. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 23 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: Baseline on branch `codex/productivity-workbench` passed 21 tests before implementation. RED tests failed for missing `createCliHealthChecks` and missing productivity UI contract. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 23 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.2.0`, `devTools: false`. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends.

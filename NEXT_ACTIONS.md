@@ -5,13 +5,14 @@
 - [x] Implement health check UI/state and lightweight checks before analysis.
 - [x] Implement analysis presets, failed-result filtering/retry, and manual result tag editing.
 - [x] Run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
-- [ ] Bump manifest to `1.2.0`, repackage `dist\特效AI标签管理-cli.eagleplugin`, and inspect archive contents.
-- [ ] Update ledger and commit in stages, leaving `docs/vfx-tag-taxonomy-review.md` untouched.
+- [x] Bump manifest to `1.2.0`, repackage `dist\特效AI标签管理-cli.eagleplugin`, and inspect archive contents.
+- [x] Update ledger and commit in stages, leaving `docs/vfx-tag-taxonomy-review.md` untouched.
+- [ ] Install version `1.2.0` in Eagle and smoke-test the new productivity controls.
 
 ## Handoff Notes
-- Start here: bump manifest/package on branch `codex/productivity-workbench`; source tests are already green.
-- Do not redo: RED test verification, source implementation, and source static verification are done.
-- Verify next: after packaging, inspect the `.eagleplugin` archive contents and manifest version.
+- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle.
+- Do not redo: RED test verification, source implementation, source static verification, version bump, and package inspection are done.
+- Verify next: Eagle smoke-test health check, presets, result filters, retry failed, manual tag add/remove, write/undo, and backend analysis.
 - Do not claim: Eagle real-host smoke has passed; in-app Browser rejected the local `file://` URL this turn, so browser layout smoke was not performed.
 - Watch out for: `dist/特效AI标签管理-cli.eagleplugin` is a tracked release artifact and should be intentionally replaced when packaging changes; the new health checks must not make real AI requests.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
