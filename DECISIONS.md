@@ -22,8 +22,16 @@
 - 2026-06-02: Scale the collector window to `646×104`, clamp it inside the available screen, and use the generated tag-plus-sparkle logo.
 - 2026-06-02: Restore full workbench bounds when Eagle persists collector-sized window bounds, and use styled manual tag suggestions instead of native `datalist`.
 - 2026-06-02: Use `646×104` collector spacing and defer workbench restore on collector close to avoid a visible full-window flash.
+- 2026-06-02: Declare `logo.png` as the page favicon with a version cache-buster so pinned/collector windows can use the same icon as `manifest.logo`.
 
 ## Decision Log
+
+## 2026-06-02 - Page favicon for pinned window icon
+- Status: active
+- Decision: Add explicit `rel="icon"` and `rel="shortcut icon"` links to `index.html`, pointing at `logo.png?v=1.3.6`, while keeping `manifest.logo` as `/logo.png`.
+- Reason: Eagle's plugin list already reads the new manifest logo, but the pinned/collector window path can fall back to the page favicon or cached default icon if the page does not declare one.
+- Alternatives considered: Change `manifest.logo` again; skipped because installed/source/package logo hashes already matched the new icon. Clear Eagle or Windows icon caches first; skipped as a later smoke-test step because the plugin should declare the page icon regardless.
+- Consequences / follow-up: Reinstall `1.3.6` and verify in Eagle. If the pinned icon is still old, the remaining likely cause is Eagle/Windows cache, not the package.
 
 ## 2026-06-02 - Collector compact spacing and close behavior
 - Status: active

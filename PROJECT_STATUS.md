@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-02 20:47
-- Phase: collector/workbench UI hotfix packaged
+- Last Updated: 2026-06-02 22:50
+- Phase: collector/window icon hotfix packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/collection-workflow
-- Goal: 优化采集浮窗密度，修复关闭采集条时先闪完整工作台窗口的问题，并保持下次打开恢复正常工作台尺寸。
-- Current Focus: Package version `1.3.5` uses a `646×104` collector window with `18px` left/right and `7px` top/bottom padding, slightly smaller collector controls, and marks a pending workbench restore on collector close instead of visibly expanding before close.
+- Goal: 修复 Eagle 插件列表显示新 logo、但置顶/小窗口入口仍显示旧图标的问题，同时保留采集浮窗和工作台热修复。
+- Current Focus: Package version `1.3.6` keeps the `646×104` collector window and adds explicit `logo.png?v=1.3.6` favicon links in `index.html` so Electron/Eagle window icon paths can use the same logo as `manifest.logo`.
 - Superpowers Spec: none
 - Superpowers Plan: `docs/superpowers/plans/2026-06-02-collection-workflow.md`
-- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.5` in Eagle and smoke-test collector spacing/height, collector close without full-window flash, and default reopen restore.
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.6` in Eagle and smoke-test the pinned/collector window icon plus existing collector spacing/close/restore behavior.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.5` in Eagle.
-- Next verification: Eagle real-host smoke for opening the plugin after closing collector mode, collector bar entering at `646×104`, balanced left/right spacing, reduced vertical height, closing collector mode without flashing a full workbench window, restoring full workbench bounds/normal top state on next open or expand, staged progress while a CLI request is running, compact review tag chips, manual tag suggestion menu placement, plus analysis/write flows.
+- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.6` in Eagle.
+- Next verification: Eagle real-host smoke for opening the plugin, confirming the plugin list and pinned/collector window use the new tag-plus-sparkle logo, entering collector mode at `646×104`, balanced left/right spacing, reduced vertical height, closing collector mode without flashing a full workbench window, restoring full workbench bounds/normal top state on next open or expand, staged progress while a CLI request is running, compact review tag chips, manual tag suggestion menu placement, plus analysis/write flows.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -78,14 +78,17 @@
 - [x] Increased collector left/right padding, reduced collector height to `646×104`, and slightly reduced collector action/icon/close sizes.
 - [x] Fixed collector close flash by marking a pending workbench restore and closing the small window directly instead of expanding first.
 - [x] Bumped manifest to `1.3.5`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Added explicit page favicon links pointing at the generated logo with a `1.3.6` cache-buster so pinned/collector windows do not fall back to stale default icons.
+- [x] Bumped manifest to `1.3.6`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
 
 ## Verification
 - Last command: package inspection after `Compress-Archive`
 - Result: pass
-- Evidence / notes: Added/updated RED UI contract tests for collector `646×104` sizing, `7px 18px` collector padding, smaller collector actions/icons, and close-without-visible-restore behavior; they failed before implementation and now pass. Final `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 34 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Browser static smoke at `646×104` collector mode confirmed `body.scrollWidth=646`, `body.scrollHeight=104`, collector padding `18px` left/right and `7px` top/bottom, first visible content gap about `19px`, close gap about `19px`, and action buttons at `74×57`. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.5`, default `1180×760`, `minWidth: 646`, `minHeight: 104`, `devTools: false`. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: Added a RED UI contract test requiring `index.html` favicon links to use the same logo as `manifest.logo`; it failed before implementation and now passes. Final `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 35 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.6`, default `1180×760`, `minWidth: 646`, `minHeight: 104`, `devTools: false`, and `index.html` contains `logo.png?v=1.3.6` icon links. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.
+- If the pinned/collector icon remains old after installing `1.3.6`, the remaining likely cause is Eagle or Windows icon cache; try unpin/re-pin or restart Eagle before clearing broader system caches.
 - Current UI fix must preserve single-screen body no-scroll and keep material-list scrolling local to the selected-material modal/panel.
 - New health checks must remain lightweight and must not perform real AI requests.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.

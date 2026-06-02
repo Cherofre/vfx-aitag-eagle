@@ -55,6 +55,15 @@ test("plugin identity and chrome are local, frameless, and draggable", () => {
   assert.match(css, /\.workbench-shell\s*{[\s\S]*border-radius:\s*18px/);
 });
 
+test("page favicon uses the same logo as the plugin manifest", () => {
+  const manifest = JSON.parse(read("manifest.json"));
+  const html = read("index.html");
+
+  assert.equal(manifest.logo, "/logo.png");
+  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.3\.6">/);
+  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.3\.6">/);
+});
+
 test("workbench css uses viewport locking and region scrolling", () => {
   const css = read("style.css");
 
