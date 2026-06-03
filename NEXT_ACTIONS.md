@@ -1,20 +1,20 @@
 # Next Actions
 
 ## Now
-- [x] Implemented media preview, compact progress, three-card material tray, full-list expansion, and trash remove buttons.
-- [x] Verified tests/syntax/package contents and published GitHub Release `v1.0.2`.
-- [x] Removed collector-entry auto-collection, repackaged manifest version `1.0.3`, and verified package contents.
-- [x] Published GitHub Release `v1.0.3`, found the local Eagle install was still `1.0.2`, backed it up, and synchronized installed files to `1.0.3`.
-- [x] Merged `codex/media-preview-review` into `master` and verified the current package digest matches release `v1.0.3`.
-- [x] Pushed `master` to `origin/master`.
-- [ ] Reopen/restart Eagle and run real-host smoke for collector no-auto-import, tray expansion/removal, preview, native-open fallback, and compact progress.
+- [x] Created branch `codex/collector-position-memory`.
+- [x] Wrote and verified RED/GREEN tests for collector position memory.
+- [x] Implemented collector-only bounds persistence and screen clamping.
+- [x] Bumped and packaged version `1.0.4`, then synchronized the local Eagle install.
+- [x] Verified 45/45 tests, syntax checks, package contents, and installed plugin version.
+- [ ] Commit the branch changes.
+- [ ] Reopen/restart Eagle and run real-host smoke for dragging collector, returning to workbench, and re-entering collector at the remembered position.
 
 ## Handoff Notes
-- Start here: close and reopen the plugin window, or restart Eagle if it keeps the old renderer cached; the installed files at `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` are now synchronized to `1.0.3`.
-- Do not redo: media preview plan, RED/GREEN UI contract tests, local preview dialog implementation, selected-material tray/remove-button fix, compact progress activity slot, `1.0.2` and `1.0.3` release uploads, collector auto-collect fix, `1.0.3` manifest/favicon bump, package regeneration, archive inspection, and local installed-file synchronization are done.
-- Verify next: in Eagle, click `置顶采集` while assets are selected and confirm it does not import until `收集选中` is clicked; import many selected assets and confirm the selected-material panel shows at most three tray cards, `展开素材` and `展开全部 +N` open the full dialog, and the trash SVG button removes the material from both tray and full dialog; then run analysis/write and confirm only one compact progress slot is visible; click `预览` from material cards/dialog entries and result cards, test image playback, mp4/webm playback, unsupported video fallback, `用 Eagle 打开`, previous/next navigation, and preview-side tag toggle/delete before writing.
-- Do not claim: Eagle native playback/open smoke has passed; Browser `file://` static verification was blocked by Browser Use URL policy.
-- Watch out for: `item.open({ window: true })` relies on Eagle host API support, and plugin-native `<video>` support depends on Chromium codecs. Persistent undo still requires the affected Eagle item to be imported/selected again so `item.save()` is available.
+- Start here: commit branch `codex/collector-position-memory`, then close and reopen the plugin window or restart Eagle if it keeps the old renderer cached; the installed files at `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` are now synchronized to `1.0.4`.
+- Do not redo: collector position memory implementation, RED/GREEN static tests, version bump to `1.0.4`, package regeneration, archive inspection, and local installed-file synchronization are done.
+- Verify next: in Eagle, click `置顶采集`, drag the collector bar to a comfortable non-top position, click `工作台`, click `置顶采集` again, and confirm it restores the dragged position; also confirm it remains on-screen and still only imports selected assets after clicking `收集选中`.
+- Do not claim: Eagle real-host drag/restore smoke has passed; static tests only verify the code/storage contract.
+- Watch out for: Eagle may cache renderer files until the plugin window or Eagle itself is restarted. Collector position uses plugin window bounds and screen info only; it does not know the main Eagle window bounds.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later

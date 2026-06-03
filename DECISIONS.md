@@ -30,10 +30,18 @@
 - 2026-06-03: Release `v1.0.2` should tag the media-preview/tray commit and upload an English-named `.eagleplugin` asset.
 - 2026-06-03: Release `v1.0.3` should supersede `v1.0.2` by removing collector-entry auto-collection.
 - 2026-06-03: Merge the media-preview `1.0.3` work to `master`; keep the existing `v1.0.3` release asset because its digest matches the current package.
+- 2026-06-03: Collector placement uses draggable remembered plugin-window bounds, not Eagle main-window following.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-03 - Collector position memory
+- Status: active
+- Decision: Keep the existing collector bar shape, but remember the user's dragged collector window bounds in `vfxAiTagger.collectorWindowBounds`. Restore that position when entering `置顶采集`, clamp it to the visible screen, and keep collector imports explicit through `收集选中`.
+- Reason: In non-fullscreen Eagle, a fixed screen-top collector bar feels detached from the user's working area. Remembered placement solves the awkward position without adding another capsule/minimized mode or depending on unavailable Eagle main-window bounds.
+- Alternatives considered: Follow the Eagle main window; skipped because the plugin cannot reliably read the host app window bounds. Add a separate docked capsule mode; skipped for now because it creates another interaction shape and the user preferred方案 B first.
+- Consequences / follow-up: Smoke in Eagle must verify native drag updates plugin bounds and that leaving/re-entering collector mode restores the saved position.
 
 ## 2026-06-03 - Merge 1.0.3 to master without retagging
 - Status: active

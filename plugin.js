@@ -13,6 +13,7 @@
     settings: "vfxAiTagger.settings",
     results: "vfxAiTagger.results",
     undoStack: "vfxAiTagger.undoStack",
+    collectorWindowBounds: "vfxAiTagger.collectorWindowBounds",
     restoreWorkbenchBounds: "vfxAiTagger.restoreWorkbenchBounds"
   };
 
@@ -204,6 +205,8 @@
     els.miniCollectorBtn.addEventListener("click", enterCollectorMode);
     els.collectorAppendBtn.addEventListener("click", () => appendSelectedItems("采集条追加当前选中"));
     els.collectorAnalyzeBtn.addEventListener("click", async () => {
+      const eagleWindow = getPluginWindowApi();
+      await persistCollectorWindowBounds(eagleWindow);
       await exitCollectorMode();
       await analyzeSelected();
     });
@@ -288,6 +291,7 @@
     abortCurrentAnalysis();
     try {
       const eagleWindow = getPluginWindowApi();
+      await persistCollectorWindowBounds(eagleWindow);
       if (document.body.classList.contains("collector-mode")) {
         markWorkbenchRestorePending();
       }
@@ -417,6 +421,51 @@
     }
   }
 
+  function readStoredCollectorWindowBounds() {
+    try {
+      const value = JSON.parse(localStorage.getItem(STORAGE_KEYS.collectorWindowBounds) || "null");
+      if (!value || typeof value !== "object") return null;
+      const bounds = normalizeBounds(value);
+      if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y)) return null;
+      return bounds;
+    } catch (error) {
+      removeStoredCollectorWindowBounds();
+      return null;
+    }
+  }
+
+  function saveCollectorWindowBounds(bounds) {
+    try {
+      const normalized = normalizeBounds(bounds);
+      localStorage.setItem(STORAGE_KEYS.collectorWindowBounds, JSON.stringify({
+        x: normalized.x,
+        y: normalized.y,
+        width: COLLECTOR_WINDOW_BOUNDS.width,
+        height: COLLECTOR_WINDOW_BOUNDS.height
+      }));
+    } catch (error) {
+      // Collector placement is a convenience; the default top position remains available.
+    }
+  }
+
+  function removeStoredCollectorWindowBounds() {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.collectorWindowBounds);
+    } catch (error) {
+      // Ignore storage cleanup failures.
+    }
+  }
+
+  async function persistCollectorWindowBounds(eagleWindow) {
+    if (!document.body.classList.contains("collector-mode")) return;
+    try {
+      const bounds = await getCurrentWindowBounds(eagleWindow);
+      saveCollectorWindowBounds(bounds);
+    } catch (error) {
+      // Keep the previous saved collector position if the host cannot report bounds.
+    }
+  }
+
   async function restoreWorkbenchWindow(eagleWindow, options = {}) {
     document.body.classList.remove("collector-mode");
     if (els.collectorBar) els.collectorBar.hidden = true;
@@ -452,6 +501,15 @@
   async function getCollectorWindowBounds(eagleWindow) {
     const current = await getCurrentWindowBounds(eagleWindow);
     const screenBounds = getAvailableScreenBounds(current);
+    const storedBounds = readStoredCollectorWindowBounds();
+    if (storedBounds) {
+      return clampCollectorWindowBounds({
+        x: storedBounds.x,
+        y: storedBounds.y,
+        width: COLLECTOR_WINDOW_BOUNDS.width,
+        height: COLLECTOR_WINDOW_BOUNDS.height
+      }, screenBounds);
+    }
     const ideal = {
       x: screenBounds.left + (screenBounds.width - COLLECTOR_WINDOW_BOUNDS.width) / 2,
       y: screenBounds.top + COLLECTOR_WINDOW_BOUNDS.topOffset,
@@ -499,6 +557,7 @@
   async function exitCollectorMode() {
     try {
       const eagleWindow = getPluginWindowApi();
+      await persistCollectorWindowBounds(eagleWindow);
       await restoreWorkbenchWindow(eagleWindow);
     } catch (error) {
       setStatus(`展开工作台失败：${formatError(error)}`);
