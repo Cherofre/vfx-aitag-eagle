@@ -142,8 +142,8 @@ test("page favicon uses the same logo as the plugin manifest", () => {
   const html = read("index.html");
 
   assert.equal(manifest.logo, "/logo.png");
-  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.3\.8">/);
-  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.3\.8">/);
+  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.3\.9">/);
+  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.3\.9">/);
 });
 
 test("logo bright mark fills the plugin icon canvas", () => {
@@ -482,10 +482,12 @@ test("collection workflow exposes append, replace, clear, context menus, and col
   assert.match(js, /function appendSelectedItems\(/);
   assert.match(js, /function replaceSelectedItems\(/);
   assert.match(js, /function clearSelectedQueue\(/);
-  assert.match(js, /function bindPluginRunCollection\(/);
   assert.match(js, /function openWorkbenchContextMenu\(/);
   assert.match(js, /function enterCollectorMode\(/);
   assert.match(js, /function exitCollectorMode\(/);
+  assert.match(js, /appendSelectedBtn\.addEventListener\("click", \(\) => appendSelectedItems\("追加当前选中"\)\)/);
+  assert.match(js, /replaceSelectedBtn\.addEventListener\("click", \(\) => replaceSelectedItems\("替换为当前选中"\)\)/);
+  assert.match(js, /collectorAppendBtn\.addEventListener\("click", \(\) => appendSelectedItems\("采集条追加当前选中"\)\)/);
   assert.match(js, /collectorClearBtn\.addEventListener\("click", \(\) => clearSelectedQueue\(\)\)/);
   assert.match(js, /eagle\.contextMenu\.open/);
   assert.match(js, /data-item-id/);
@@ -494,6 +496,17 @@ test("collection workflow exposes append, replace, clear, context menus, and col
   assert.match(css, /\.collector-bar\s*{/);
   assert.match(css, /body\.collector-mode\s+\.workbench-shell/);
   assert.match(css, /body\.collector-mode\s+\.collector-bar/);
+});
+
+test("opening or showing the plugin does not auto-import the current Eagle selection", () => {
+  const js = read("plugin.js");
+
+  assert.doesNotMatch(js, /打开插件导入当前选中/);
+  assert.doesNotMatch(js, /插件入口追加当前选中/);
+  assert.doesNotMatch(js, /onPluginRun/);
+  assert.doesNotMatch(js, /onPluginShow/);
+  assert.match(js, /await Promise\.all\(\[refreshTags\(\),\s*refreshModelStatus\(\)\]\)/);
+  assert.match(js, /await appendSelectedItems\("进入采集条自动收集当前选中",\s*\{ silentWhenEmpty:\s*true \}\)/);
 });
 
 test("collector bar becomes a real always-on-top floating window", () => {

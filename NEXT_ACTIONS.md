@@ -1,15 +1,15 @@
 # Next Actions
 
 ## Now
-- [x] Added RED logo contract tests for a bright blue app-icon background, simple white mark, and `logo.png?v=1.3.8`.
-- [x] Replaced `logo.png` with a deterministic flat blue icon and bumped manifest/favicon references to `1.3.8`.
-- [x] Repackaged `dist\特效AI标签管理-cli.eagleplugin` and inspected that only core plugin files are included.
-- [ ] Install version `1.3.8` in Eagle and smoke-test the new icon plus persistent undo, CLI pause/abort, collector spacing/height, close-without-flash, and default reopen restore.
+- [x] Added RED test for “ordinary open/show does not auto-import current Eagle selection”.
+- [x] Removed startup and plugin show/run auto-append; retained explicit append/replace/right-click/collector collection actions.
+- [x] Bumped manifest/favicon to `1.3.9`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected archive contents.
+- [ ] Install version `1.3.9` in Eagle and smoke-test ordinary open/show, explicit import actions, collector entry auto-collect, and the existing collector/analysis flows.
 
 ## Handoff Notes
-- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.8` in Eagle.
-- Do not redo: collection workflow implementation, collector entry/action fix, collector `646×104` spacing/height update, screen-bound clamping, window restore hotfix, close-without-full-window-flash fix, staged progress UI, compact/manual tag menu UI, flat blue logo replacement, static tests, syntax checks, browser static smoke, version bump, and package inspection are done.
-- Verify next: Eagle smoke-test persistent undo after plugin close/reopen, pausing a long Claude/Codex request and confirming the child process stops, plugin-list/pinned/collector icon size, right-click plugin entry append, “置顶采集” visibility, entering collector mode auto-collects current selection, “清空队列” clears pending items/results, collector bar shrinks to the top floating window with balanced side padding, stays within visible screen bounds, stays always-on-top, close does not flash a full workbench window, expands back to the full workbench, default reopen is not collector-sized, progress stages update during analysis, and manual tag menu appears near the input.
+- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.9` in Eagle.
+- Do not redo: collection workflow implementation, collector entry/action fix, removal of ordinary open/show auto-import, collector `646×104` spacing/height update, screen-bound clamping, window restore hotfix, close-without-full-window-flash fix, staged progress UI, compact/manual tag menu UI, flat blue logo replacement, static tests, syntax checks, browser static smoke, version bump, and package inspection are done.
+- Verify next: Eagle smoke-test opening/showing the plugin while assets are selected leaves the queue unchanged, “追加当前选中” appends, “替换为当前选中” replaces, right-click/context menu import actions work, entering collector mode auto-collects current selection, persistent undo after plugin close/reopen, pausing a long Claude/Codex request and confirming the child process stops, plugin-list/pinned/collector icon size, “置顶采集” visibility, “清空队列” clears pending items/results, collector bar shrinks to the top floating window with balanced side padding, stays within visible screen bounds, stays always-on-top, close does not flash a full workbench window, expands back to the full workbench, default reopen is not collector-sized, progress stages update during analysis, and manual tag menu appears near the input.
 - Do not claim: Eagle real-host smoke has passed; Browser local smoke only covered static layout/menu behavior outside the Eagle host.
 - Watch out for: pause aborts local CLI children only; Eagle AI itself is still host-controlled. Persistent undo requires the affected Eagle item to be imported/selected again so `item.save()` is available.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.

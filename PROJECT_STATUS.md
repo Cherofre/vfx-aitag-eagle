@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-03 13:12
-- Phase: flat logo hotfix packaged
+- Last Updated: 2026-06-03 13:21
+- Phase: open-import behavior hotfix packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/collection-workflow
-- Goal: 修正用户反馈的丑 logo，同时保留写入安全、CLI 暂停中断、采集条和单屏工作台行为。
-- Current Focus: Package version `1.3.8` replaces the rejected dark neon tag icon with a bright blue flat app icon, keeps `logo.png` at `128x128`, updates favicon links to `logo.png?v=1.3.8`, and leaves plugin behavior unchanged.
+- Goal: 修正插件打开时自动导入当前选中素材的交互问题，同时保留显式追加和采集条收集能力。
+- Current Focus: Package version `1.3.9` removes automatic current-selection import on normal plugin open/show, keeps manual “追加当前选中”/“替换为当前选中”/right-click menu actions, and keeps entering collector mode auto-collecting the current selection.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-logo-redesign-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-logo-redesign.md`
-- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.8` in Eagle and smoke-test the new icon in the plugin list/pinned/collector paths plus persistent undo, CLI pause/abort, and collector spacing/close/restore behavior.
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.9` in Eagle and smoke-test that ordinary open/show no longer imports selected assets, while explicit append/replace and collector entry still collect selection.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.8` in Eagle.
-- Next verification: Eagle real-host smoke for persistent undo after closing/reopening the plugin, pausing a long Claude/Codex CLI request and confirming the process is stopped, checking the plugin list/pinned/collector icons render the larger logo, entering collector mode at `646×104`, balanced left/right spacing, closing collector mode without flashing a full workbench window, restoring full workbench bounds/normal top state on next open or expand, staged progress while a CLI request is running, compact review tag chips, manual tag suggestion menu placement, plus analysis/write flows.
+- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.9` in Eagle.
+- Next verification: Eagle real-host smoke for ordinary plugin open/show with selected Eagle assets (should leave queue empty), explicit “追加当前选中” and “替换为当前选中”, entering collector mode auto-collecting current selection, persistent undo after closing/reopening the plugin, pausing a long Claude/Codex CLI request and confirming the process is stopped, checking the plugin list/pinned/collector icons, collector `646×104` spacing/close/restore behavior, staged progress while a CLI request is running, compact review tag chips, manual tag suggestion menu placement, plus analysis/write flows.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -87,11 +87,14 @@
 - [x] Added RED tests for a bright blue app-icon logo and `1.3.8` favicon cache-buster; confirmed they failed against the old dark logo.
 - [x] Replaced `logo.png` with a deterministic flat blue icon with a white tag mark and updated manifest/favicon to `1.3.8`.
 - [x] Repackaged `dist\特效AI标签管理-cli.eagleplugin` version `1.3.8` and inspected archive contents.
+- [x] Added RED test that ordinary plugin open/show must not auto-import Eagle's current selection, while collector entry still auto-collects.
+- [x] Removed startup `appendSelectedItems("打开插件导入当前选中")` and plugin show/run auto-append binding; explicit append/replace/context-menu/collector actions remain.
+- [x] Bumped manifest/favicon to `1.3.9`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected archive contents.
 
 ## Verification
 - Last command: package inspection after `Compress-Archive`
 - Result: pass
-- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected on `logo.png?v=1.3.8` and `blue background should cover most of the icon, got 0px`. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 39 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.8`, `devTools: false`, and `index.html` contains `logo.png?v=1.3.8` icon links. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected because `plugin.js` still contained `打开插件导入当前选中`. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 40 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.9`, `devTools: false`, and `index.html` contains `logo.png?v=1.3.9` icon links. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.

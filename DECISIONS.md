@@ -25,8 +25,16 @@
 - 2026-06-02: Declare `logo.png` as the page favicon with a version cache-buster so pinned/collector windows can use the same icon as `manifest.logo`.
 - 2026-06-03: Persist undo history and stop active local CLI children on pause while keeping Eagle AI cancellation best-effort only.
 - 2026-06-03: Replace the rejected dark neon logo with a bright blue flat app-icon mark.
+- 2026-06-03: Ordinary plugin open/show must not auto-import Eagle's current selection; importing requires an explicit action or collector entry.
 
 ## Decision Log
+
+## 2026-06-03 - No automatic import on ordinary open
+- Status: active
+- Decision: Remove startup current-selection append and plugin run/show auto-append binding. Keep current-selection reads only behind explicit controls: “追加当前选中”, “替换为当前选中”, internal context menu actions, and entering collector mode.
+- Reason: Opening the plugin while browsing Eagle should not mutate the queue unexpectedly. The user wants to choose when selection is collected.
+- Alternatives considered: Add a setting toggle; skipped for now because the request was to remove the behavior and another setting would add friction. Keep plugin-entry auto-import but disable startup import; skipped because the user described “每次打开” and plugin show/run can still feel like opening.
+- Consequences / follow-up: Eagle smoke must verify ordinary open/show leaves the queue empty/unchanged while manual append and collector entry still collect selected assets.
 
 ## 2026-06-03 - Flat blue logo after visual rejection
 - Status: active

@@ -124,7 +124,6 @@
     analysisAbortController: null,
     collectorPreviousBounds: null,
     collectorPreviousAlwaysOnTop: false,
-    pluginRunCollectionBound: false,
     pauseRequested: false,
     paused: false,
     writing: false
@@ -155,7 +154,6 @@
 
     loadStoredState();
     bindEvents();
-    bindPluginRunCollection();
     await ensureWorkbenchWindowBounds();
     await refreshAll();
     await runHealthCheck({ silent: true });
@@ -263,7 +261,7 @@
   }
 
   async function refreshAll() {
-    await Promise.all([refreshTags(), appendSelectedItems("打开插件导入当前选中", { silentWhenEmpty: true }), refreshModelStatus()]);
+    await Promise.all([refreshTags(), refreshModelStatus()]);
     renderAll();
   }
 
@@ -288,20 +286,6 @@
     } catch (error) {
       setStatus(`关闭窗口失败：${formatError(error)}`);
     }
-  }
-
-  function bindPluginRunCollection() {
-    if (state.pluginRunCollectionBound || !window.eagle) return;
-    const eventApi = eagle.event || eagle;
-    const handler = () => appendSelectedItems("插件入口追加当前选中", { silentWhenEmpty: true });
-    let bound = false;
-    ["onPluginRun", "onPluginShow"].forEach((eventName) => {
-      if (eventApi && typeof eventApi[eventName] === "function") {
-        eventApi[eventName](handler);
-        bound = true;
-      }
-    });
-    state.pluginRunCollectionBound = bound;
   }
 
   function getPluginWindowApi() {
