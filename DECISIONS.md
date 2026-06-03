@@ -28,16 +28,24 @@
 - 2026-06-03: Ordinary plugin open/show must not auto-import Eagle's current selection; importing requires an explicit action or collector entry.
 - 2026-06-03: Release `v1.0.1` should align manifest/favicon/package version to `1.0.1` and tag the reviewed commit explicitly.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
-- 2026-06-03: Use one compact activity progress slot and a fixed-height local scroller for selected materials.
+- 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
 
-## 2026-06-03 - Compact progress and selected-material queue
+## 2026-06-03 - Selected-material thumbnail tray
 - Status: active
+- Decision: Keep selected-material confirmation compact by showing at most three tray slots in the main panel. When the queue has more than three materials, reserve the final visible slot for `展开全部 +N`; keep the header control as `展开素材`, and move full queue scrolling into the existing selected-material dialog titled `全部待分析素材`.
+- Reason: The selected-material area is queue confirmation, not the main task surface. A vertical list or local scroller makes the results area feel squeezed and makes the expansion control unclear.
+- Alternatives considered: Keep the full local scroller; skipped because it made the material area feel like a list page. Show three assets plus a separate fourth expand tile; skipped because the user wanted the main area capped around three visible cards. Hide the full dialog; skipped because users still need a complete queue review path.
+- Consequences / follow-up: Eagle smoke must verify the tray stays fixed-height, thumbnails resolve, `展开素材` and `展开全部 +N` open the full dialog, and preview/right-click actions still work from both tray and dialog.
+
+## 2026-06-03 - Compact progress and selected-material queue
+- Status: superseded
 - Decision: Collapse analysis/write progress into one active compact progress slot, hiding the inactive slot when the other starts. Render the full selected-material queue in the main selected panel with fixed-height local scrolling instead of clipping to the first 3 items.
 - Reason: Stacked progress panels consumed too much vertical space in the primary result area, and the clipped selected-material panel made users depend on “完整列表” even for small queues.
 - Alternatives considered: Move progress into a floating overlay; skipped because it can obscure result cards. Keep the selected panel as a summary plus full-list modal; skipped because it makes the normal workflow hard to scan. Expand the selected panel without a height cap; skipped because it would again squeeze analysis results.
 - Consequences / follow-up: Eagle smoke must verify the selected-material panel scrolls locally with many assets and that analysis/write progress never stack visually.
+- Superseded by: 2026-06-03 - Selected-material thumbnail tray.
 
 ## 2026-06-03 - Media acceptance preview flow
 - Status: active

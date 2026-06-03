@@ -450,16 +450,24 @@ test("compact workbench keeps material actions local and exposes analysis progre
   assert.match(css, /\.analysis-progress-bar\s*{/);
 });
 
-test("selected material panel is a local scroll list instead of a clipped summary", () => {
+test("selected material panel is a compact three-card tray with clear expansion", () => {
+  const html = read("index.html");
   const js = read("plugin.js");
   const css = read("style.css");
 
-  assert.doesNotMatch(js, /state\.selectedItems\.slice\(0,\s*3\)/);
-  assert.match(js, /state\.selectedItems\.forEach\(\(item\) => \{\s*els\.selectedItems\.appendChild\(createSelectedItemRow\(item\)\)/);
-  assert.doesNotMatch(js, /className\s*=\s*"selected-more"/);
-  assert.match(css, /\.selected-list\s*{[\s\S]*max-height:\s*clamp\(118px,\s*18vh,\s*168px\)[\s\S]*overflow:\s*auto/);
-  assert.doesNotMatch(css, /\.selected-list\s*{[^}]*overflow:\s*hidden/);
-  assert.match(css, /\.selected-item\s*{[\s\S]*min-height:\s*0/);
+  assert.match(html, /id="showSelectedListBtn"[^>]*>展开素材<\/button>/);
+  assert.match(html, /id="selectedListTitle">全部待分析素材<\/h2>/);
+  assert.doesNotMatch(html, /完整列表/);
+  assert.match(js, /const SELECTED_TRAY_LIMIT = 3/);
+  assert.match(js, /state\.selectedItems\.length > SELECTED_TRAY_LIMIT/);
+  assert.match(js, /state\.selectedItems\.slice\(0,\s*SELECTED_TRAY_LIMIT - 1\)/);
+  assert.match(js, /createSelectedItemCard\(item,\s*\{ compact:\s*true \}\)/);
+  assert.match(js, /createSelectedExpandCard\(remainingCount\)/);
+  assert.match(js, /className\s*=\s*"selected-expand-card"/);
+  assert.match(css, /\.selected-list\s*{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)[\s\S]*overflow:\s*hidden/);
+  assert.match(css, /\.selected-card\s*{/);
+  assert.match(css, /\.selected-thumb\s*{/);
+  assert.match(css, /\.selected-expand-card\s*{/);
   assert.match(css, /\.selected-preview-btn\s*{[\s\S]*min-height:\s*30px/);
 });
 

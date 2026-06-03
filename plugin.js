@@ -31,6 +31,7 @@
   const VIDEO_EXTS = new Set(["mp4", "mov", "webm", "avi", "mkv", "ts", "m4v", "wmv"]);
   const PREVIEW_EXTS = new Set(["svg", "psd", "ai", "pdf", "eps", "sketch"]);
   const DIAGNOSTIC_PREVIEW_LIMIT = 8;
+  const SELECTED_TRAY_LIMIT = 3;
   const AI_RETRY_COUNT = 2;
   const AI_RETRY_BASE_DELAY_MS = 1200;
   const DEFAULT_REQUEST_CHUNK_K = 256;
@@ -550,7 +551,7 @@
       { label: "追加当前选中", action: () => appendSelectedItems("右键菜单追加当前选中") },
       { label: "替换为当前选中", action: () => replaceSelectedItems("右键菜单替换当前选中") },
       { label: "清空待分析素材", action: () => clearSelectedQueue() },
-      { label: "打开完整列表", action: openSelectedListDialog, disabled: !state.selectedItems.length },
+      { label: "展开素材", action: openSelectedListDialog, disabled: !state.selectedItems.length },
       { label: "进入置顶采集", action: enterCollectorMode }
     ]);
   }
@@ -2780,9 +2781,17 @@
       els.selectedItems.innerHTML = `<div class="empty">请先在 Eagle 中选择素材，然后点击“追加当前选中”。</div>`;
       return;
     }
-    state.selectedItems.forEach((item) => {
-      els.selectedItems.appendChild(createSelectedItemRow(item));
+    const hasOverflow = state.selectedItems.length > SELECTED_TRAY_LIMIT;
+    const visibleItems = hasOverflow
+      ? state.selectedItems.slice(0, SELECTED_TRAY_LIMIT - 1)
+      : state.selectedItems.slice(0, SELECTED_TRAY_LIMIT);
+    visibleItems.forEach((item) => {
+      els.selectedItems.appendChild(createSelectedItemCard(item, { compact: true }));
     });
+    if (hasOverflow) {
+      const remainingCount = state.selectedItems.length - visibleItems.length;
+      els.selectedItems.appendChild(createSelectedExpandCard(remainingCount));
+    }
   }
 
   function renderSelectedFullList() {
@@ -2793,29 +2802,51 @@
       return;
     }
     state.selectedItems.forEach((item) => {
-      els.selectedItemsFullList.appendChild(createSelectedItemRow(item));
+      els.selectedItemsFullList.appendChild(createSelectedItemCard(item, { compact: false }));
     });
   }
 
-  function createSelectedItemRow(item) {
+  function createSelectedItemCard(item, options = {}) {
+    const compact = Boolean(options.compact);
     const filePath = getItemFilePath(item);
     const ext = getItemExt(item, filePath) || "未知";
     const tags = Array.isArray(item.tags) ? item.tags : [];
-    const row = document.createElement("div");
-    row.className = "selected-item";
-    row.setAttribute("data-item-id", getItemId(item));
-    row.innerHTML = `
+    const previewPath = getItemPreviewPath(item);
+    const previewUrl = previewPath ? toFileUrl(previewPath) : "";
+    const card = document.createElement("div");
+    card.className = compact ? "selected-card is-compact" : "selected-card";
+    card.setAttribute("data-item-id", getItemId(item));
+    card.innerHTML = `
+      <div class="selected-thumb" aria-hidden="true">
+        ${previewUrl ? `<img src="${escapeHtml(previewUrl)}" alt="">` : `<span>${escapeHtml(ext.toUpperCase().slice(0, 4))}</span>`}
+      </div>
       <div class="selected-item-main">
         <div class="selected-name" title="${escapeHtml(getItemName(item))}">${escapeHtml(getItemName(item))}</div>
         <div class="selected-meta">
           <span>${escapeHtml(ext.toUpperCase())}</span>
           <span>${tags.length} 个已有标签</span>
-          <span title="${escapeHtml(filePath)}">${escapeHtml(shortPath(filePath))}</span>
+          ${compact ? "" : `<span title="${escapeHtml(filePath)}">${escapeHtml(shortPath(filePath))}</span>`}
         </div>
       </div>
       <button class="selected-preview-btn" type="button" data-preview-item="${escapeHtml(getItemId(item))}">预览</button>
     `;
-    return row;
+    return card;
+  }
+
+  function createSelectedExpandCard(remainingCount) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "selected-expand-card";
+    button.addEventListener("click", openSelectedListDialog);
+    button.innerHTML = `
+      <strong>展开全部</strong>
+      <span>+${remainingCount} 个素材</span>
+    `;
+    return button;
+  }
+
+  function createSelectedItemRow(item) {
+    return createSelectedItemCard(item, { compact: false });
   }
 
   function renderTagPool() {
