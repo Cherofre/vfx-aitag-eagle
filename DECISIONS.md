@@ -24,9 +24,16 @@
 - 2026-06-02: Use `646×104` collector spacing and defer workbench restore on collector close to avoid a visible full-window flash.
 - 2026-06-02: Declare `logo.png` as the page favicon with a version cache-buster so pinned/collector windows can use the same icon as `manifest.logo`.
 - 2026-06-03: Persist undo history and stop active local CLI children on pause while keeping Eagle AI cancellation best-effort only.
-- 2026-06-03: Enlarge the logo's visible mark rather than changing plugin identity or adding a new visual concept.
+- 2026-06-03: Replace the rejected dark neon logo with a bright blue flat app-icon mark.
 
 ## Decision Log
+
+## 2026-06-03 - Flat blue logo after visual rejection
+- Status: active
+- Decision: Replace the dark neon tag-plus-sparkle logo with a simple bright blue rounded-square app icon, a white filled tag mark, and small secondary sparkle; update manifest/favicon version to `1.3.8`.
+- Reason: Eagle plugin list smoke showed the previous icon was visually noisy and ugly: the dark background blended into the UI while the purple/cyan outline mark looked busy at small sizes.
+- Alternatives considered: Keep tweaking the previous dark logo; skipped because the user feedback was about the visual concept, not just size. Use a white-background icon; skipped because it may lose boundary clarity across Eagle themes.
+- Consequences / follow-up: Install `1.3.8` and verify plugin-list, pinned, and collector-window icon paths. If an old icon remains, treat it as an Eagle/Windows cache issue after confirming the package contains the new PNG.
 
 ## 2026-06-03 - Persistent undo and CLI abort
 - Status: active
@@ -36,11 +43,12 @@
 - Consequences / follow-up: Eagle smoke must verify persistent undo with a real selected item. Pausing Eagle AI-only analysis may still wait for the current host request to return.
 
 ## 2026-06-03 - Larger visible logo mark
-- Status: active
+- Status: superseded
 - Decision: Keep the tag-plus-sparkle concept, but enlarge the bright mark, reduce perceived dark padding, and update the favicon cache-buster to `1.3.7`.
 - Reason: In Eagle's dark plugin menus the previous dark-background logo blended into the UI, making only the smaller line mark visible compared with neighboring app icons.
 - Alternatives considered: Generate a completely new logo; skipped because the current concept is already recognizable. Only resize the PNG canvas; skipped because the canvas was already `128×128` and the issue was visible mark size.
 - Consequences / follow-up: Reinstall `1.3.7` and compare icon size in the plugin list and pinned bar. If icon cache persists, re-pin or restart Eagle.
+- Superseded by: 2026-06-03 - Flat blue logo after visual rejection.
 
 ## 2026-06-02 - Page favicon for pinned window icon
 - Status: active

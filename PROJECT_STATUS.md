@@ -1,18 +1,18 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-03 12:30
-- Phase: safety/abort/icon hotfix packaged
+- Last Updated: 2026-06-03 13:12
+- Phase: flat logo hotfix packaged
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/collection-workflow
-- Goal: 提升写入安全感和长请求控制能力，并修正 logo 在 Eagle 插件列表里视觉偏小的问题。
-- Current Focus: Package version `1.3.7` keeps the `646×104` collector window, persists the undo stack in localStorage, aborts active local CLI children when pausing analysis, and replaces `logo.png` with a larger tag-plus-sparkle mark plus `logo.png?v=1.3.7` favicon links.
-- Superpowers Spec: none
-- Superpowers Plan: `docs/superpowers/plans/2026-06-02-collection-workflow.md`
-- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.7` in Eagle and smoke-test persistent undo, CLI pause/abort, larger icon rendering, and existing collector spacing/close/restore behavior.
+- Goal: 修正用户反馈的丑 logo，同时保留写入安全、CLI 暂停中断、采集条和单屏工作台行为。
+- Current Focus: Package version `1.3.8` replaces the rejected dark neon tag icon with a bright blue flat app icon, keeps `logo.png` at `128x128`, updates favicon links to `logo.png?v=1.3.8`, and leaves plugin behavior unchanged.
+- Superpowers Spec: `docs/superpowers/specs/2026-06-03-logo-redesign-design.md`
+- Superpowers Plan: `docs/superpowers/plans/2026-06-03-logo-redesign.md`
+- Current Task: Install `dist\特效AI标签管理-cli.eagleplugin` version `1.3.8` in Eagle and smoke-test the new icon in the plugin list/pinned/collector paths plus persistent undo, CLI pause/abort, and collector spacing/close/restore behavior.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.7` in Eagle.
+- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.8` in Eagle.
 - Next verification: Eagle real-host smoke for persistent undo after closing/reopening the plugin, pausing a long Claude/Codex CLI request and confirming the process is stopped, checking the plugin list/pinned/collector icons render the larger logo, entering collector mode at `646×104`, balanced left/right spacing, closing collector mode without flashing a full workbench window, restoring full workbench bounds/normal top state on next open or expand, staged progress while a CLI request is running, compact review tag chips, manual tag suggestion menu placement, plus analysis/write flows.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
@@ -84,17 +84,20 @@
 - [x] Persisted undo stack in `localStorage` so a write can still be undone after closing/reopening the plugin, provided the Eagle item is reselected/imported.
 - [x] Replaced `logo.png` with a larger, brighter tag-plus-sparkle mark and updated favicon cache-buster to `1.3.7`.
 - [x] Bumped manifest to `1.3.7`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Added RED tests for a bright blue app-icon logo and `1.3.8` favicon cache-buster; confirmed they failed against the old dark logo.
+- [x] Replaced `logo.png` with a deterministic flat blue icon with a white tag mark and updated manifest/favicon to `1.3.8`.
+- [x] Repackaged `dist\特效AI标签管理-cli.eagleplugin` version `1.3.8` and inspected archive contents.
 
 ## Verification
 - Last command: package inspection after `Compress-Archive`
 - Result: pass
-- Evidence / notes: Added RED tests for CLI abort killing the current spawn child, undo stack persistence wiring, and logo visible-mark size; they failed before implementation and now pass. Final `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 38 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.7`, default `1180×760`, `minWidth: 646`, `minHeight: 104`, `devTools: false`, and `index.html` contains `logo.png?v=1.3.7` icon links. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected on `logo.png?v=1.3.8` and `blue background should cover most of the icon, got 0px`. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 39 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.3.8`, `devTools: false`, and `index.html` contains `logo.png?v=1.3.8` icon links. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.
 - Pause can immediately stop local CLI children, but Eagle AI requests are still not truly cancellable by this plugin and will pause only after the current Eagle AI call returns.
 - Persistent undo can restore the undo record after reopening, but the target Eagle item must be available in the current selected/imported list for the plugin to call `item.save()`.
-- If the pinned/collector icon remains old after installing `1.3.7`, the remaining likely cause is Eagle or Windows icon cache; try unpin/re-pin or restart Eagle before clearing broader system caches.
+- If the pinned/collector icon remains old after installing `1.3.8`, the remaining likely cause is Eagle or Windows icon cache; try unpin/re-pin or restart Eagle before clearing broader system caches.
 - Current UI fix must preserve single-screen body no-scroll and keep material-list scrolling local to the selected-material modal/panel.
 - New health checks must remain lightweight and must not perform real AI requests.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.

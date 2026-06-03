@@ -142,8 +142,8 @@ test("page favicon uses the same logo as the plugin manifest", () => {
   const html = read("index.html");
 
   assert.equal(manifest.logo, "/logo.png");
-  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.3\.7">/);
-  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.3\.7">/);
+  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.3\.8">/);
+  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.3\.8">/);
 });
 
 test("logo bright mark fills the plugin icon canvas", () => {
@@ -154,6 +154,29 @@ test("logo bright mark fills the plugin icon canvas", () => {
   assert.equal(image.height, 128);
   assert.ok(bounds.width >= 92, `bright mark width should be at least 92px, got ${bounds.width}`);
   assert.ok(bounds.height >= 92, `bright mark height should be at least 92px, got ${bounds.height}`);
+});
+
+test("logo uses a bright blue app-icon background with a simple white mark", () => {
+  const image = readPngRgba("logo.png");
+  let blueBackgroundPixels = 0;
+  let whiteMarkPixels = 0;
+
+  for (let index = 0; index < image.pixels.length; index += 4) {
+    const r = image.pixels[index];
+    const g = image.pixels[index + 1];
+    const b = image.pixels[index + 2];
+    const a = image.pixels[index + 3];
+
+    if (a > 230 && b > 140 && g > 95 && r < 100 && b - r > 80) {
+      blueBackgroundPixels += 1;
+    }
+    if (a > 230 && r > 235 && g > 235 && b > 235) {
+      whiteMarkPixels += 1;
+    }
+  }
+
+  assert.ok(blueBackgroundPixels >= 9000, `blue background should cover most of the icon, got ${blueBackgroundPixels}px`);
+  assert.ok(whiteMarkPixels >= 1500, `white mark should be readable at small sizes, got ${whiteMarkPixels}px`);
 });
 
 test("workbench css uses viewport locking and region scrolling", () => {
