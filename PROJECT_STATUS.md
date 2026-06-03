@@ -9,7 +9,7 @@
 - Current Focus: Implemented collector bar position memory. Package `dist\特效AI标签管理-cli.eagleplugin` is version `1.0.4` with SHA256 `cfd778c008201917b5a9954e3497b291c40a66dd21070aeeae7685675426b7a0`; local installed plugin has been synchronized to `1.0.4`.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Commit the `codex/collector-position-memory` branch, then run Eagle real-host smoke for collector drag/restore behavior.
+- Current Task: Run Eagle real-host smoke for collector drag/restore behavior.
 
 ## Resume Here
 - Start with: close and reopen the plugin window or restart Eagle if the old renderer remains cached; enter `置顶采集`, drag the collector bar to a comfortable position, return to workbench, then enter `置顶采集` again.
@@ -113,6 +113,7 @@
 - [x] Added TDD coverage for collector position storage, restore, clamp, and save paths.
 - [x] Implemented collector-only bounds persistence with `vfxAiTagger.collectorWindowBounds`.
 - [x] Bumped manifest/favicon/package to `1.0.4`, regenerated `dist\特效AI标签管理-cli.eagleplugin`, and synchronized the local installed plugin directory.
+- [x] Committed collector position memory branch as `a077c71`.
 
 ## Verification
 - Last command: local installed plugin inspection after 1.0.4 synchronization

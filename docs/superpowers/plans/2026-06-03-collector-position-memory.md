@@ -54,4 +54,4 @@
 - [x] Run `node --check plugin.js` and `node --check cli-backends.js`.
 - [x] Copy the core plugin files into `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI`.
 - [ ] Update ledger files with verification evidence and the remaining Eagle smoke checklist.
-- [ ] Commit the implementation branch.
+- [x] Commit the implementation branch.

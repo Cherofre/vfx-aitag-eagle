@@ -6,11 +6,11 @@
 - [x] Implemented collector-only bounds persistence and screen clamping.
 - [x] Bumped and packaged version `1.0.4`, then synchronized the local Eagle install.
 - [x] Verified 45/45 tests, syntax checks, package contents, and installed plugin version.
-- [ ] Commit the branch changes.
+- [x] Committed branch changes as `a077c71`.
 - [ ] Reopen/restart Eagle and run real-host smoke for dragging collector, returning to workbench, and re-entering collector at the remembered position.
 
 ## Handoff Notes
-- Start here: commit branch `codex/collector-position-memory`, then close and reopen the plugin window or restart Eagle if it keeps the old renderer cached; the installed files at `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` are now synchronized to `1.0.4`.
+- Start here: close and reopen the plugin window or restart Eagle if it keeps the old renderer cached; the installed files at `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` are now synchronized to `1.0.4`.
 - Do not redo: collector position memory implementation, RED/GREEN static tests, version bump to `1.0.4`, package regeneration, archive inspection, and local installed-file synchronization are done.
 - Verify next: in Eagle, click `置顶采集`, drag the collector bar to a comfortable non-top position, click `工作台`, click `置顶采集` again, and confirm it restores the dragged position; also confirm it remains on-screen and still only imports selected assets after clicking `收集选中`.
 - Do not claim: Eagle real-host drag/restore smoke has passed; static tests only verify the code/storage contract.
