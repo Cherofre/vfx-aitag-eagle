@@ -29,10 +29,18 @@
 - 2026-06-03: Release `v1.0.1` should align manifest/favicon/package version to `1.0.1` and tag the reviewed commit explicitly.
 - 2026-06-03: Release `v1.0.2` should tag the media-preview/tray commit and upload an English-named `.eagleplugin` asset.
 - 2026-06-03: Release `v1.0.3` should supersede `v1.0.2` by removing collector-entry auto-collection.
+- 2026-06-03: Merge the media-preview `1.0.3` work to `master`; keep the existing `v1.0.3` release asset because its digest matches the current package.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-03 - Merge 1.0.3 to master without retagging
+- Status: active
+- Decision: Merge `codex/media-preview-review` into `master` and push `master`. Do not move the existing `v1.0.3` tag or re-upload the release asset because the current package SHA256 matches the already-published GitHub Release asset.
+- Reason: The user asked to merge to the main branch and upload release. The release already exists and contains the exact current package; force-moving a published tag or replacing an identical asset would add risk without changing the deliverable.
+- Alternatives considered: Create `v1.0.4`; skipped because no code/package change exists beyond the published `1.0.3` artifact. Force-retag `v1.0.3` to the merge commit; skipped because mutating published tags is risky and unnecessary when the tag commit is reachable from `master`.
+- Consequences / follow-up: Push `master` and run Eagle real-host smoke from the installed `1.0.3` files.
 
 ## 2026-06-03 - Collector entry no-auto-collect patch
 - Status: active
