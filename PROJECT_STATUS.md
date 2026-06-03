@@ -1,20 +1,20 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-03 13:37
-- Phase: release 1.0.1 uploaded
-- Superpowers Phase: executing-plans + TDD + project-ledger-loop
-- Branch: codex/collection-workflow
-- Goal: 完成子代理全面审查后的 release `v1.0.1` 包，修复发布前必须处理的暂停、替换失败、健康检查和版本一致性问题。
-- Current Focus: GitHub Release `v1.0.1` is published with asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`; package version `1.0.1` keeps ordinary open/show from auto-importing, prevents aborted CLI analysis from falling through to Eagle AI, keeps multi-chunk pause results pending, preserves queue/results on replace-selection read failures, adds collector-bar status feedback, and aligns manifest/favicon/package with the release tag.
-- Superpowers Spec: `docs/superpowers/specs/2026-06-03-logo-redesign-design.md`
-- Superpowers Plan: `docs/superpowers/plans/2026-06-03-logo-redesign.md`
-- Current Task: Install the release asset in Eagle and run real-host smoke tests.
+- Last Updated: 2026-06-03 17:38
+- Phase: media preview review feature packaged
+- Superpowers Phase: brainstorming + writing-plans + TDD + project-ledger-loop
+- Branch: codex/media-preview-review
+- Goal: 给结果卡和素材列表增加“验收预览”，让用户检查图片/视频与 AI 标签是否匹配，并提供 Eagle 原生打开兜底。
+- Current Focus: Branch package `dist\特效AI标签管理-cli.eagleplugin` is regenerated as manifest version `1.0.2`; result cards and selected-material rows expose `预览`, the local preview dialog supports image/video display, video playback failure falls back to thumbnails/diagnostic frames when available, tags can be toggled/deleted inside the preview, and `用 Eagle 打开` calls `item.open({ window: true })` / `eagle.item.open(id, { window: true })`.
+- Superpowers Spec: none for this slice; design was confirmed in chat.
+- Superpowers Plan: `docs/superpowers/plans/2026-06-03-media-preview-review.md`
+- Current Task: Commit the media preview branch and then install the `1.0.2` package in Eagle for real-host smoke.
 
 ## Resume Here
-- Start with: download/install `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.1` asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`.
-- Next verification: Eagle real-host smoke should cover ordinary open/show with selected assets (queue unchanged), explicit append/replace, collector entry auto-collect, pause during CLI+Eagle fallback, pause between request chunks, replace-selection API failure preserving queue/results, collector status feedback, persistent undo, and analysis/write flows.
-- Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
+- Start with: install `dist\特效AI标签管理-cli.eagleplugin` from branch `codex/media-preview-review` and import/select a mix of image, mp4/webm, and mov/mkv assets in Eagle.
+- Next verification: Eagle smoke should click `预览` from both selected-material rows and result cards, verify image/video display, trigger `用 Eagle 打开`, test a video format unsupported by Chromium to confirm thumbnail/diagnostic fallback, and confirm preview tag toggle/delete updates the result card before writing.
+- Watch out for: Browser static `file://` verification was blocked by Browser Use URL policy, so no local browser screenshot was captured. Eagle native open depends on host API support and `window: true` requires Eagle 4.0 build12+; plugin-native `<video>` playback still depends on Chromium codec support.
 
 ## Progress Summary
 - [x] Initialized Project Ledger Loop files.
@@ -94,13 +94,19 @@
 - [x] Fixed review findings: CLI abort no longer falls back to Eagle AI, multi-chunk pause throws `AbortError`, replace-selection failures preserve existing queue/results, unresolved PATH commands fail health checks, collector bar shows status feedback, and collector clear copy now says “清空全部”.
 - [x] Aligned manifest/favicon/package to version `1.0.1`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected archive contents.
 - [x] Pushed tag `v1.0.1` and created GitHub Release `v1.0.1` with asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`.
+- [x] Created branch `codex/media-preview-review` for media/tag acceptance preview.
+- [x] Added RED UI contract coverage for media preview dialog, material/result preview buttons, Eagle-open fallback, video fallback, and preview-side tag editing.
+- [x] Implemented local image/video preview dialog with previous/next navigation, thumbnail/diagnostic fallback, Eagle native open fallback, and preview-side tag toggle/delete.
+- [x] Bumped branch package manifest/favicon to `1.0.2`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected archive contents.
 
 ## Verification
 - Last command: package inspection after `Compress-Archive`
 - Result: pass
-- Evidence / notes: RED run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` failed as expected for unresolved CLI health checks, `logo.png?v=1.0.1`, abort handling, replace failure preservation, and collector status/copy. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 41 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.0.1`, `devTools: false`, and `index.html` contains `logo.png?v=1.0.1` icon links. `gh release view v1.0.1` confirms asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`, size `55720`, state `uploaded`, URL `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.1`. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected first for missing `mediaPreviewOverlay`, then for missing `bindMediaPreviewTagEvents`. GREEN run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 42/42 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.0.2`, `devTools: false`, and `index.html` contains `mediaPreviewDialog` plus `logo.png?v=1.0.2`. Browser static `file://` verification was blocked by Browser Use URL policy. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
+- Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.
+- Browser static verification for `file://` was blocked by Browser Use URL policy; do not claim browser layout smoke for the preview dialog.
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.
 - Pause can immediately stop local CLI children, but Eagle AI requests are still not truly cancellable by this plugin and will pause only after the current Eagle AI call returns.
 - Persistent undo can restore the undo record after reopening, but the target Eagle item must be available in the current selected/imported list for the plugin to call `item.save()`.

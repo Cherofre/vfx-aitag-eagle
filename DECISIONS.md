@@ -27,8 +27,16 @@
 - 2026-06-03: Replace the rejected dark neon logo with a bright blue flat app-icon mark.
 - 2026-06-03: Ordinary plugin open/show must not auto-import Eagle's current selection; importing requires an explicit action or collector entry.
 - 2026-06-03: Release `v1.0.1` should align manifest/favicon/package version to `1.0.1` and tag the reviewed commit explicitly.
+- 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 
 ## Decision Log
+
+## 2026-06-03 - Media acceptance preview flow
+- Status: active
+- Decision: Add `预览` entry points to selected-material rows and result cards. Use a local modal for image/video preview and tag validation, with `item.open({ window: true })` / `eagle.item.open(id, { window: true })` as the Eagle-native fallback. Package this branch as manifest/favicon version `1.0.2`.
+- Reason: Users need to quickly verify whether AI tags match the actual media without losing the single-screen workbench context. Plugin-native playback is convenient but codec-limited, while Eagle native open is more reliable but switches context.
+- Alternatives considered: Rely only on Eagle native preview; skipped because it breaks the tag-review flow. Embed videos directly in every list/card; skipped because it would add layout weight, scrolling pressure, and performance risk. Keep package version `1.0.1`; skipped because it would be hard to distinguish this branch artifact from the published release.
+- Consequences / follow-up: Eagle smoke must verify native open behavior, video codec fallback, and preview-side tag edits before merging or releasing.
 
 ## 2026-06-03 - Release 1.0.1 version alignment and review fixes
 - Status: active

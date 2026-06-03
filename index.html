@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>特效 AI 标签管理</title>
-  <link rel="icon" type="image/png" href="logo.png?v=1.0.1">
-  <link rel="shortcut icon" type="image/png" href="logo.png?v=1.0.1">
+  <link rel="icon" type="image/png" href="logo.png?v=1.0.2">
+  <link rel="shortcut icon" type="image/png" href="logo.png?v=1.0.2">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -146,6 +146,30 @@
         <button id="closeSelectedListBtn" type="button">关闭</button>
       </div>
       <div id="selectedItemsFullList" class="selected-full-list"></div>
+    </section>
+
+    <div id="mediaPreviewOverlay" class="media-preview-overlay" hidden></div>
+    <section id="mediaPreviewDialog" class="panel media-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="mediaPreviewTitle" aria-hidden="true" hidden>
+      <div class="media-preview-head">
+        <div>
+          <h2 id="mediaPreviewTitle">素材预览</h2>
+          <p id="mediaPreviewMeta" class="hint"></p>
+        </div>
+        <div class="media-preview-actions">
+          <button id="mediaPreviewPrevBtn" type="button">上一个</button>
+          <button id="mediaPreviewNextBtn" type="button">下一个</button>
+          <button id="mediaPreviewOpenEagleBtn" type="button">用 Eagle 打开</button>
+          <button id="closeMediaPreviewBtn" type="button">关闭</button>
+        </div>
+      </div>
+      <div class="media-preview-main">
+        <div id="mediaPreviewBody" class="media-preview-player"></div>
+        <aside class="media-preview-side">
+          <div id="mediaPreviewStatus" class="media-preview-status"></div>
+          <div id="mediaPreviewTags" class="media-preview-tags"></div>
+          <div id="mediaPreviewReason" class="media-preview-reason"></div>
+        </aside>
+      </div>
     </section>
 
     <div id="settingsOverlay" class="settings-overlay" hidden></div>

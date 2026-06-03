@@ -124,6 +124,12 @@
     analysisAbortController: null,
     collectorPreviousBounds: null,
     collectorPreviousAlwaysOnTop: false,
+    mediaPreview: {
+      open: false,
+      itemId: "",
+      resultId: "",
+      order: []
+    },
     pauseRequested: false,
     paused: false,
     writing: false
@@ -142,6 +148,8 @@
       "collectorBar", "collectorCount", "collectorStatus", "collectorAppendBtn", "collectorAnalyzeBtn", "collectorClearBtn", "collectorExpandBtn", "collectorCloseBtn",
       "results", "clearResultsBtn", "analysisProgressPanel", "analysisProgressText", "analysisProgressPercent", "analysisProgressBar", "analysisProgressMeta",
       "writeProgressPanel", "writeProgressText", "writeProgressPercent", "writeProgressBar", "writeProgressMeta",
+      "mediaPreviewOverlay", "mediaPreviewDialog", "mediaPreviewTitle", "mediaPreviewMeta", "mediaPreviewBody", "mediaPreviewStatus", "mediaPreviewTags", "mediaPreviewReason",
+      "mediaPreviewPrevBtn", "mediaPreviewNextBtn", "mediaPreviewOpenEagleBtn", "closeMediaPreviewBtn",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
       "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
       "healthCheckPanel", "healthSummary", "healthStatusList", "runHealthCheckBtn",
@@ -164,6 +172,11 @@
     els.showSelectedListBtn.addEventListener("click", openSelectedListDialog);
     els.closeSelectedListBtn.addEventListener("click", closeSelectedListDialog);
     els.selectedListOverlay.addEventListener("click", closeSelectedListDialog);
+    els.mediaPreviewOverlay.addEventListener("click", closeMediaPreview);
+    els.closeMediaPreviewBtn.addEventListener("click", closeMediaPreview);
+    els.mediaPreviewOpenEagleBtn.addEventListener("click", openPreviewInEagle);
+    els.mediaPreviewPrevBtn.addEventListener("click", () => navigateMediaPreview(-1));
+    els.mediaPreviewNextBtn.addEventListener("click", () => navigateMediaPreview(1));
     els.closeSettingsBtn.addEventListener("click", closeSettingsDrawer);
     els.settingsOverlay.addEventListener("click", closeSettingsDrawer);
     els.eagleAiSettingsBtn.addEventListener("click", openAiSettings);
@@ -175,6 +188,7 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         closeSelectedListDialog();
+        closeMediaPreview();
         closeSettingsDrawer();
         closeManualTagMenus();
       }
@@ -195,6 +209,9 @@
     els.collectorClearBtn.addEventListener("click", () => clearSelectedQueue());
     els.collectorExpandBtn.addEventListener("click", exitCollectorMode);
     els.collectorCloseBtn.addEventListener("click", closePluginWindow);
+    els.selectedItems.addEventListener("click", handleMediaPreviewClick);
+    els.selectedItemsFullList.addEventListener("click", handleMediaPreviewClick);
+    els.results.addEventListener("click", handleMediaPreviewClick);
     els.selectedItems.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "selected-panel"));
     els.selectedItemsFullList.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "selected-panel"));
     els.tagPool.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "tag-pool"));
@@ -692,6 +709,218 @@
         els.selectedListDialog.hidden = true;
       }
     }, 180);
+  }
+
+  function handleMediaPreviewClick(event) {
+    const itemButton = event.target.closest("[data-preview-item]");
+    if (itemButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      openMediaPreview({ itemId: itemButton.dataset.previewItem });
+      return;
+    }
+    const resultButton = event.target.closest("[data-preview-result]");
+    if (resultButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      openMediaPreview({ resultId: resultButton.dataset.previewResult });
+    }
+  }
+
+  function openMediaPreview({ itemId = "", resultId = "" } = {}) {
+    const resolvedItemId = itemId || resultId;
+    const order = resultId
+      ? getFilteredResults().map((result) => result.id)
+      : state.selectedItems.map(getItemId);
+    state.mediaPreview = {
+      open: true,
+      itemId: resolvedItemId,
+      resultId,
+      order: order.length ? order : [resolvedItemId].filter(Boolean)
+    };
+    if (els.mediaPreviewOverlay) els.mediaPreviewOverlay.hidden = false;
+    if (els.mediaPreviewDialog) els.mediaPreviewDialog.hidden = false;
+    renderMediaPreview();
+    requestAnimationFrame(() => {
+      els.mediaPreviewOverlay.classList.add("is-open");
+      els.mediaPreviewDialog.classList.add("is-open");
+      els.mediaPreviewDialog.setAttribute("aria-hidden", "false");
+    });
+  }
+
+  function closeMediaPreview() {
+    if (!els.mediaPreviewDialog || !els.mediaPreviewOverlay || els.mediaPreviewOverlay.hidden) return;
+    els.mediaPreviewOverlay.classList.remove("is-open");
+    els.mediaPreviewDialog.classList.remove("is-open");
+    els.mediaPreviewDialog.setAttribute("aria-hidden", "true");
+    state.mediaPreview.open = false;
+    if (els.mediaPreviewBody) els.mediaPreviewBody.innerHTML = "";
+    window.setTimeout(() => {
+      if (!els.mediaPreviewOverlay.classList.contains("is-open")) {
+        els.mediaPreviewOverlay.hidden = true;
+        els.mediaPreviewDialog.hidden = true;
+      }
+    }, 180);
+  }
+
+  function navigateMediaPreview(delta) {
+    const order = Array.isArray(state.mediaPreview.order) ? state.mediaPreview.order.filter(Boolean) : [];
+    if (!order.length) return;
+    const currentId = state.mediaPreview.resultId || state.mediaPreview.itemId;
+    const currentIndex = Math.max(0, order.indexOf(currentId));
+    const nextIndex = (currentIndex + delta + order.length) % order.length;
+    const nextId = order[nextIndex];
+    if (state.mediaPreview.resultId) {
+      openMediaPreview({ resultId: nextId });
+    } else {
+      openMediaPreview({ itemId: nextId });
+    }
+  }
+
+  function buildMediaPreviewModel({ itemId = "", resultId = "" } = {}) {
+    const resolvedId = itemId || resultId;
+    const result = state.results.find((candidate) => candidate.id === (resultId || resolvedId)) || null;
+    const item = state.selectedItems.find((candidate) => getItemId(candidate) === resolvedId) || null;
+    const sourcePath = getItemFilePath(item || {}) || (result && result.diagnostics && result.diagnostics.sourcePath) || "";
+    const previewPath = getItemPreviewPath(item || {}) || (result && result.diagnostics && result.diagnostics.previewPath) || "";
+    const sourceExt = getMediaExt(item || result || {}, sourcePath || result && result.name || "");
+    const previewExt = getMediaExt({}, previewPath);
+    const firstDiagnosticUrl = getFirstDiagnosticImageUrl(result && result.diagnostics);
+    let kind = "unknown";
+    let mediaPath = "";
+    if (sourcePath && VIDEO_EXTS.has(sourceExt)) {
+      kind = "video";
+      mediaPath = sourcePath;
+    } else if (sourcePath && isPreviewableImageExt(sourceExt)) {
+      kind = "image";
+      mediaPath = sourcePath;
+    } else if (previewPath && isPreviewableImageExt(previewExt)) {
+      kind = "image";
+      mediaPath = previewPath;
+    }
+    const fallbackPath = previewPath && previewPath !== mediaPath ? previewPath : "";
+    return {
+      item,
+      result,
+      itemId: resolvedId,
+      resultId: result ? result.id : "",
+      name: result && result.name ? result.name : item ? getItemName(item) : "未命名素材",
+      kind,
+      sourcePath: mediaPath,
+      originalPath: sourcePath,
+      previewPath,
+      sourceUrl: mediaPath ? toFileUrl(mediaPath) : "",
+      fallbackUrl: fallbackPath ? toFileUrl(fallbackPath) : firstDiagnosticUrl,
+      firstDiagnosticUrl,
+      tags: result && Array.isArray(result.reviewTags) ? result.reviewTags : [],
+      reason: result && result.aiReason ? result.aiReason : "",
+      status: result ? stateLabel(result.status) : "待分析",
+      backend: result && result.aiBackend ? formatBackendLabel(result.aiBackend) : "",
+      confidence: result && typeof result.confidence === "number" ? formatConfidence(result.confidence) : ""
+    };
+  }
+
+  function renderMediaPreview() {
+    if (!state.mediaPreview.open || !els.mediaPreviewDialog) return;
+    const model = buildMediaPreviewModel(state.mediaPreview);
+    els.mediaPreviewTitle.textContent = model.name;
+    els.mediaPreviewMeta.textContent = [model.status, model.backend, model.confidence, shortPath(model.originalPath || model.previewPath)]
+      .filter(Boolean)
+      .join(" · ");
+    els.mediaPreviewStatus.textContent = model.kind === "video"
+      ? "插件内尝试播放视频；如果编码不支持，可用 Eagle 打开。"
+      : model.kind === "image"
+        ? "插件内预览图片。"
+        : "没有可直接预览的本地媒体，可尝试用 Eagle 打开。";
+    els.mediaPreviewTags.innerHTML = renderMediaPreviewTags(model);
+    bindMediaPreviewTagEvents();
+    els.mediaPreviewReason.innerHTML = model.reason ? `AI 说明：${escapeHtml(model.reason)}` : "";
+    els.mediaPreviewOpenEagleBtn.disabled = !model.itemId;
+    const orderCount = state.mediaPreview.order.length;
+    els.mediaPreviewPrevBtn.disabled = orderCount < 2;
+    els.mediaPreviewNextBtn.disabled = orderCount < 2;
+    if (model.kind === "video" && model.sourceUrl) {
+      els.mediaPreviewBody.innerHTML = `<video controls preload="metadata" src="${escapeHtml(model.sourceUrl)}"></video>`;
+      const video = els.mediaPreviewBody.querySelector("video");
+      if (video) video.addEventListener("error", () => handleMediaPreviewVideoError(model), { once: true });
+    } else if (model.kind === "image" && model.sourceUrl) {
+      els.mediaPreviewBody.innerHTML = `<img src="${escapeHtml(model.sourceUrl)}" alt="${escapeHtml(model.name)}">`;
+    } else if (model.fallbackUrl) {
+      els.mediaPreviewBody.innerHTML = `<img src="${escapeHtml(model.fallbackUrl)}" alt="${escapeHtml(model.name)}">`;
+    } else {
+      els.mediaPreviewBody.innerHTML = `<div class="media-preview-empty">这个素材没有可直接读取的预览路径。可以用 Eagle 打开，或重新导入素材后再试。</div>`;
+    }
+  }
+
+  function renderMediaPreviewTags(model) {
+    const tags = Array.isArray(model.tags) ? model.tags : [];
+    if (!tags.length) return `<div class="media-preview-empty">还没有待确认标签。</div>`;
+    return tags.map((tag) => `
+      <span class="review-tag ${tag.source === "manual" ? "manual" : ""}">
+        <input type="checkbox" data-preview-result-id="${escapeHtml(model.resultId)}" data-preview-review-tag="${escapeHtml(tag.name)}" ${tag.selected ? "checked" : ""}>
+        <span>${escapeHtml(tag.name)}</span>
+        <strong>${tag.source === "manual" ? "人工" : formatConfidence(tag.confidence)}</strong>
+        <button class="review-tag-remove" type="button" data-preview-result-id="${escapeHtml(model.resultId)}" data-preview-remove-review-tag="${escapeHtml(tag.name)}" title="删除标签">×</button>
+      </span>
+    `).join("");
+  }
+
+  function bindMediaPreviewTagEvents() {
+    els.mediaPreviewTags.querySelectorAll("[data-preview-review-tag]").forEach((input) => {
+      input.addEventListener("change", () => toggleReviewTag(input.dataset.previewResultId, input.dataset.previewReviewTag, input.checked));
+    });
+    els.mediaPreviewTags.querySelectorAll("[data-preview-remove-review-tag]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        removeReviewTag(button.dataset.previewResultId, button.dataset.previewRemoveReviewTag);
+      });
+    });
+  }
+
+  function handleMediaPreviewVideoError(model) {
+    const fallbackUrl = model.fallbackUrl || model.firstDiagnosticUrl;
+    if (fallbackUrl) {
+      els.mediaPreviewBody.innerHTML = `<img src="${escapeHtml(fallbackUrl)}" alt="${escapeHtml(model.name)}">`;
+      els.mediaPreviewStatus.textContent = "插件内视频播放失败，已改为显示缩略图或诊断帧；完整播放请用 Eagle 打开。";
+      return;
+    }
+    els.mediaPreviewBody.innerHTML = `<div class="media-preview-empty">插件内视频播放失败，也没有可用缩略图。请用 Eagle 打开。</div>`;
+    els.mediaPreviewStatus.textContent = "插件内视频播放失败，请用 Eagle 打开。";
+  }
+
+  async function openPreviewInEagle() {
+    const model = buildMediaPreviewModel(state.mediaPreview);
+    try {
+      if (model.item && typeof model.item.open === "function") {
+        await model.item.open({ window: true });
+      } else if (window.eagle && eagle.item && typeof eagle.item.open === "function" && model.itemId) {
+        await eagle.item.open(model.itemId, { window: true });
+      } else {
+        setStatus("当前 Eagle 版本或素材对象不支持直接打开预览。");
+        return;
+      }
+      setStatus("已交给 Eagle 打开素材预览。");
+    } catch (error) {
+      setStatus(`Eagle 打开预览失败：${formatError(error)}`);
+    }
+  }
+
+  function getFirstDiagnosticImageUrl(diagnostics) {
+    if (!diagnostics || !Array.isArray(diagnostics.images)) return "";
+    const image = diagnostics.images.find((candidate) => candidate && candidate.exists && (candidate.previewUrl || candidate.url));
+    return image ? image.previewUrl || image.url : "";
+  }
+
+  function isPreviewableImageExt(ext) {
+    const normalized = String(ext || "").toLowerCase();
+    return STATIC_IMAGE_EXTS.has(normalized) || ANIMATED_EXTS.has(normalized) || normalized === WEBP_EXT || normalized === "svg";
+  }
+
+  function getMediaExt(item, filePath) {
+    const ext = getItemExt(item || {}, filePath);
+    if (ext) return ext;
+    return path && filePath ? path.extname(filePath).slice(1).toLowerCase() : "";
   }
 
   async function refreshTags() {
@@ -2572,12 +2801,15 @@
     row.className = "selected-item";
     row.setAttribute("data-item-id", getItemId(item));
     row.innerHTML = `
-      <div class="selected-name" title="${escapeHtml(getItemName(item))}">${escapeHtml(getItemName(item))}</div>
-      <div class="selected-meta">
-        <span>${escapeHtml(ext.toUpperCase())}</span>
-        <span>${tags.length} 个已有标签</span>
-        <span title="${escapeHtml(filePath)}">${escapeHtml(shortPath(filePath))}</span>
+      <div class="selected-item-main">
+        <div class="selected-name" title="${escapeHtml(getItemName(item))}">${escapeHtml(getItemName(item))}</div>
+        <div class="selected-meta">
+          <span>${escapeHtml(ext.toUpperCase())}</span>
+          <span>${tags.length} 个已有标签</span>
+          <span title="${escapeHtml(filePath)}">${escapeHtml(shortPath(filePath))}</span>
+        </div>
       </div>
+      <button class="selected-preview-btn" type="button" data-preview-item="${escapeHtml(getItemId(item))}">预览</button>
     `;
     return row;
   }
@@ -2658,6 +2890,7 @@
             </div>
           </div>
           <div class="result-actions">
+            <button type="button" data-preview-result="${escapeHtml(result.id)}">预览</button>
             <button type="button" data-reanalyze-result="${escapeHtml(result.id)}" ${state.running ? "disabled" : ""}>重新分析</button>
           </div>
         </div>
@@ -2711,6 +2944,7 @@
     els.results.querySelectorAll("[data-reanalyze-result]").forEach((button) => {
       button.addEventListener("click", () => reanalyzeResult(button.dataset.reanalyzeResult));
     });
+    if (state.mediaPreview.open) renderMediaPreview();
   }
 
   function getFilteredResults() {

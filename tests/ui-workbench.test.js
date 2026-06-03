@@ -142,8 +142,8 @@ test("page favicon uses the same logo as the plugin manifest", () => {
   const html = read("index.html");
 
   assert.equal(manifest.logo, "/logo.png");
-  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.0\.1">/);
-  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.0\.1">/);
+  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.0\.2">/);
+  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.0\.2">/);
 });
 
 test("logo bright mark fills the plugin icon canvas", () => {
@@ -314,7 +314,7 @@ test("settings, release metadata, and long text are production-ready", () => {
   const js = read("plugin.js");
   const css = read("style.css");
 
-  assert.equal(manifest.version, "1.0.1");
+  assert.equal(manifest.version, "1.0.2");
   assert.equal(manifest.main.devTools, false);
   assert.match(readme, /dist\\特效AI标签管理-cli\.eagleplugin/);
   assert.match(readme, /VFX_AI_TAGGER_CLI/);
@@ -460,6 +460,61 @@ test("closed selected material dialog is removed from hit testing", () => {
   assert.match(css, /\.selected-list-dialog\[hidden\]\s*{[\s\S]*display:\s*none/);
   assert.match(js, /els\.selectedListDialog\.hidden\s*=\s*false/);
   assert.match(js, /els\.selectedListDialog\.hidden\s*=\s*true/);
+});
+
+test("media preview review dialog opens from materials and results with Eagle fallback", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(html, /id="mediaPreviewOverlay"/);
+  assert.match(html, /id="mediaPreviewDialog"/);
+  assert.match(html, /id="mediaPreviewTitle"/);
+  assert.match(html, /id="mediaPreviewMeta"/);
+  assert.match(html, /id="mediaPreviewBody"/);
+  assert.match(html, /id="mediaPreviewStatus"/);
+  assert.match(html, /id="mediaPreviewTags"/);
+  assert.match(html, /id="mediaPreviewReason"/);
+  assert.match(html, /id="mediaPreviewPrevBtn"/);
+  assert.match(html, /id="mediaPreviewNextBtn"/);
+  assert.match(html, /id="mediaPreviewOpenEagleBtn"/);
+  assert.match(html, /id="closeMediaPreviewBtn"/);
+
+  const previewDialogIndex = html.indexOf('id="mediaPreviewDialog"');
+  const settingsDrawerIndex = html.indexOf('id="settingsDrawer"');
+  assert.ok(previewDialogIndex > html.indexOf('id="selectedListDialog"'));
+  assert.ok(previewDialogIndex < settingsDrawerIndex);
+
+  assert.match(js, /mediaPreview:\s*\{/);
+  assert.match(js, /"mediaPreviewOverlay"/);
+  assert.match(js, /"mediaPreviewDialog"/);
+  assert.match(js, /"mediaPreviewBody"/);
+  assert.match(js, /"mediaPreviewOpenEagleBtn"/);
+  assert.match(js, /data-preview-item/);
+  assert.match(js, /data-preview-result/);
+  assert.match(js, /function openMediaPreview\(/);
+  assert.match(js, /function closeMediaPreview\(/);
+  assert.match(js, /function renderMediaPreview\(/);
+  assert.match(js, /function buildMediaPreviewModel\(/);
+  assert.match(js, /function openPreviewInEagle\(/);
+  assert.match(js, /function handleMediaPreviewVideoError\(/);
+  assert.match(js, /function bindMediaPreviewTagEvents\(/);
+  assert.match(js, /data-preview-review-tag/);
+  assert.match(js, /data-preview-remove-review-tag/);
+  assert.match(js, /toggleReviewTag\(input\.dataset\.previewResultId,\s*input\.dataset\.previewReviewTag,\s*input\.checked\)/);
+  assert.match(js, /removeReviewTag\(button\.dataset\.previewResultId,\s*button\.dataset\.previewRemoveReviewTag\)/);
+  assert.match(js, /item\.open\(\{\s*window:\s*true\s*\}\)/);
+  assert.match(js, /eagle\.item\.open\(model\.itemId,\s*\{\s*window:\s*true\s*\}\)/);
+  assert.match(js, /<video controls preload="metadata"/);
+  assert.match(js, /<img src="\$\{escapeHtml\(model\.sourceUrl\)\}"/);
+
+  assert.match(css, /\.media-preview-overlay/);
+  assert.match(css, /\.media-preview-dialog\s*{[\s\S]*max-width:\s*92vw[\s\S]*max-height:\s*88vh/);
+  assert.match(css, /\.media-preview-dialog\[hidden\]\s*{[\s\S]*display:\s*none/);
+  assert.match(css, /\.media-preview-main/);
+  assert.match(css, /\.media-preview-player\s*{[\s\S]*min-height:\s*0/);
+  assert.match(css, /\.media-preview-player video,\s*\.media-preview-player img/);
+  assert.match(css, /\.media-preview-tags/);
 });
 
 test("collection workflow exposes append, replace, clear, context menus, and collector bar", () => {
