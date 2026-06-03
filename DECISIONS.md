@@ -27,10 +27,26 @@
 - 2026-06-03: Replace the rejected dark neon logo with a bright blue flat app-icon mark.
 - 2026-06-03: Ordinary plugin open/show must not auto-import Eagle's current selection; importing requires an explicit action or collector entry.
 - 2026-06-03: Release `v1.0.1` should align manifest/favicon/package version to `1.0.1` and tag the reviewed commit explicitly.
+- 2026-06-03: Release `v1.0.2` should tag the media-preview/tray commit and upload an English-named `.eagleplugin` asset.
+- 2026-06-03: Release `v1.0.3` should supersede `v1.0.2` by removing collector-entry auto-collection.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-03 - Collector entry no-auto-collect patch
+- Status: active
+- Decision: Remove automatic current-selection collection from `置顶采集` entry. Keep collection available only through explicit actions such as `追加当前选中`, collector `收集选中`, replace, and context-menu append. Package the fix as manifest/favicon version `1.0.3`.
+- Reason: The user observed that entering collector mode still changed the queue by importing current Eagle selection, which conflicts with the newer expectation that opening or switching modes should not mutate the queue unexpectedly.
+- Alternatives considered: Keep `v1.0.2` and document the behavior; skipped because the user flagged it during release handoff. Rewrite or delete the already-published `v1.0.2`; skipped because release/tag mutation is destructive and should not happen without explicit instruction.
+- Consequences / follow-up: Publish `v1.0.3` and verify in Eagle that `置顶采集` opens the always-on-top collector without importing until `收集选中` is clicked.
+
+## 2026-06-03 - Release 1.0.2 publication
+- Status: active
+- Decision: Publish GitHub Release `v1.0.2` from commit `6384e03` with asset `vfx-aitag-eagle-cli-1.0.2.eagleplugin`.
+- Reason: The package manifest is already aligned to `1.0.2`, and release users need an English-named asset for easier download and support.
+- Alternatives considered: Upload the Chinese-named `dist\特效AI标签管理-cli.eagleplugin`; skipped to keep release assets consistent with `v1.0.0` and `v1.0.1`. Wait for Eagle host smoke before release; skipped because the user explicitly asked to upload the new release after checks, but the residual host-smoke risk remains documented.
+- Consequences / follow-up: Install the GitHub release asset in Eagle and verify local preview, native open, unsupported-video fallback, tray expansion, and trash-remove behavior.
 
 ## 2026-06-03 - Selected-material thumbnail tray
 - Status: active

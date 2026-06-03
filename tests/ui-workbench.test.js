@@ -142,8 +142,8 @@ test("page favicon uses the same logo as the plugin manifest", () => {
   const html = read("index.html");
 
   assert.equal(manifest.logo, "/logo.png");
-  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.0\.2">/);
-  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.0\.2">/);
+  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.0\.3">/);
+  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.0\.3">/);
 });
 
 test("logo bright mark fills the plugin icon canvas", () => {
@@ -314,7 +314,7 @@ test("settings, release metadata, and long text are production-ready", () => {
   const js = read("plugin.js");
   const css = read("style.css");
 
-  assert.equal(manifest.version, "1.0.2");
+  assert.equal(manifest.version, "1.0.3");
   assert.equal(manifest.main.devTools, false);
   assert.match(readme, /dist\\特效AI标签管理-cli\.eagleplugin/);
   assert.match(readme, /VFX_AI_TAGGER_CLI/);
@@ -606,10 +606,11 @@ test("opening or showing the plugin does not auto-import the current Eagle selec
 
   assert.doesNotMatch(js, /打开插件导入当前选中/);
   assert.doesNotMatch(js, /插件入口追加当前选中/);
+  assert.doesNotMatch(js, /进入采集条自动收集当前选中/);
   assert.doesNotMatch(js, /onPluginRun/);
   assert.doesNotMatch(js, /onPluginShow/);
   assert.match(js, /await Promise\.all\(\[refreshTags\(\),\s*refreshModelStatus\(\)\]\)/);
-  assert.match(js, /await appendSelectedItems\("进入采集条自动收集当前选中",\s*\{ silentWhenEmpty:\s*true \}\)/);
+  assert.match(js, /collectorAppendBtn\.addEventListener\("click", \(\) => appendSelectedItems\("采集条追加当前选中"\)\)/);
 });
 
 test("collector bar becomes a real always-on-top floating window", () => {
@@ -649,7 +650,8 @@ test("collector bar uses prominent themed icon actions and concise labels", () =
   assert.equal(manifest.main.minHeight, 104);
   assert.match(js, /width:\s*646/);
   assert.match(js, /height:\s*104/);
-  assert.match(js, /await appendSelectedItems\("进入采集条自动收集当前选中",\s*\{ silentWhenEmpty:\s*true \}\)/);
+  assert.doesNotMatch(js, /进入采集条自动收集当前选中/);
+  assert.match(js, /collectorAppendBtn\.addEventListener\("click", \(\) => appendSelectedItems\("采集条追加当前选中"\)\)/);
   assert.match(html, /<strong>素材采集<\/strong>/);
   assert.match(html, /<span>边选边收<\/span>/);
   assert.match(html, /id="collectorAppendBtn"[^>]*class="collector-action collector-action-primary"/);

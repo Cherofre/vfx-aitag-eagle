@@ -480,7 +480,6 @@
     closeSettingsDrawer();
     document.body.classList.add("collector-mode");
     if (els.collectorBar) els.collectorBar.hidden = false;
-    await appendSelectedItems("进入采集条自动收集当前选中", { silentWhenEmpty: true });
     updateCollectorBar();
     try {
       const eagleWindow = getPluginWindowApi();
