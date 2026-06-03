@@ -641,15 +641,48 @@ h2 {
   object-fit: cover;
 }
 
-.selected-preview-btn {
+.selected-card-actions {
   grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(42px, 1fr);
+  gap: 7px;
+  min-width: 0;
+}
+
+.selected-preview-btn {
   min-height: 30px;
   padding: 5px 8px;
   font-size: 12px;
 }
 
-.selected-full-list .selected-preview-btn {
+.selected-full-list .selected-card-actions {
   grid-column: auto;
+  width: 132px;
+}
+
+.selected-remove-btn {
+  display: grid;
+  min-height: 30px;
+  align-items: center;
+  justify-items: center;
+  color: var(--muted);
+  padding: 5px;
+  font-size: 12px;
+}
+
+.selected-remove-btn:hover:not(:disabled) {
+  border-color: rgba(223, 118, 109, .6);
+  color: var(--error);
+}
+
+.selected-trash-icon {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .selected-item-main {

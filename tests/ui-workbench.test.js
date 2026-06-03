@@ -464,10 +464,15 @@ test("selected material panel is a compact three-card tray with clear expansion"
   assert.match(js, /createSelectedItemCard\(item,\s*\{ compact:\s*true \}\)/);
   assert.match(js, /createSelectedExpandCard\(remainingCount\)/);
   assert.match(js, /className\s*=\s*"selected-expand-card"/);
+  assert.match(js, /data-remove-selected-item/);
+  assert.match(js, /removeSelectedItem\(removeButton\.dataset\.removeSelectedItem\)/);
+  assert.match(js, /class="selected-trash-icon"/);
   assert.match(css, /\.selected-list\s*{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)[\s\S]*overflow:\s*hidden/);
   assert.match(css, /\.selected-card\s*{/);
   assert.match(css, /\.selected-thumb\s*{/);
+  assert.match(css, /\.selected-card-actions\s*{[\s\S]*grid-template-columns:\s*minmax\(0,\s*2fr\) minmax\(42px,\s*1fr\)/);
   assert.match(css, /\.selected-expand-card\s*{/);
+  assert.match(css, /\.selected-remove-btn\s*{/);
   assert.match(css, /\.selected-preview-btn\s*{[\s\S]*min-height:\s*30px/);
 });
 

@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-03 20:11
+- Last Updated: 2026-06-03 20:58
 - Phase: 1.0.2 release-candidate material tray packaged
 - Superpowers Phase: brainstorming + writing-plans + TDD + project-ledger-loop
 - Branch: codex/media-preview-review
 - Goal: 给结果卡和素材列表增加“验收预览”，让用户检查图片/视频与 AI 标签是否匹配，并提供 Eagle 原生打开兜底。
-- Current Focus: Branch package `dist\特效AI标签管理-cli.eagleplugin` is regenerated as manifest version `1.0.2`; media preview remains included, analysis/write progress share one compact activity slot, and the selected-material panel is now a three-slot thumbnail tray with a clear `展开素材`/`展开全部 +N` expansion path.
+- Current Focus: Branch package `dist\特效AI标签管理-cli.eagleplugin` is regenerated as manifest version `1.0.2`; media preview remains included, analysis/write progress share one compact activity slot, and the selected-material panel is now a three-slot thumbnail tray with a clear `展开素材`/`展开全部 +N` expansion path plus a 2:1 preview/remove action row on material cards.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-selected-material-tray-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-selected-material-tray.md`
-- Current Task: Commit the selected-material tray polish and then install the `1.0.2` package in Eagle for real-host smoke before release upload.
+- Current Task: Commit the selected-material remove-button polish and then install the `1.0.2` package in Eagle for real-host smoke before release upload.
 
 ## Resume Here
 - Start with: install `dist\特效AI标签管理-cli.eagleplugin` from branch `codex/media-preview-review` and import/select a mix of image, mp4/webm, and mov/mkv assets in Eagle.
-- Next verification: Eagle smoke should confirm the selected-material panel shows at most three tray cards, the `展开素材` button and `展开全部 +N` card open the full local dialog, only one compact progress slot is visible during analysis/write, then click `预览` from both material cards/dialog entries and result cards, verify image/video display, trigger `用 Eagle 打开`, test a video format unsupported by Chromium to confirm thumbnail/diagnostic fallback, and confirm preview tag toggle/delete updates the result card before writing.
+- Next verification: Eagle smoke should confirm the selected-material panel shows at most three tray cards, the `展开素材` button and `展开全部 +N` card open the full local dialog, material cards in both tray/dialog show `预览` plus a right-side trash SVG remove button, only one compact progress slot is visible during analysis/write, then click `预览` from both material cards/dialog entries and result cards, verify image/video display, trigger `用 Eagle 打开`, test a video format unsupported by Chromium to confirm thumbnail/diagnostic fallback, and confirm preview tag toggle/delete updates the result card before writing.
 - Watch out for: Browser static `file://` verification was blocked by Browser Use URL policy, so no local browser screenshot was captured. Eagle native open depends on host API support and `window: true` requires Eagle 4.0 build12+; plugin-native `<video>` playback still depends on Chromium codec support.
 
 ## Progress Summary
@@ -102,11 +102,12 @@
 - [x] Changed selected-material preview from a clipped summary to a fixed-height local scroller that renders the full imported queue.
 - [x] Repackaged `dist\特效AI标签管理-cli.eagleplugin` version `1.0.2` and inspected archive contents.
 - [x] Reworked selected-material preview into a compact three-slot thumbnail tray with a clear full-list expansion card/button, then repackaged version `1.0.2`.
+- [x] Added a right-side trash SVG remove button next to each selected-material preview action in both the tray and full dialog, then repackaged version `1.0.2`.
 
 ## Verification
-- Last command: package inspection after selected-material tray repackaging
+- Last command: package inspection after selected-material remove-button repackaging
 - Result: pass
-- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected on the old `完整列表`/vertical-list selected-material UI. GREEN run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 44/44 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `manifest.json`, `index.html`, `style.css`, `plugin.js`, `cli-backends.js`, `README.md`, and `logo.png`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.0.2`, `devTools: false`, package includes `SELECTED_TRAY_LIMIT = 3`, `展开素材`, and `selected-expand-card`. Browser static `file://` verification was blocked earlier by Browser Use URL policy. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected on missing `data-remove-selected-item` / trash icon / 2:1 selected-card action layout. GREEN run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 44/44 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `manifest.json`, `index.html`, `style.css`, `plugin.js`, `cli-backends.js`, `README.md`, and `logo.png`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.0.2`, `devTools: false`, package includes `data-remove-selected-item`, `selected-trash-icon`, and `grid-template-columns: minmax(0, 2fr) minmax(42px, 1fr)`. Browser static `file://` verification was blocked earlier by Browser Use URL policy. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.

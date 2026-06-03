@@ -713,6 +713,13 @@
   }
 
   function handleMediaPreviewClick(event) {
+    const removeButton = event.target.closest("[data-remove-selected-item]");
+    if (removeButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      removeSelectedItem(removeButton.dataset.removeSelectedItem);
+      return;
+    }
     const itemButton = event.target.closest("[data-preview-item]");
     if (itemButton) {
       event.preventDefault();
@@ -2828,7 +2835,18 @@
           ${compact ? "" : `<span title="${escapeHtml(filePath)}">${escapeHtml(shortPath(filePath))}</span>`}
         </div>
       </div>
-      <button class="selected-preview-btn" type="button" data-preview-item="${escapeHtml(getItemId(item))}">预览</button>
+      <div class="selected-card-actions">
+        <button class="selected-preview-btn" type="button" data-preview-item="${escapeHtml(getItemId(item))}">预览</button>
+        <button class="selected-remove-btn" type="button" data-remove-selected-item="${escapeHtml(getItemId(item))}" aria-label="移除 ${escapeHtml(getItemName(item))}" title="移除">
+          <svg class="selected-trash-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+            <path d="M6 7l1 14h10l1-14"></path>
+            <path d="M9 7V4h6v3"></path>
+          </svg>
+        </button>
+      </div>
     `;
     return card;
   }
