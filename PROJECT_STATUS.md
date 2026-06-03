@@ -1,18 +1,18 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-03 22:41
-- Phase: v1.0.3 merged to master; release asset verified
+- Last Updated: 2026-06-03 22:44
+- Phase: v1.0.3 merged to master and pushed; release asset verified
 - Superpowers Phase: brainstorming + writing-plans + TDD + project-ledger-loop
 - Branch: master
 - Goal: 给结果卡和素材列表增加“验收预览”，让用户检查图片/视频与 AI 标签是否匹配，并提供 Eagle 原生打开兜底。
-- Current Focus: Feature branch `codex/media-preview-review` has been merged into `master` with merge commit `0d2288f`. GitHub Release `v1.0.3` is published at `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.3`, superseding `v1.0.2`; the release asset digest matches the current packaged plugin.
+- Current Focus: Feature branch `codex/media-preview-review` has been merged into `master`, and `origin/master` has been pushed to `f591183`. GitHub Release `v1.0.3` is published at `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.3`, superseding `v1.0.2`; the release asset digest matches the current packaged plugin.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-selected-material-tray-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-selected-material-tray.md`
-- Current Task: Push `master` to `origin/master`, then run the real-host Eagle smoke from the installed `1.0.3` plugin.
+- Current Task: Run the real-host Eagle smoke from the installed `1.0.3` plugin.
 
 ## Resume Here
-- Start with: push `master`, then close and reopen the plugin window or restart Eagle if the old renderer remains cached; import/select a mix of image, mp4/webm, and mov/mkv assets in Eagle.
+- Start with: close and reopen the plugin window or restart Eagle if the old renderer remains cached; import/select a mix of image, mp4/webm, and mov/mkv assets in Eagle.
 - Next verification: Eagle smoke should confirm clicking `置顶采集` no longer imports current selection until `收集选中` is clicked; the selected-material panel shows at most three tray cards; `展开素材` and `展开全部 +N` open the full local dialog; material cards in both tray/dialog show `预览` plus a right-side trash SVG remove button; only one compact progress slot is visible during analysis/write; then verify preview image/video/native-open/fallback and preview-side tag edit behavior.
 - Watch out for: Browser static `file://` verification was blocked by Browser Use URL policy, so no local browser screenshot was captured. Eagle native open depends on host API support and `window: true` requires Eagle 4.0 build12+; plugin-native `<video>` playback still depends on Chromium codec support.
 
@@ -108,6 +108,7 @@
 - [x] Published GitHub Release `v1.0.3` and synchronized the local installed plugin directory from the current `1.0.3` source files after finding Eagle was still running installed version `1.0.2`.
 - [x] Merged `codex/media-preview-review` into `master` with merge commit `0d2288f`.
 - [x] Verified the current packaged plugin SHA256 `0f2b35e1714a409cb3fcbbe98f989e4312200a11a57ae45b1add127bcbfe752a` matches GitHub Release `v1.0.3`.
+- [x] Pushed `master` to `origin/master` at `f591183`.
 
 ## Verification
 - Last command: release asset digest check after merging to master

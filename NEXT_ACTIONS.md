@@ -6,11 +6,11 @@
 - [x] Removed collector-entry auto-collection, repackaged manifest version `1.0.3`, and verified package contents.
 - [x] Published GitHub Release `v1.0.3`, found the local Eagle install was still `1.0.2`, backed it up, and synchronized installed files to `1.0.3`.
 - [x] Merged `codex/media-preview-review` into `master` and verified the current package digest matches release `v1.0.3`.
-- [ ] Push `master` to `origin/master`.
+- [x] Pushed `master` to `origin/master`.
 - [ ] Reopen/restart Eagle and run real-host smoke for collector no-auto-import, tray expansion/removal, preview, native-open fallback, and compact progress.
 
 ## Handoff Notes
-- Start here: push `master` to `origin/master`, then close and reopen the plugin window, or restart Eagle if it keeps the old renderer cached; the installed files at `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` are now synchronized to `1.0.3`.
+- Start here: close and reopen the plugin window, or restart Eagle if it keeps the old renderer cached; the installed files at `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` are now synchronized to `1.0.3`.
 - Do not redo: media preview plan, RED/GREEN UI contract tests, local preview dialog implementation, selected-material tray/remove-button fix, compact progress activity slot, `1.0.2` and `1.0.3` release uploads, collector auto-collect fix, `1.0.3` manifest/favicon bump, package regeneration, archive inspection, and local installed-file synchronization are done.
 - Verify next: in Eagle, click `置顶采集` while assets are selected and confirm it does not import until `收集选中` is clicked; import many selected assets and confirm the selected-material panel shows at most three tray cards, `展开素材` and `展开全部 +N` open the full dialog, and the trash SVG button removes the material from both tray and full dialog; then run analysis/write and confirm only one compact progress slot is visible; click `预览` from material cards/dialog entries and result cards, test image playback, mp4/webm playback, unsupported video fallback, `用 Eagle 打开`, previous/next navigation, and preview-side tag toggle/delete before writing.
 - Do not claim: Eagle native playback/open smoke has passed; Browser `file://` static verification was blocked by Browser Use URL policy.

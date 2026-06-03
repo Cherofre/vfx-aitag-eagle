@@ -40,7 +40,7 @@
 - Decision: Merge `codex/media-preview-review` into `master` and push `master`. Do not move the existing `v1.0.3` tag or re-upload the release asset because the current package SHA256 matches the already-published GitHub Release asset.
 - Reason: The user asked to merge to the main branch and upload release. The release already exists and contains the exact current package; force-moving a published tag or replacing an identical asset would add risk without changing the deliverable.
 - Alternatives considered: Create `v1.0.4`; skipped because no code/package change exists beyond the published `1.0.3` artifact. Force-retag `v1.0.3` to the merge commit; skipped because mutating published tags is risky and unnecessary when the tag commit is reachable from `master`.
-- Consequences / follow-up: Push `master` and run Eagle real-host smoke from the installed `1.0.3` files.
+- Consequences / follow-up: `master` has been pushed to `origin/master`; run Eagle real-host smoke from the installed `1.0.3` files.
 
 ## 2026-06-03 - Collector entry no-auto-collect patch
 - Status: active
