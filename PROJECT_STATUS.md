@@ -1,15 +1,15 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-03 23:59
-- Phase: collector position memory implemented and packaged as 1.0.4
+- Last Updated: 2026-06-04 00:09
+- Phase: collector position memory merged to master and released as v1.0.4
 - Superpowers Phase: brainstorming + writing-plans + TDD + project-ledger-loop
-- Branch: codex/collector-position-memory
+- Branch: master
 - Goal: 让“置顶采集”在 Eagle 非全屏时不再固定到尴尬的屏幕顶部，而是记住用户拖动后的采集条位置，并保持屏幕内保护。
-- Current Focus: Implemented collector bar position memory. Package `dist\特效AI标签管理-cli.eagleplugin` is version `1.0.4` with SHA256 `cfd778c008201917b5a9954e3497b291c40a66dd21070aeeae7685675426b7a0`; local installed plugin has been synchronized to `1.0.4`.
+- Current Focus: Collector bar position memory has been merged into `master`, pushed to `origin/master`, tagged as `v1.0.4`, and published at `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`. Package SHA256 is `cfd778c008201917b5a9954e3497b291c40a66dd21070aeeae7685675426b7a0`; local installed plugin has been synchronized to `1.0.4`.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Run Eagle real-host smoke for collector drag/restore behavior.
+- Current Task: Run Eagle real-host smoke for collector drag/restore behavior from the installed `1.0.4` plugin.
 
 ## Resume Here
 - Start with: close and reopen the plugin window or restart Eagle if the old renderer remains cached; enter `置顶采集`, drag the collector bar to a comfortable position, return to workbench, then enter `置顶采集` again.
@@ -114,11 +114,14 @@
 - [x] Implemented collector-only bounds persistence with `vfxAiTagger.collectorWindowBounds`.
 - [x] Bumped manifest/favicon/package to `1.0.4`, regenerated `dist\特效AI标签管理-cli.eagleplugin`, and synchronized the local installed plugin directory.
 - [x] Committed collector position memory branch as `a077c71`.
+- [x] Merged `codex/collector-position-memory` into `master` with merge commit `3e3b71c`.
+- [x] Pushed `master` and tag `v1.0.4` to origin.
+- [x] Published GitHub Release `v1.0.4` with asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
 
 ## Verification
-- Last command: local installed plugin inspection after 1.0.4 synchronization
+- Last command: GitHub Release `v1.0.4` inspection after upload
 - Result: pass
-- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected before implementation because `vfxAiTagger.collectorWindowBounds` did not exist. GREEN run `node --test tests/ui-workbench.test.js` passed 31/31 tests after implementation. Full run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 45/45 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.4`, `main.devTools=false`, collector bounds key exists, old auto-collect string is absent, and manual collector append remains. Local installed plugin `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` was backed up to `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI.backup-codex-20260603-235840` and synchronized to `1.0.4`. Browser/static Eagle smoke has not been run for the new drag/restore behavior. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: On `master`, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 45/45 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.4`, `main.devTools=false`, collector bounds key exists, old auto-collect string is absent, and manual collector append remains. GitHub Release `v1.0.4` is published with asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`; release digest is `sha256:cfd778c008201917b5a9954e3497b291c40a66dd21070aeeae7685675426b7a0`, matching the local package SHA256. Tag `v1.0.4` and `origin/master` both point at merge commit `3e3b71c3292ac5e5a130e2b2c468de4d7a4da2bc`. Local installed plugin `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` was backed up to `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI.backup-codex-20260603-235840` and synchronized to `1.0.4`. Browser/static Eagle smoke has not been run for the new drag/restore behavior. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.

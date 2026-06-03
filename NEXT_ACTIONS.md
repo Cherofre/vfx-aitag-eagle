@@ -4,14 +4,14 @@
 - [x] Created branch `codex/collector-position-memory`.
 - [x] Wrote and verified RED/GREEN tests for collector position memory.
 - [x] Implemented collector-only bounds persistence and screen clamping.
-- [x] Bumped and packaged version `1.0.4`, then synchronized the local Eagle install.
-- [x] Verified 45/45 tests, syntax checks, package contents, and installed plugin version.
-- [x] Committed branch changes as `a077c71`.
+- [x] Bumped and packaged version `1.0.4`, synchronized the local Eagle install, and verified 45/45 tests plus syntax/package checks.
+- [x] Committed branch changes as `a077c71` and handoff update as `8b00bf9`.
+- [x] Merged to `master`, pushed origin, and published GitHub Release `v1.0.4`.
 - [ ] Reopen/restart Eagle and run real-host smoke for dragging collector, returning to workbench, and re-entering collector at the remembered position.
 
 ## Handoff Notes
 - Start here: close and reopen the plugin window or restart Eagle if it keeps the old renderer cached; the installed files at `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` are now synchronized to `1.0.4`.
-- Do not redo: collector position memory implementation, RED/GREEN static tests, version bump to `1.0.4`, package regeneration, archive inspection, and local installed-file synchronization are done.
+- Do not redo: collector position memory implementation, RED/GREEN static tests, version bump to `1.0.4`, package regeneration, archive inspection, local installed-file synchronization, merge to `master`, tag push, and GitHub Release upload are done.
 - Verify next: in Eagle, click `置顶采集`, drag the collector bar to a comfortable non-top position, click `工作台`, click `置顶采集` again, and confirm it restores the dragged position; also confirm it remains on-screen and still only imports selected assets after clicking `收集选中`.
 - Do not claim: Eagle real-host drag/restore smoke has passed; static tests only verify the code/storage contract.
 - Watch out for: Eagle may cache renderer files until the plugin window or Eagle itself is restarted. Collector position uses plugin window bounds and screen info only; it does not know the main Eagle window bounds.

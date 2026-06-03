@@ -31,10 +31,18 @@
 - 2026-06-03: Release `v1.0.3` should supersede `v1.0.2` by removing collector-entry auto-collection.
 - 2026-06-03: Merge the media-preview `1.0.3` work to `master`; keep the existing `v1.0.3` release asset because its digest matches the current package.
 - 2026-06-03: Collector placement uses draggable remembered plugin-window bounds, not Eagle main-window following.
+- 2026-06-04: Release `v1.0.4` from merged `master` with collector position memory and an English-named `.eagleplugin` asset.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - Release 1.0.4 publication
+- Status: active
+- Decision: Merge `codex/collector-position-memory` into `master`, tag merge commit `3e3b71c` as `v1.0.4`, and publish GitHub Release `v1.0.4` with asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
+- Reason: The collector position memory package is versioned as `1.0.4`, tests and package inspection pass on `master`, and users need a downloadable release asset with a stable English filename.
+- Alternatives considered: Reuse `v1.0.3`; skipped because the manifest/package version changed to `1.0.4`. Publish only the branch without merging; skipped because the user explicitly asked to merge and release.
+- Consequences / follow-up: Eagle smoke still needs to verify native drag/restore behavior in the real host window.
 
 ## 2026-06-03 - Collector position memory
 - Status: active
