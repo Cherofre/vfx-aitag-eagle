@@ -142,8 +142,8 @@ test("page favicon uses the same logo as the plugin manifest", () => {
   const html = read("index.html");
 
   assert.equal(manifest.logo, "/logo.png");
-  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.0\.3">/);
-  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.0\.3">/);
+  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.0\.4">/);
+  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.0\.4">/);
 });
 
 test("logo bright mark fills the plugin icon canvas", () => {
@@ -314,7 +314,7 @@ test("settings, release metadata, and long text are production-ready", () => {
   const js = read("plugin.js");
   const css = read("style.css");
 
-  assert.equal(manifest.version, "1.0.3");
+  assert.equal(manifest.version, "1.0.4");
   assert.equal(manifest.main.devTools, false);
   assert.match(readme, /dist\\特效AI标签管理-cli\.eagleplugin/);
   assert.match(readme, /VFX_AI_TAGGER_CLI/);
@@ -764,4 +764,21 @@ test("closing from collector mode marks workbench restore without flashing full 
   assert.match(js, /document\.body\.classList\.remove\("collector-mode"\)/);
   assert.match(js, /setWindowBounds\(eagleWindow,\s*getWorkbenchWindowBounds\(/);
   assert.match(js, /state\.collectorPreviousBounds = null/);
+});
+
+test("collector bar remembers dragged position and restores it inside the screen", () => {
+  const js = read("plugin.js");
+
+  assert.match(js, /collectorWindowBounds:\s*"vfxAiTagger\.collectorWindowBounds"/);
+  assert.match(js, /function readStoredCollectorWindowBounds\(/);
+  assert.match(js, /function saveCollectorWindowBounds\(/);
+  assert.match(js, /function removeStoredCollectorWindowBounds\(/);
+  assert.match(js, /const storedBounds = readStoredCollectorWindowBounds\(\)/);
+  assert.match(js, /if \(storedBounds\) \{\s*return clampCollectorWindowBounds\(/);
+  assert.match(js, /width:\s*COLLECTOR_WINDOW_BOUNDS\.width/);
+  assert.match(js, /height:\s*COLLECTOR_WINDOW_BOUNDS\.height/);
+  assert.match(js, /async function persistCollectorWindowBounds\(eagleWindow\)/);
+  assert.match(js, /await persistCollectorWindowBounds\(eagleWindow\);\s*await restoreWorkbenchWindow\(eagleWindow\)/);
+  assert.match(js, /await persistCollectorWindowBounds\(eagleWindow\);\s*if \(document\.body\.classList\.contains\("collector-mode"\)\) \{/);
+  assert.match(js, /await persistCollectorWindowBounds\(eagleWindow\);\s*await exitCollectorMode\(\);\s*await analyzeSelected\(\);/);
 });
