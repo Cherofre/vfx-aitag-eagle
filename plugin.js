@@ -139,7 +139,7 @@
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
       "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedSummary",
       "selectedItems", "showSelectedListBtn", "selectedListOverlay", "selectedListDialog", "selectedItemsFullList", "closeSelectedListBtn",
-      "collectorBar", "collectorCount", "collectorAppendBtn", "collectorAnalyzeBtn", "collectorClearBtn", "collectorExpandBtn", "collectorCloseBtn",
+      "collectorBar", "collectorCount", "collectorStatus", "collectorAppendBtn", "collectorAnalyzeBtn", "collectorClearBtn", "collectorExpandBtn", "collectorCloseBtn",
       "results", "clearResultsBtn", "analysisProgressPanel", "analysisProgressText", "analysisProgressPercent", "analysisProgressBar", "analysisProgressMeta",
       "writeProgressPanel", "writeProgressText", "writeProgressPercent", "writeProgressBar", "writeProgressMeta",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
@@ -829,9 +829,7 @@
       const summary = mergeSelectedItems(nextItems, "replace");
       setStatus(`${actionName}：已导入 ${summary.added} 个 Eagle 选中素材。`);
     } catch (error) {
-      state.selectedItems = [];
-      state.results = [];
-      setStatus(`读取选中素材失败：${formatError(error)}`);
+      setStatus(`读取选中素材失败：${formatError(error)}，待分析列表保持不变。`);
       renderAll();
     }
   }
@@ -1112,6 +1110,12 @@
     return (error && error.name === "AbortError") || message.includes("已停止") || message.includes("abort") || message.includes("中止");
   }
 
+  function createAnalysisAbortError(message) {
+    const error = new Error(message || "分析已中止");
+    error.name = "AbortError";
+    return error;
+  }
+
   async function continueAnalysis() {
     if (state.running) return;
     state.paused = false;
@@ -1210,6 +1214,7 @@
         if (attempt > 0) reportAnalysisStage(onProgress, `重试 AI ${attempt}/${retryCount}`, 0.46);
         return await requestAiTags(item, model, allowedTags, settings, media, onProgress);
       } catch (error) {
+        if (isAnalysisAbortError(error)) throw error;
         lastError = error;
         if (attempt >= retryCount || !isRetryableAiError(error)) break;
         reportAnalysisStage(onProgress, `等待重试 ${attempt + 1}/${retryCount}`, 0.46);
@@ -1234,7 +1239,7 @@
     }
     const objects = [];
     for (let index = 0; index < plan.requests.length; index += 1) {
-      if (state.pauseRequested) throw new Error("分析已暂停");
+      if (state.pauseRequested) throw createAnalysisAbortError("分析已暂停");
       const request = plan.requests[index];
       const requestStart = 0.48 + (index / plan.requestCount) * 0.34;
       reportAnalysisStage(onProgress, `调用 AI ${index + 1}/${plan.requestCount}`, requestStart);
@@ -1266,6 +1271,7 @@
         return await requestCliTags(item, cliBackendsToTry, allowedTags, settings, media, chunkInfo);
       } catch (error) {
         cliError = error;
+        if (isAnalysisAbortError(error)) throw error;
         if (!settings.enabledBackends.includes("eagle")) throw error;
       }
     }
@@ -3479,5 +3485,6 @@
 
   function setStatus(text) {
     els.statusText.textContent = text;
+    if (els.collectorStatus) els.collectorStatus.textContent = text;
   }
 })();

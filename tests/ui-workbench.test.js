@@ -142,8 +142,8 @@ test("page favicon uses the same logo as the plugin manifest", () => {
   const html = read("index.html");
 
   assert.equal(manifest.logo, "/logo.png");
-  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.3\.9">/);
-  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.3\.9">/);
+  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.0\.1">/);
+  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.0\.1">/);
 });
 
 test("logo bright mark fills the plugin icon canvas", () => {
@@ -285,6 +285,10 @@ test("analysis pause aborts active CLI requests and undo history survives reopen
   assert.match(js, /pauseAnalysis\(\)[\s\S]*abortCurrentAnalysis\(\)/);
   assert.match(js, /signal:\s*getAnalysisAbortSignal\(\)/);
   assert.match(js, /runCliBackends\(\{[\s\S]*signal/);
+  assert.match(js, /function createAnalysisAbortError\(/);
+  assert.match(js, /if \(isAnalysisAbortError\(error\)\) throw error/);
+  assert.match(js, /if \(state\.pauseRequested\) throw createAnalysisAbortError\("分析已暂停"\)/);
+  assert.match(js, /catch \(error\) \{[\s\S]*cliError = error;[\s\S]*if \(isAnalysisAbortError\(error\)\) throw error/);
   assert.match(js, /function saveUndoStack\(/);
   assert.match(js, /function readStoredUndoStack\(/);
   assert.match(js, /state\.undoStack\s*=\s*readStoredUndoStack\(\)/);
@@ -295,7 +299,8 @@ test("analysis pause aborts active CLI requests and undo history survives reopen
 test("failure-prone Eagle state transitions recover safely", () => {
   const js = read("plugin.js");
 
-  assert.match(js, /catch \(error\) \{\s*state\.selectedItems = \[\];\s*state\.results = \[\];[\s\S]*读取选中素材失败/);
+  assert.doesNotMatch(js, /async function replaceSelectedItems\([\s\S]*catch \(error\) \{\s*state\.selectedItems = \[\];\s*state\.results = \[\]/);
+  assert.match(js, /async function replaceSelectedItems\([\s\S]*catch \(error\) \{[\s\S]*读取选中素材失败[\s\S]*待分析列表保持不变/);
   assert.match(js, /async function applyReadyResults\(\) \{[\s\S]*try \{[\s\S]*await mergeTagsIntoItem[\s\S]*\} catch \(error\) \{[\s\S]*写入失败[\s\S]*\}[\s\S]*finally \{[\s\S]*renderAll\(\)/);
   assert.match(js, /async function reanalyzeResult\(resultId\) \{[\s\S]*diagnosticPath:\s*""[\s\S]*diagnostics:\s*null[\s\S]*errorType:\s*""/);
   assert.match(js, /catch \(error\) \{[\s\S]*errorType:\s*classifyError\(error\)[\s\S]*diagnosticPath:\s*error\.diagnosticPath \|\| ""[\s\S]*diagnostics:\s*error\.diagnostics \|\| null/);
@@ -309,7 +314,7 @@ test("settings, release metadata, and long text are production-ready", () => {
   const js = read("plugin.js");
   const css = read("style.css");
 
-  assert.notEqual(manifest.version, "1.0.0");
+  assert.equal(manifest.version, "1.0.1");
   assert.equal(manifest.main.devTools, false);
   assert.match(readme, /dist\\特效AI标签管理-cli\.eagleplugin/);
   assert.match(readme, /VFX_AI_TAGGER_CLI/);
@@ -470,6 +475,8 @@ test("collection workflow exposes append, replace, clear, context menus, and col
   assert.match(html, /id="collectorAppendBtn"/);
   assert.match(html, /id="collectorAnalyzeBtn"/);
   assert.match(html, /id="collectorClearBtn"/);
+  assert.match(html, /id="collectorStatus"/);
+  assert.match(html, /id="collectorClearBtn"[^>]*aria-label="清空待分析队列和分析结果"/);
   assert.match(html, /id="collectorExpandBtn"/);
   assert.match(html, /id="collectorCloseBtn"/);
 
@@ -489,11 +496,13 @@ test("collection workflow exposes append, replace, clear, context menus, and col
   assert.match(js, /replaceSelectedBtn\.addEventListener\("click", \(\) => replaceSelectedItems\("替换为当前选中"\)\)/);
   assert.match(js, /collectorAppendBtn\.addEventListener\("click", \(\) => appendSelectedItems\("采集条追加当前选中"\)\)/);
   assert.match(js, /collectorClearBtn\.addEventListener\("click", \(\) => clearSelectedQueue\(\)\)/);
+  assert.match(js, /els\.collectorStatus\.textContent = text/);
   assert.match(js, /eagle\.contextMenu\.open/);
   assert.match(js, /data-item-id/);
   assert.match(js, /collector-mode/);
 
   assert.match(css, /\.collector-bar\s*{/);
+  assert.match(css, /\.collector-status/);
   assert.match(css, /body\.collector-mode\s+\.workbench-shell/);
   assert.match(css, /body\.collector-mode\s+\.collector-bar/);
 });
@@ -556,7 +565,7 @@ test("collector bar uses prominent themed icon actions and concise labels", () =
   assert.match(html, /class="collector-icon"/);
   assert.match(html, />收集选中<\/span>/);
   assert.match(html, />开始分析<\/span>/);
-  assert.match(html, />清空队列<\/span>/);
+  assert.match(html, />清空全部<\/span>/);
   assert.match(html, />工作台<\/span>/);
   assert.match(css, /body\.collector-mode\s*{[\s\S]*place-items:\s*stretch/);
   assert.match(css, /body\.collector-mode\s+\.collector-bar\s*{[\s\S]*position:\s*fixed[\s\S]*inset:\s*0/);

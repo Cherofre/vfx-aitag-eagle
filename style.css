@@ -176,6 +176,13 @@ body.collector-mode .collector-bar {
   font-size: 11px;
 }
 
+.collector-meta {
+  display: grid;
+  min-width: 112px;
+  max-width: 156px;
+  gap: 4px;
+}
+
 .collector-count-badge {
   border: 1px solid rgba(157, 191, 232, .34);
   border-radius: 999px;
@@ -184,6 +191,14 @@ body.collector-mode .collector-bar {
   padding: 5px 9px;
   font-size: 12px;
   font-weight: 650;
+}
+
+.collector-status {
+  color: var(--muted) !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .collector-action {

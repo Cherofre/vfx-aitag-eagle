@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>特效 AI 标签管理</title>
-  <link rel="icon" type="image/png" href="logo.png?v=1.3.9">
-  <link rel="shortcut icon" type="image/png" href="logo.png?v=1.3.9">
+  <link rel="icon" type="image/png" href="logo.png?v=1.0.1">
+  <link rel="shortcut icon" type="image/png" href="logo.png?v=1.0.1">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -339,7 +339,10 @@
       <strong>素材采集</strong>
       <span>边选边收</span>
     </div>
-    <span id="collectorCount" class="collector-count-badge">0 个待分析</span>
+    <div class="collector-meta">
+      <span id="collectorCount" class="collector-count-badge">0 个待分析</span>
+      <span id="collectorStatus" class="collector-status">等待收集</span>
+    </div>
     <button id="collectorAppendBtn" type="button" class="collector-action collector-action-primary" aria-label="收集当前选中素材">
       <svg class="collector-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 5v14M5 12h14"></path>
@@ -352,11 +355,11 @@
       </svg>
       <span>开始分析</span>
     </button>
-    <button id="collectorClearBtn" type="button" class="collector-action collector-action-danger" aria-label="清空待分析队列">
+    <button id="collectorClearBtn" type="button" class="collector-action collector-action-danger" aria-label="清空待分析队列和分析结果">
       <svg class="collector-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M5 7h14M10 11v6M14 11v6M8 7l1-3h6l1 3M7 7l1 13h8l1-13"></path>
       </svg>
-      <span>清空队列</span>
+      <span>清空全部</span>
     </button>
     <button id="collectorExpandBtn" type="button" class="collector-action" aria-label="展开完整工作台">
       <svg class="collector-icon" viewBox="0 0 24 24" aria-hidden="true">

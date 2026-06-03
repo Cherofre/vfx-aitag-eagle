@@ -221,6 +221,34 @@ test("createCliHealthChecks builds lightweight command plans without AI prompts"
   assert.equal(checks.some((check) => check.args && check.args.includes("PROMPT")), false);
 });
 
+test("createCliHealthChecks marks unresolved PATH commands as unavailable", () => {
+  const checks = backends.createCliHealthChecks(["claude", "codex"], {
+    claudeCommand: "claude",
+    codexCommand: "codex"
+  }, {
+    env: {
+      APPDATA: "C:\\Users\\me\\AppData\\Roaming",
+      LOCALAPPDATA: "C:\\Users\\me\\AppData\\Local",
+      USERPROFILE: "C:\\Users\\me",
+      PATH: "C:\\Missing"
+    },
+    fileExists: () => false,
+    fs: {
+      readdirSync() {
+        throw new Error("missing");
+      }
+    },
+    path
+  });
+
+  assert.equal(checks[0].ok, false);
+  assert.equal(checks[0].command, "claude");
+  assert.match(checks[0].message, /未找到|无法确认/);
+  assert.equal(checks[1].ok, false);
+  assert.equal(checks[1].command, "codex");
+  assert.match(checks[1].message, /未找到|无法确认/);
+});
+
 test("runCliBackends falls back after a failed backend and parses the first success", async () => {
   const attempts = [];
   const result = await backends.runCliBackends({

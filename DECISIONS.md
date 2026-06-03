@@ -26,8 +26,16 @@
 - 2026-06-03: Persist undo history and stop active local CLI children on pause while keeping Eagle AI cancellation best-effort only.
 - 2026-06-03: Replace the rejected dark neon logo with a bright blue flat app-icon mark.
 - 2026-06-03: Ordinary plugin open/show must not auto-import Eagle's current selection; importing requires an explicit action or collector entry.
+- 2026-06-03: Release `v1.0.1` should align manifest/favicon/package version to `1.0.1` and tag the reviewed commit explicitly.
 
 ## Decision Log
+
+## 2026-06-03 - Release 1.0.1 version alignment and review fixes
+- Status: active
+- Decision: Treat GitHub Release `v1.0.1` as the public package version, aligning manifest and favicon cache-buster to `1.0.1`; fix subagent review findings before tagging.
+- Reason: Publishing release `v1.0.1` with an internal `1.3.9` manifest would confuse users and make future support/version comparison harder.
+- Alternatives considered: Publish `v1.3.9` instead; skipped because the user explicitly requested release `1.0.1`. Keep `1.3.9` manifest under a `v1.0.1` release; skipped because the release reviewer identified this as a P1 mismatch.
+- Consequences / follow-up: Tag the exact reviewed commit and upload an English-named asset. Real Eagle smoke remains required after install.
 
 ## 2026-06-03 - No automatic import on ordinary open
 - Status: active

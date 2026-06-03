@@ -189,10 +189,10 @@
     const fileExists = runtime && runtime.fileExists || makeFileExists(runtime && runtime.fs);
     const hasExplicitPath = hasPathSeparator(command);
     const exists = hasExplicitPath ? fileExists(command) : null;
-    const ok = hasExplicitPath ? Boolean(exists) : Boolean(command);
+    const ok = hasExplicitPath ? Boolean(exists) : false;
     const message = ok
-      ? (hasExplicitPath ? "命令已解析，可用 --version 做轻量检查" : "命令将通过 PATH 解析，可用 --version 做轻量检查")
-      : "未找到可执行命令，请填写 CLI 的绝对路径";
+      ? "命令已解析，可用 --version 做轻量检查"
+      : (command ? "未找到可执行命令或无法确认 PATH 解析，请填写 CLI 的绝对路径" : "未找到可执行命令，请填写 CLI 的绝对路径");
     return {
       backend: normalized,
       ok,

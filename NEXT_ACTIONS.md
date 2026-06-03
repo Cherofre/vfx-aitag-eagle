@@ -1,15 +1,15 @@
 # Next Actions
 
 ## Now
-- [x] Added RED test for “ordinary open/show does not auto-import current Eagle selection”.
-- [x] Removed startup and plugin show/run auto-append; retained explicit append/replace/right-click/collector collection actions.
-- [x] Bumped manifest/favicon to `1.3.9`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected archive contents.
-- [ ] Install version `1.3.9` in Eagle and smoke-test ordinary open/show, explicit import actions, collector entry auto-collect, and the existing collector/analysis flows.
+- [x] Completed three subagent reviews covering UI/collector workflow, CLI/analysis/write safety, and release/package hygiene.
+- [x] Fixed release-blocking review findings and aligned plugin/package version to `1.0.1`.
+- [x] Repackaged `dist\特效AI标签管理-cli.eagleplugin` and inspected archive contents.
+- [ ] Commit release fixes, push tag `v1.0.1`, and upload `vfx-aitag-eagle-cli-1.0.1.eagleplugin` to GitHub Release `v1.0.1`.
 
 ## Handoff Notes
-- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.9` in Eagle.
-- Do not redo: collection workflow implementation, collector entry/action fix, removal of ordinary open/show auto-import, collector `646×104` spacing/height update, screen-bound clamping, window restore hotfix, close-without-full-window-flash fix, staged progress UI, compact/manual tag menu UI, flat blue logo replacement, static tests, syntax checks, browser static smoke, version bump, and package inspection are done.
-- Verify next: Eagle smoke-test opening/showing the plugin while assets are selected leaves the queue unchanged, “追加当前选中” appends, “替换为当前选中” replaces, right-click/context menu import actions work, entering collector mode auto-collects current selection, persistent undo after plugin close/reopen, pausing a long Claude/Codex request and confirming the child process stops, plugin-list/pinned/collector icon size, “置顶采集” visibility, “清空队列” clears pending items/results, collector bar shrinks to the top floating window with balanced side padding, stays within visible screen bounds, stays always-on-top, close does not flash a full workbench window, expands back to the full workbench, default reopen is not collector-sized, progress stages update during analysis, and manual tag menu appears near the input.
+- Start here: if this session stops before upload, run `git status --short --branch`, verify the release commit, then create/push tag `v1.0.1` and create the GitHub release with asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`.
+- Do not redo: collection workflow implementation, collector entry/action fix, removal of ordinary open/show auto-import, subagent review, review fixes, collector `646×104` spacing/height update, screen-bound clamping, window restore hotfix, close-without-full-window-flash fix, staged progress UI, compact/manual tag menu UI, flat blue logo replacement, static tests, syntax checks, version `1.0.1` alignment, and package inspection are done.
+- Verify next: GitHub Release `v1.0.1` exists with the correct asset, then Eagle smoke-test opening/showing the plugin while assets are selected leaves the queue unchanged, “追加当前选中” appends, “替换为当前选中” replaces and preserves old queue if Eagle API fails, right-click/context menu import actions work, entering collector mode auto-collects current selection, pausing Claude/Codex with Eagle fallback enabled does not continue into Eagle AI, pausing between chunks leaves pending results, persistent undo after plugin close/reopen, plugin-list/pinned/collector icon size, “置顶采集” visibility, “清空全部” clears pending items/results after confirmation, collector status text is visible, collector bar shrinks/restores correctly, progress stages update during analysis, and manual tag menu appears near the input.
 - Do not claim: Eagle real-host smoke has passed; Browser local smoke only covered static layout/menu behavior outside the Eagle host.
 - Watch out for: pause aborts local CLI children only; Eagle AI itself is still host-controlled. Persistent undo requires the affected Eagle item to be imported/selected again so `item.save()` is available.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
