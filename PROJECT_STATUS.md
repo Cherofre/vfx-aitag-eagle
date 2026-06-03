@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-03 13:34
-- Phase: release 1.0.1 review fixes packaged
+- Last Updated: 2026-06-03 13:37
+- Phase: release 1.0.1 uploaded
 - Superpowers Phase: executing-plans + TDD + project-ledger-loop
 - Branch: codex/collection-workflow
 - Goal: 完成子代理全面审查后的 release `v1.0.1` 包，修复发布前必须处理的暂停、替换失败、健康检查和版本一致性问题。
-- Current Focus: Package version `1.0.1` keeps ordinary open/show from auto-importing, prevents aborted CLI analysis from falling through to Eagle AI, keeps multi-chunk pause results pending, preserves queue/results on replace-selection read failures, adds collector-bar status feedback, and aligns manifest/favicon/package with GitHub Release `v1.0.1`.
+- Current Focus: GitHub Release `v1.0.1` is published with asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`; package version `1.0.1` keeps ordinary open/show from auto-importing, prevents aborted CLI analysis from falling through to Eagle AI, keeps multi-chunk pause results pending, preserves queue/results on replace-selection read failures, adds collector-bar status feedback, and aligns manifest/favicon/package with the release tag.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-logo-redesign-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-logo-redesign.md`
-- Current Task: Commit the reviewed `1.0.1` package, push an explicit `v1.0.1` tag to the reviewed commit, and upload release asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`.
+- Current Task: Install the release asset in Eagle and run real-host smoke tests.
 
 ## Resume Here
-- Start with: if release upload was interrupted, inspect `git status --short --branch`, confirm HEAD contains the release fixes, then push tag/create release `v1.0.1`.
-- Next verification: GitHub release page should contain asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`; Eagle real-host smoke should cover ordinary open/show with selected assets (queue unchanged), explicit append/replace, collector entry auto-collect, pause during CLI+Eagle fallback, pause between request chunks, replace-selection API failure preserving queue/results, collector status feedback, persistent undo, and analysis/write flows.
+- Start with: download/install `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.1` asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`.
+- Next verification: Eagle real-host smoke should cover ordinary open/show with selected assets (queue unchanged), explicit append/replace, collector entry auto-collect, pause during CLI+Eagle fallback, pause between request chunks, replace-selection API failure preserving queue/results, collector status feedback, persistent undo, and analysis/write flows.
 - Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
 
 ## Progress Summary
@@ -93,11 +93,12 @@
 - [x] Ran three read-only subagent reviews for UI/collector workflow, CLI/analysis/write safety, and release/package hygiene.
 - [x] Fixed review findings: CLI abort no longer falls back to Eagle AI, multi-chunk pause throws `AbortError`, replace-selection failures preserve existing queue/results, unresolved PATH commands fail health checks, collector bar shows status feedback, and collector clear copy now says “清空全部”.
 - [x] Aligned manifest/favicon/package to version `1.0.1`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected archive contents.
+- [x] Pushed tag `v1.0.1` and created GitHub Release `v1.0.1` with asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`.
 
 ## Verification
 - Last command: package inspection after `Compress-Archive`
 - Result: pass
-- Evidence / notes: RED run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` failed as expected for unresolved CLI health checks, `logo.png?v=1.0.1`, abort handling, replace failure preservation, and collector status/copy. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 41 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.0.1`, `devTools: false`, and `index.html` contains `logo.png?v=1.0.1` icon links. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: RED run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` failed as expected for unresolved CLI health checks, `logo.png?v=1.0.1`, abort handling, replace failure preservation, and collector status/copy. After implementation, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 41 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.0.1`, `devTools: false`, and `index.html` contains `logo.png?v=1.0.1` icon links. `gh release view v1.0.1` confirms asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`, size `55720`, state `uploaded`, URL `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.1`. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.
