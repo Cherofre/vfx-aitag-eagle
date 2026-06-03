@@ -8,12 +8,14 @@
 
   function createAnalysisPrompt(options) {
     const itemName = options.itemName || "未命名素材";
+    const includeTitleInPrompt = options.includeTitleInPrompt === true;
     const mediaKind = options.mediaKind || "image";
     const frameCount = Number(options.frameCount) || 1;
     const maxTags = Number(options.maxTags) || 10;
     const allowedTags = Array.isArray(options.allowedTags) ? options.allowedTags : [];
     const imagePaths = Array.isArray(options.imagePaths) ? options.imagePaths : [];
     const globalPrompt = String(options.globalPrompt || "").trim();
+    const chunkInfo = options.chunkInfo || {};
     const kindText = mediaKind === "video"
       ? `视频抽帧，共 ${frameCount} 张代表帧`
       : mediaKind === "animated"
@@ -21,7 +23,9 @@
         : "静态图或预览图";
     const parts = [
       "你是游戏视觉特效素材标签管理员。",
-      `请分析素材：${itemName}`,
+      includeTitleInPrompt
+        ? `请分析素材：${itemName}`
+        : "请分析这个素材。不要依据文件名或标题猜测标签，只根据实际图片内容判断。",
       `素材类型：${kindText}`,
       "只能从标签池中选择标签，禁止创造新标签，禁止输出不在标签池里的同义词。",
       `每个素材最多选择 ${maxTags} 个最有检索价值的标签。`,
@@ -32,6 +36,12 @@
       "JSON 格式：{\"tags\":[{\"name\":\"标签1\",\"confidence\":0.92},{\"name\":\"标签2\",\"confidence\":0.66}],\"confidence\":0.8,\"reason\":\"简短原因\"}",
       `标签池：${allowedTags.join("、")}`
     ];
+    if (chunkInfo.chunkCount > 1) {
+      const chunkParts = [`这是 AI 请求分块 ${chunkInfo.chunkIndex + 1}/${chunkInfo.chunkCount}`];
+      if (chunkInfo.mediaChunkCount > 1) chunkParts.push(`图片组 ${chunkInfo.mediaChunkIndex + 1}/${chunkInfo.mediaChunkCount}`);
+      if (chunkInfo.tagChunkCount > 1) chunkParts.push(`标签池组 ${chunkInfo.tagChunkIndex + 1}/${chunkInfo.tagChunkCount}`);
+      parts.splice(3, 0, `${chunkParts.join("，")}。只从本次请求给出的标签池中选择；最终结果会由插件合并。`);
+    }
     if (globalPrompt) {
       parts.splice(6, 0, `用户全局分析偏好：\n${globalPrompt}`, "用户全局分析偏好不能覆盖标签池、JSON 格式和置信度要求。");
     }
@@ -48,12 +58,12 @@
   function parseCliJson(output) {
     const text = String(output || "").trim();
     if (!text) throw new Error("CLI 没有返回内容");
-    const direct = tryParseJson(text);
+    const direct = tryParseJson(repairJsonText(text));
     if (direct) return normalizeCliObject(direct);
 
     const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fenced) {
-      const parsed = tryParseJson(fenced[1].trim());
+      const parsed = tryParseJson(repairJsonText(fenced[1].trim()));
       if (parsed) return normalizeCliObject(parsed);
     }
 
@@ -61,21 +71,35 @@
       if (text[start] !== "{") continue;
       for (let end = text.length - 1; end > start; end -= 1) {
         if (text[end] !== "}") continue;
-        const parsed = tryParseJson(text.slice(start, end + 1));
+        const parsed = tryParseJson(repairJsonText(text.slice(start, end + 1)));
         if (parsed) return normalizeCliObject(parsed);
       }
+    }
+    if (text.startsWith("[") && text.endsWith("]")) {
+      const parsed = tryParseJson(repairJsonText(text));
+      if (parsed) return normalizeCliObject(parsed);
     }
     throw new Error("CLI 返回内容中没有可解析的标签 JSON");
   }
 
   function normalizeCliObject(value) {
     if (typeof value === "string") return parseCliJson(value);
+    if (Array.isArray(value)) return { tags: value, confidence: 0.5, reason: "" };
     if (!value || typeof value !== "object") throw new Error("CLI 返回的 JSON 不是对象");
     if (Array.isArray(value.tags)) return value;
+    if (Array.isArray(value.labels)) return { ...value, tags: value.labels };
+    if (Array.isArray(value.result)) return { ...value, tags: value.result };
     for (const key of ["result", "text", "message", "content", "output"]) {
       if (typeof value[key] === "string") return parseCliJson(value[key]);
     }
     throw new Error("CLI 返回 JSON 缺少 tags 数组");
+  }
+
+  function repairJsonText(text) {
+    return String(text || "")
+      .replace(/[“”]/g, "\"")
+      .replace(/[‘’]/g, "'")
+      .replace(/,\s*([}\]])/g, "$1");
   }
 
   function tryParseJson(text) {
@@ -132,6 +156,53 @@
     throw new Error(`未知 CLI 后端：${backend}`);
   }
 
+  function createCliHealthChecks(backends, settings, runtime) {
+    const requested = Array.isArray(backends) && backends.length ? backends : DEFAULT_BACKENDS;
+    return requested.map((backend) => createCliHealthCheck(backend, settings || {}, runtime || {}));
+  }
+
+  function createCliHealthCheck(backend, settings, runtime) {
+    const normalized = String(backend || "").toLowerCase();
+    if (normalized === "eagle") {
+      return {
+        backend: normalized,
+        ok: false,
+        command: "",
+        args: [],
+        message: "Eagle AI 需要在插件宿主中检查默认视觉模型"
+      };
+    }
+    if (!["claude", "codex"].includes(normalized)) {
+      return {
+        backend: normalized || "unknown",
+        ok: false,
+        command: "",
+        args: [],
+        message: `未知 CLI 后端：${backend}`
+      };
+    }
+
+    const configured = normalized === "claude"
+      ? stringOrDefault(settings && settings.claudeCommand, "claude")
+      : stringOrDefault(settings && settings.codexCommand, "codex");
+    const command = resolveCliCommand(configured, normalized, runtime);
+    const fileExists = runtime && runtime.fileExists || makeFileExists(runtime && runtime.fs);
+    const hasExplicitPath = hasPathSeparator(command);
+    const exists = hasExplicitPath ? fileExists(command) : null;
+    const ok = hasExplicitPath ? Boolean(exists) : false;
+    const message = ok
+      ? "命令已解析，可用 --version 做轻量检查"
+      : (command ? "未找到可执行命令或无法确认 PATH 解析，请填写 CLI 的绝对路径" : "未找到可执行命令，请填写 CLI 的绝对路径");
+    return {
+      backend: normalized,
+      ok,
+      command,
+      args: ["--version"],
+      fallbackArgs: ["--help"],
+      message
+    };
+  }
+
   function runCliBackend(options) {
     const execFile = options.execFile;
     const spawn = options.spawn;
@@ -142,9 +213,11 @@
       path: options.path,
       env: options.env
     });
+    if (isSignalAborted(options.signal)) return Promise.reject(createAbortError(plan.backend));
     return new Promise((resolve, reject) => {
       let settled = false;
       let timeoutId = null;
+      let cleanupAbort = () => {};
       const child = execFile(plan.command, plan.args, {
         cwd: plan.cwd,
         timeout: plan.timeoutMs,
@@ -155,6 +228,7 @@
         if (settled) return;
         settled = true;
         if (timeoutId) clearTimeout(timeoutId);
+        cleanupAbort();
         if (error) {
           const message = [error.message, stderr && String(stderr).trim()].filter(Boolean).join("\n");
           reject(new Error(message || `${plan.backend} CLI 调用失败`));
@@ -173,11 +247,19 @@
           reject(parseError);
         }
       });
+      cleanupAbort = watchAbortSignal(options.signal, () => {
+        if (settled) return;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        try { if (child && typeof child.kill === "function") child.kill(); } catch (error) {}
+        reject(createAbortError(plan.backend));
+      });
       writeChildStdin(child, plan.stdin);
       if (!settled && child && typeof child.kill === "function" && plan.timeoutMs > 0) {
         timeoutId = setTimeout(() => {
           if (settled) return;
           settled = true;
+          cleanupAbort();
           try { child.kill(); } catch (error) {}
           reject(new Error(`${plan.backend} CLI 超时`));
         }, plan.timeoutMs + 1000);
@@ -191,9 +273,11 @@
       path: options.path,
       env: options.env
     });
+    if (isSignalAborted(options.signal)) return Promise.reject(createAbortError(plan.backend));
     return new Promise((resolve, reject) => {
       let settled = false;
       let timeoutId = null;
+      let cleanupAbort = () => {};
       let stdout = "";
       let stderr = "";
       const child = spawn(plan.command, plan.args, {
@@ -213,12 +297,14 @@
         if (settled) return;
         settled = true;
         if (timeoutId) clearTimeout(timeoutId);
+        cleanupAbort();
         reject(error);
       });
       child.on("exit", (code, signal) => {
         if (settled) return;
         settled = true;
         if (timeoutId) clearTimeout(timeoutId);
+        cleanupAbort();
         if (code !== 0) {
           reject(new Error([`${plan.backend} CLI 退出码 ${code}${signal ? `，信号 ${signal}` : ""}`, stderr.trim()].filter(Boolean).join("\n")));
           return;
@@ -236,10 +322,18 @@
           reject(parseError);
         }
       });
+      cleanupAbort = watchAbortSignal(options.signal, () => {
+        if (settled) return;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        try { if (child && typeof child.kill === "function") child.kill(); } catch (error) {}
+        reject(createAbortError(plan.backend));
+      });
       if (!settled && child && typeof child.kill === "function" && plan.timeoutMs > 0) {
         timeoutId = setTimeout(() => {
           if (settled) return;
           settled = true;
+          cleanupAbort();
           try { child.kill(); } catch (error) {}
           reject(new Error(`${plan.backend} CLI 超时`));
         }, plan.timeoutMs + 1000);
@@ -261,7 +355,8 @@
           path: options.path,
           env: options.env,
           execFile: options.execFile,
-          spawn: options.spawn
+          spawn: options.spawn,
+          signal: options.signal
         });
         return { ...result, failures };
       } catch (error) {
@@ -303,6 +398,36 @@
       child.stdin.write(input);
       if (typeof child.stdin.end === "function") child.stdin.end();
     } catch (error) {}
+  }
+
+  function isSignalAborted(signal) {
+    return Boolean(signal && signal.aborted);
+  }
+
+  function watchAbortSignal(signal, onAbort) {
+    if (!signal || typeof signal.addEventListener !== "function") return () => {};
+    if (signal.aborted) {
+      onAbort();
+      return () => {};
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    return () => {
+      try { signal.removeEventListener("abort", onAbort); } catch (error) {}
+    };
+  }
+
+  function createAbortError(backend) {
+    const error = new Error(`${formatBackendLabel(backend)} CLI 请求已停止`);
+    error.name = "AbortError";
+    return error;
+  }
+
+  function formatBackendLabel(backend) {
+    return {
+      claude: "Claude",
+      codex: "Codex",
+      eagle: "Eagle AI"
+    }[String(backend || "").toLowerCase()] || String(backend || "CLI");
   }
 
   function stringOrDefault(value, fallback) {
@@ -497,6 +622,7 @@
     createAnalysisPrompt,
     parseCliJson,
     createCliPlan,
+    createCliHealthChecks,
     runCliBackend,
     runCliBackends,
     splitExtraArgs

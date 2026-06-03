@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>特效 AI 标签管理</title>
+  <link rel="icon" type="image/png" href="logo.png?v=1.0.3">
+  <link rel="shortcut icon" type="image/png" href="logo.png?v=1.0.3">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -37,14 +39,11 @@
       </div>
       <div class="top-actions">
         <button id="openAiBtn" type="button">设置</button>
-        <button id="importBtn" type="button">导入选中素材</button>
-        <button id="refreshBtn" type="button">刷新选择</button>
         <button id="analyzeBtn" type="button" class="primary">开始分析</button>
         <button id="pauseBtn" type="button" disabled>暂停</button>
         <button id="continueBtn" type="button" class="primary" hidden>继续</button>
         <button id="restartBtn" type="button" hidden>重新开始</button>
         <button id="applyBtn" type="button" class="success" disabled>写入标签</button>
-        <button id="undoBtn" type="button" disabled>撤销写入</button>
         <button id="closeWindowBtn" class="window-close-btn" type="button" aria-label="关闭窗口" title="关闭窗口">×</button>
       </div>
     </header>
@@ -77,18 +76,100 @@
         <section class="panel selected-panel">
           <div class="panel-header">
             <h2>待分析素材</h2>
+            <div class="material-actions">
+              <button id="miniCollectorBtn" class="collector-entry-btn" type="button" aria-label="进入顶部置顶采集窗">
+                <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 4v11M8 8l4-4 4 4M5 16h14M8 20h8"></path>
+                </svg>
+                <span>置顶采集</span>
+              </button>
+              <button id="appendSelectedBtn" type="button">追加当前选中</button>
+              <button id="replaceSelectedBtn" type="button">替换为当前选中</button>
+              <button id="clearSelectedBtn" type="button">清空</button>
+              <button id="showSelectedListBtn" type="button">展开素材</button>
+            </div>
           </div>
+          <div id="selectedSummary" class="selected-summary"></div>
           <div id="selectedItems" class="selected-list"></div>
         </section>
 
         <section class="panel results-panel">
           <div class="panel-header">
             <h2>分析结果</h2>
-            <button id="clearResultsBtn" type="button">清空结果</button>
+          </div>
+          <div class="result-toolbar">
+            <div class="result-filters" role="group" aria-label="结果过滤">
+              <button type="button" class="is-active" data-result-filter="all">全部</button>
+              <button type="button" data-result-filter="ready">待写入</button>
+              <button type="button" data-result-filter="failed">失败</button>
+              <button type="button" data-result-filter="applied">已写入</button>
+              <button type="button" data-result-filter="skipped">跳过</button>
+            </div>
+            <div class="result-batch-actions">
+              <button id="retryFailedBtn" type="button">重试失败项</button>
+              <button id="undoBtn" type="button" disabled>撤销写入</button>
+              <button id="clearResultsBtn" type="button">清空结果</button>
+            </div>
+          </div>
+          <div id="analysisProgressPanel" class="analysis-progress" hidden>
+            <div class="analysis-progress-head">
+              <strong id="analysisProgressText">等待分析</strong>
+              <span id="analysisProgressPercent">0%</span>
+            </div>
+            <div class="analysis-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="analysisProgressBar" class="analysis-progress-bar"></div>
+            </div>
+            <div id="analysisProgressMeta" class="analysis-progress-meta"></div>
+          </div>
+          <div id="writeProgressPanel" class="write-progress" hidden>
+            <div class="write-progress-head">
+              <strong id="writeProgressText">正在写入 0/0 个素材...</strong>
+              <span id="writeProgressPercent">0%</span>
+            </div>
+            <div class="write-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="writeProgressBar" class="write-progress-bar"></div>
+            </div>
+            <div id="writeProgressMeta" class="write-progress-meta"></div>
           </div>
           <div id="results" class="results"></div>
         </section>
       </section>
+    </section>
+
+    <div id="selectedListOverlay" class="selected-list-overlay" hidden></div>
+    <section id="selectedListDialog" class="panel selected-list-dialog" role="dialog" aria-modal="true" aria-labelledby="selectedListTitle" aria-hidden="true" hidden>
+      <div class="selected-list-dialog-head">
+        <div>
+          <h2 id="selectedListTitle">全部待分析素材</h2>
+          <p class="hint">在这里查看、预览或右键移除所有待分析素材。</p>
+        </div>
+        <button id="closeSelectedListBtn" type="button">关闭</button>
+      </div>
+      <div id="selectedItemsFullList" class="selected-full-list"></div>
+    </section>
+
+    <div id="mediaPreviewOverlay" class="media-preview-overlay" hidden></div>
+    <section id="mediaPreviewDialog" class="panel media-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="mediaPreviewTitle" aria-hidden="true" hidden>
+      <div class="media-preview-head">
+        <div>
+          <h2 id="mediaPreviewTitle">素材预览</h2>
+          <p id="mediaPreviewMeta" class="hint"></p>
+        </div>
+        <div class="media-preview-actions">
+          <button id="mediaPreviewPrevBtn" type="button">上一个</button>
+          <button id="mediaPreviewNextBtn" type="button">下一个</button>
+          <button id="mediaPreviewOpenEagleBtn" type="button">用 Eagle 打开</button>
+          <button id="closeMediaPreviewBtn" type="button">关闭</button>
+        </div>
+      </div>
+      <div class="media-preview-main">
+        <div id="mediaPreviewBody" class="media-preview-player"></div>
+        <aside class="media-preview-side">
+          <div id="mediaPreviewStatus" class="media-preview-status"></div>
+          <div id="mediaPreviewTags" class="media-preview-tags"></div>
+          <div id="mediaPreviewReason" class="media-preview-reason"></div>
+        </aside>
+      </div>
     </section>
 
     <div id="settingsOverlay" class="settings-overlay" hidden></div>
@@ -126,6 +207,16 @@
               <label><input id="enableCodexCli" type="checkbox" checked> Codex CLI</label>
               <label><input id="enableEagleAi" type="checkbox"> Eagle AI</label>
             </div>
+            <div id="healthCheckPanel" class="health-check-panel">
+              <div class="health-check-head">
+                <div>
+                  <strong>环境检查</strong>
+                  <span id="healthSummary">等待检查</span>
+                </div>
+                <button id="runHealthCheckBtn" type="button">环境检查</button>
+              </div>
+              <div id="healthStatusList" class="health-status-list"></div>
+            </div>
             <div class="settings-grid backend-grid">
               <label>
                 Claude 命令
@@ -161,6 +252,22 @@
 
         <section class="settings-section" data-settings-panel="analysis" hidden>
           <div class="settings-section-title">分析参数</div>
+          <div class="preset-panel">
+            <label>
+              分析预设
+              <select id="analysisPresetSelect">
+                <option value="">不使用预设</option>
+                <option value="快速粗标">快速粗标</option>
+                <option value="精细分析">精细分析</option>
+                <option value="长视频省钱">长视频省钱</option>
+                <option value="只用 Claude">只用 Claude</option>
+                <option value="只用 Codex">只用 Codex</option>
+                <option value="Eagle AI 兜底">Eagle AI 兜底</option>
+              </select>
+            </label>
+            <button id="applyPresetBtn" type="button">应用预设</button>
+            <p id="presetHint" class="hint">预设只覆盖分析关键参数，不改全局提示词和诊断目录。</p>
+          </div>
           <div class="settings-grid">
             <label>
               最大标签数
@@ -169,6 +276,14 @@
             <label>
               并发数
               <input id="concurrency" type="number" min="1" max="5" value="2">
+            </label>
+            <label>
+              AI 重试次数
+              <input id="aiRetryCount" type="number" min="0" max="10" value="2">
+            </label>
+            <label>
+              AI 请求分块(K)
+              <input id="requestChunkK" type="number" min="4" max="256" step="4" value="256">
             </label>
             <label>
               自动写入置信度
@@ -227,8 +342,10 @@
             <label><input id="previewBeforeWrite" type="checkbox" checked> 分析后预览，再手动写入</label>
             <label><input id="autoApplyHighConfidence" type="checkbox"> 自动写入高置信标签</label>
             <label><input id="writeAnnotation" type="checkbox" checked> 将 AI 分析说明追加到注释</label>
+            <label><input id="includeTitleInPrompt" type="checkbox"> 将素材标题传给 AI</label>
             <label><input id="diagnosticEnabled" type="checkbox"> 保存诊断帧和路径信息</label>
           </div>
+          <p class="hint">默认不把素材标题传给 AI，避免标题或文件名误导画面识别。</p>
           <label class="diagnostic-path-field">
             诊断保存文件夹
             <div class="inline-form">
@@ -240,6 +357,42 @@
       </div>
     </section>
   </main>
+
+  <section id="collectorBar" class="collector-bar" aria-label="素材采集条" hidden>
+    <div class="collector-title">
+      <strong>素材采集</strong>
+      <span>边选边收</span>
+    </div>
+    <div class="collector-meta">
+      <span id="collectorCount" class="collector-count-badge">0 个待分析</span>
+      <span id="collectorStatus" class="collector-status">等待收集</span>
+    </div>
+    <button id="collectorAppendBtn" type="button" class="collector-action collector-action-primary" aria-label="收集当前选中素材">
+      <svg class="collector-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5v14M5 12h14"></path>
+      </svg>
+      <span>收集选中</span>
+    </button>
+    <button id="collectorAnalyzeBtn" type="button" class="collector-action collector-action-accent" aria-label="开始分析待分析素材">
+      <svg class="collector-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 5v14l11-7-11-7Z"></path>
+      </svg>
+      <span>开始分析</span>
+    </button>
+    <button id="collectorClearBtn" type="button" class="collector-action collector-action-danger" aria-label="清空待分析队列和分析结果">
+      <svg class="collector-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 7h14M10 11v6M14 11v6M8 7l1-3h6l1 3M7 7l1 13h8l1-13"></path>
+      </svg>
+      <span>清空全部</span>
+    </button>
+    <button id="collectorExpandBtn" type="button" class="collector-action" aria-label="展开完整工作台">
+      <svg class="collector-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path>
+      </svg>
+      <span>工作台</span>
+    </button>
+    <button id="collectorCloseBtn" type="button" class="window-close-btn" aria-label="关闭窗口" title="关闭窗口">×</button>
+  </section>
 
   <script src="cli-backends.js"></script>
   <script src="plugin.js"></script>

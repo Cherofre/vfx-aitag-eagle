@@ -10,7 +10,10 @@
   const STORAGE_KEYS = {
     customAllowedTags: "vfxAiTagger.customAllowedTags",
     disabledTags: "vfxAiTagger.disabledTags",
-    settings: "vfxAiTagger.settings"
+    settings: "vfxAiTagger.settings",
+    results: "vfxAiTagger.results",
+    undoStack: "vfxAiTagger.undoStack",
+    restoreWorkbenchBounds: "vfxAiTagger.restoreWorkbenchBounds"
   };
 
   const DEFAULT_VFX_TAGS = [
@@ -28,6 +31,79 @@
   const VIDEO_EXTS = new Set(["mp4", "mov", "webm", "avi", "mkv", "ts", "m4v", "wmv"]);
   const PREVIEW_EXTS = new Set(["svg", "psd", "ai", "pdf", "eps", "sketch"]);
   const DIAGNOSTIC_PREVIEW_LIMIT = 8;
+  const SELECTED_TRAY_LIMIT = 3;
+  const AI_RETRY_COUNT = 2;
+  const AI_RETRY_BASE_DELAY_MS = 1200;
+  const DEFAULT_REQUEST_CHUNK_K = 256;
+  const MIN_REQUEST_CHUNK_K = 4;
+  const MAX_REQUEST_CHUNK_K = 256;
+  const REQUEST_SAFETY_TOKENS = 512;
+  const MIN_TAG_BUDGET_TOKENS = 512;
+  const ESTIMATED_IMAGE_TOKENS = 3072;
+  const ANALYSIS_PRESETS = {
+    "快速粗标": {
+      maxTags: 6,
+      concurrency: 3,
+      aiRetryCount: 1,
+      requestChunkK: 128,
+      autoConfidence: 0.85,
+      hideConfidence: 0.55,
+      frameRateValue: 1,
+      frameRateUnit: "spf",
+      maxVideoFrames: 18,
+      maxAnimatedFrames: 10
+    },
+    "精细分析": {
+      maxTags: 12,
+      concurrency: 1,
+      aiRetryCount: 3,
+      requestChunkK: 192,
+      autoConfidence: 0.78,
+      hideConfidence: 0.35,
+      frameRateValue: 1,
+      frameRateUnit: "fps",
+      maxVideoFrames: 72,
+      maxAnimatedFrames: 36
+    },
+    "长视频省钱": {
+      maxTags: 8,
+      concurrency: 1,
+      aiRetryCount: 1,
+      requestChunkK: 96,
+      autoConfidence: 0.82,
+      hideConfidence: 0.5,
+      frameRateValue: 2,
+      frameRateUnit: "spf",
+      maxVideoFrames: 20,
+      maxAnimatedFrames: 12
+    },
+    "只用 Claude": {
+      enableClaudeCli: true,
+      enableCodexCli: false,
+      enableEagleAi: false
+    },
+    "只用 Codex": {
+      enableClaudeCli: false,
+      enableCodexCli: true,
+      enableEagleAi: false
+    },
+    "Eagle AI 兜底": {
+      enableClaudeCli: true,
+      enableCodexCli: true,
+      enableEagleAi: true
+    }
+  };
+  const COLLECTOR_WINDOW_BOUNDS = {
+    width: 646,
+    height: 104,
+    topOffset: 61
+  };
+  const WORKBENCH_WINDOW_BOUNDS = {
+    width: 1180,
+    height: 760
+  };
+  const COLLECTOR_SCREEN_MARGIN = 8;
+  const COLLECTOR_RESTORE_TOLERANCE = 24;
 
   const els = {};
   const state = {
@@ -43,33 +119,65 @@
     sessionRemovedTags: [],
     undoStack: [],
     results: [],
+    healthStatus: [],
+    activeResultFilter: "all",
+    activePresetName: "",
+    analysisAbortController: null,
+    collectorPreviousBounds: null,
+    collectorPreviousAlwaysOnTop: false,
+    mediaPreview: {
+      open: false,
+      itemId: "",
+      resultId: "",
+      order: []
+    },
     pauseRequested: false,
-    paused: false
+    paused: false,
+    writing: false
   };
 
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
     [
-      "statusText", "openAiBtn", "importBtn", "refreshBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn", "undoBtn", "closeWindowBtn", "selectedCount", "tagPoolCount",
+      "statusText", "openAiBtn", "appendSelectedBtn", "replaceSelectedBtn", "clearSelectedBtn", "miniCollectorBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn", "undoBtn", "closeWindowBtn", "selectedCount", "tagPoolCount",
       "readyCount", "failedCount", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
-      "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
+      "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "aiRetryCount", "requestChunkK", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
-      "writeAnnotation", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedItems", "results", "clearResultsBtn",
+      "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedSummary",
+      "selectedItems", "showSelectedListBtn", "selectedListOverlay", "selectedListDialog", "selectedItemsFullList", "closeSelectedListBtn",
+      "collectorBar", "collectorCount", "collectorStatus", "collectorAppendBtn", "collectorAnalyzeBtn", "collectorClearBtn", "collectorExpandBtn", "collectorCloseBtn",
+      "results", "clearResultsBtn", "analysisProgressPanel", "analysisProgressText", "analysisProgressPercent", "analysisProgressBar", "analysisProgressMeta",
+      "writeProgressPanel", "writeProgressText", "writeProgressPercent", "writeProgressBar", "writeProgressMeta",
+      "mediaPreviewOverlay", "mediaPreviewDialog", "mediaPreviewTitle", "mediaPreviewMeta", "mediaPreviewBody", "mediaPreviewStatus", "mediaPreviewTags", "mediaPreviewReason",
+      "mediaPreviewPrevBtn", "mediaPreviewNextBtn", "mediaPreviewOpenEagleBtn", "closeMediaPreviewBtn",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
       "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
+      "healthCheckPanel", "healthSummary", "healthStatusList", "runHealthCheckBtn",
+      "analysisPresetSelect", "applyPresetBtn", "presetHint", "retryFailedBtn",
       "settingsOverlay", "settingsDrawer", "closeSettingsBtn", "eagleAiSettingsBtn"
     ].forEach((id) => { els[id] = document.getElementById(id); });
     els.settingsTabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
     els.settingsPanels = Array.from(document.querySelectorAll("[data-settings-panel]"));
+    els.resultFilterButtons = Array.from(document.querySelectorAll("[data-result-filter]"));
 
     loadStoredState();
     bindEvents();
+    await ensureWorkbenchWindowBounds();
     await refreshAll();
+    await runHealthCheck({ silent: true });
   }
 
   function bindEvents() {
     els.openAiBtn.addEventListener("click", openSettingsDrawer);
+    els.showSelectedListBtn.addEventListener("click", openSelectedListDialog);
+    els.closeSelectedListBtn.addEventListener("click", closeSelectedListDialog);
+    els.selectedListOverlay.addEventListener("click", closeSelectedListDialog);
+    els.mediaPreviewOverlay.addEventListener("click", closeMediaPreview);
+    els.closeMediaPreviewBtn.addEventListener("click", closeMediaPreview);
+    els.mediaPreviewOpenEagleBtn.addEventListener("click", openPreviewInEagle);
+    els.mediaPreviewPrevBtn.addEventListener("click", () => navigateMediaPreview(-1));
+    els.mediaPreviewNextBtn.addEventListener("click", () => navigateMediaPreview(1));
     els.closeSettingsBtn.addEventListener("click", closeSettingsDrawer);
     els.settingsOverlay.addEventListener("click", closeSettingsDrawer);
     els.eagleAiSettingsBtn.addEventListener("click", openAiSettings);
@@ -79,10 +187,36 @@
       tab.addEventListener("click", () => activateSettingsTab(tab.dataset.settingsTab));
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeSettingsDrawer();
+      if (event.key === "Escape") {
+        closeSelectedListDialog();
+        closeMediaPreview();
+        closeSettingsDrawer();
+        closeManualTagMenus();
+      }
     });
-    els.importBtn.addEventListener("click", importSelectedItems);
-    els.refreshBtn.addEventListener("click", refreshSelection);
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".result-editor")) closeManualTagMenus();
+    });
+    window.addEventListener("resize", closeManualTagMenus);
+    els.appendSelectedBtn.addEventListener("click", () => appendSelectedItems("追加当前选中"));
+    els.replaceSelectedBtn.addEventListener("click", () => replaceSelectedItems("替换为当前选中"));
+    els.clearSelectedBtn.addEventListener("click", () => clearSelectedQueue());
+    els.miniCollectorBtn.addEventListener("click", enterCollectorMode);
+    els.collectorAppendBtn.addEventListener("click", () => appendSelectedItems("采集条追加当前选中"));
+    els.collectorAnalyzeBtn.addEventListener("click", async () => {
+      await exitCollectorMode();
+      await analyzeSelected();
+    });
+    els.collectorClearBtn.addEventListener("click", () => clearSelectedQueue());
+    els.collectorExpandBtn.addEventListener("click", exitCollectorMode);
+    els.collectorCloseBtn.addEventListener("click", closePluginWindow);
+    els.selectedItems.addEventListener("click", handleMediaPreviewClick);
+    els.selectedItemsFullList.addEventListener("click", handleMediaPreviewClick);
+    els.results.addEventListener("click", handleMediaPreviewClick);
+    els.selectedItems.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "selected-panel"));
+    els.selectedItemsFullList.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "selected-panel"));
+    els.tagPool.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "tag-pool"));
+    els.results.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "results"));
     els.refreshTagsBtn.addEventListener("click", refreshTags);
     els.importDefaultsBtn.addEventListener("click", importDefaultTags);
     els.addTagBtn.addEventListener("click", addCustomTag);
@@ -107,15 +241,32 @@
     els.globalPrompt.addEventListener("input", saveSettings);
     els.clearResultsBtn.addEventListener("click", () => {
       state.results = [];
+      saveResultsState();
+      resetAnalysisProgress();
+      resetWriteProgress();
       renderResults();
     });
+    els.resultFilterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        state.activeResultFilter = button.dataset.resultFilter || "all";
+        renderResults();
+      });
+    });
+    els.retryFailedBtn.addEventListener("click", retryFailedResults);
+    els.runHealthCheckBtn.addEventListener("click", () => runHealthCheck({ silent: false }));
+    els.analysisPresetSelect.addEventListener("change", () => {
+      state.activePresetName = els.analysisPresetSelect.value || "";
+      saveSettings();
+      renderPresetHint();
+    });
+    els.applyPresetBtn.addEventListener("click", () => applyAnalysisPreset(els.analysisPresetSelect.value));
     els.refreshBackendStatusBtn.addEventListener("click", () => {
       refreshModelStatus();
       saveSettings();
     });
     [
-      "maxTags", "concurrency", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit", "maxVideoFrames",
-      "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence", "writeAnnotation", "diagnosticEnabled",
+      "maxTags", "concurrency", "aiRetryCount", "requestChunkK", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit", "maxVideoFrames",
+      "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence", "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled",
       "enableClaudeCli", "enableCodexCli", "enableEagleAi", "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel",
       "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir"
     ].forEach((id) => {
@@ -128,14 +279,18 @@
   }
 
   async function refreshAll() {
-    await Promise.all([refreshTags(), refreshSelection(), refreshModelStatus()]);
+    await Promise.all([refreshTags(), refreshModelStatus()]);
     renderAll();
   }
 
-  function closePluginWindow() {
+  async function closePluginWindow() {
     closeSettingsDrawer();
+    abortCurrentAnalysis();
     try {
-      const eagleWindow = window.eagle && (eagle.window || eagle.pluginWindow);
+      const eagleWindow = getPluginWindowApi();
+      if (document.body.classList.contains("collector-mode")) {
+        markWorkbenchRestorePending();
+      }
       if (eagleWindow && typeof eagleWindow.close === "function") {
         eagleWindow.close();
         return;
@@ -149,6 +304,630 @@
     } catch (error) {
       setStatus(`关闭窗口失败：${formatError(error)}`);
     }
+  }
+
+  function getPluginWindowApi() {
+    return window.eagle && (eagle.window || eagle.pluginWindow);
+  }
+
+  async function getCurrentWindowBounds(eagleWindow) {
+    if (eagleWindow && typeof eagleWindow.getBounds === "function") {
+      const bounds = await eagleWindow.getBounds();
+      if (bounds && typeof bounds === "object") return normalizeBounds(bounds);
+    }
+    return {
+      x: Math.max(0, window.screenX || 0),
+      y: Math.max(0, window.screenY || 0),
+      width: Math.max(1180, window.outerWidth || 1180),
+      height: Math.max(760, window.outerHeight || 760)
+    };
+  }
+
+  function normalizeBounds(bounds) {
+    return {
+      x: Number(bounds.x ?? bounds.left ?? 0) || 0,
+      y: Number(bounds.y ?? bounds.top ?? 0) || 0,
+      width: Number(bounds.width ?? COLLECTOR_WINDOW_BOUNDS.width) || COLLECTOR_WINDOW_BOUNDS.width,
+      height: Number(bounds.height ?? COLLECTOR_WINDOW_BOUNDS.height) || COLLECTOR_WINDOW_BOUNDS.height
+    };
+  }
+
+  function readFiniteNumber(value, fallback) {
+    const next = Number(value);
+    return Number.isFinite(next) ? next : fallback;
+  }
+
+  function readPositiveNumber(value, fallback) {
+    const next = Number(value);
+    return Number.isFinite(next) && next > 0 ? next : fallback;
+  }
+
+  function clampNumber(value, min, max) {
+    if (max < min) return min;
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function getAvailableScreenBounds(fallbackBounds) {
+    const screenInfo = window.screen || {};
+    return {
+      left: readFiniteNumber(screenInfo.availLeft, fallbackBounds.x || 0),
+      top: readFiniteNumber(screenInfo.availTop, fallbackBounds.y || 0),
+      width: readPositiveNumber(screenInfo.availWidth, fallbackBounds.width || COLLECTOR_WINDOW_BOUNDS.width),
+      height: readPositiveNumber(screenInfo.availHeight, fallbackBounds.height || COLLECTOR_WINDOW_BOUNDS.height)
+    };
+  }
+
+  function clampCollectorWindowBounds(bounds, screenBounds) {
+    const maxWidth = Math.max(1, screenBounds.width - COLLECTOR_SCREEN_MARGIN * 2);
+    const maxHeight = Math.max(1, screenBounds.height - COLLECTOR_SCREEN_MARGIN * 2);
+    const width = Math.min(bounds.width, maxWidth);
+    const height = Math.min(bounds.height, maxHeight);
+    const minX = screenBounds.left + COLLECTOR_SCREEN_MARGIN;
+    const maxX = screenBounds.left + screenBounds.width - width - COLLECTOR_SCREEN_MARGIN;
+    const minY = screenBounds.top + COLLECTOR_SCREEN_MARGIN;
+    const maxY = screenBounds.top + screenBounds.height - height - COLLECTOR_SCREEN_MARGIN;
+    const x = clampNumber(bounds.x, minX, maxX);
+    const y = clampNumber(bounds.y, minY, maxY);
+    return {
+      x: Math.round(x),
+      y: Math.round(y),
+      width: Math.round(width),
+      height: Math.round(height)
+    };
+  }
+
+  function isCollectorSizedBounds(bounds) {
+    return Boolean(
+      bounds
+      && bounds.width <= COLLECTOR_WINDOW_BOUNDS.width + COLLECTOR_RESTORE_TOLERANCE
+      && bounds.height <= COLLECTOR_WINDOW_BOUNDS.height + COLLECTOR_RESTORE_TOLERANCE
+    );
+  }
+
+  function getWorkbenchWindowBounds(sourceBounds = {}) {
+    const screenBounds = getAvailableScreenBounds(sourceBounds);
+    const useDefaultSize = isCollectorSizedBounds(sourceBounds);
+    const width = useDefaultSize ? WORKBENCH_WINDOW_BOUNDS.width : readPositiveNumber(sourceBounds.width, WORKBENCH_WINDOW_BOUNDS.width);
+    const height = useDefaultSize ? WORKBENCH_WINDOW_BOUNDS.height : readPositiveNumber(sourceBounds.height, WORKBENCH_WINDOW_BOUNDS.height);
+    const defaultX = screenBounds.left + (screenBounds.width - width) / 2;
+    const defaultY = screenBounds.top + (screenBounds.height - height) / 2;
+    return clampCollectorWindowBounds({
+      x: useDefaultSize ? defaultX : readFiniteNumber(sourceBounds.x, defaultX),
+      y: useDefaultSize ? defaultY : readFiniteNumber(sourceBounds.y, defaultY),
+      width,
+      height
+    }, screenBounds);
+  }
+
+  function markWorkbenchRestorePending() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.restoreWorkbenchBounds, "1");
+    } catch (error) {
+      // The current bounds check on next launch is still a fallback if storage is unavailable.
+    }
+  }
+
+  function consumeWorkbenchRestorePending() {
+    try {
+      const pending = localStorage.getItem(STORAGE_KEYS.restoreWorkbenchBounds) === "1";
+      if (pending) localStorage.removeItem(STORAGE_KEYS.restoreWorkbenchBounds);
+      return pending;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async function restoreWorkbenchWindow(eagleWindow, options = {}) {
+    document.body.classList.remove("collector-mode");
+    if (els.collectorBar) els.collectorBar.hidden = true;
+    if (!eagleWindow) return;
+    if (typeof eagleWindow.setResizable === "function") await eagleWindow.setResizable(true);
+    const sourceBounds = state.collectorPreviousBounds || await getCurrentWindowBounds(eagleWindow);
+    await setWindowBounds(eagleWindow, getWorkbenchWindowBounds(sourceBounds));
+    if (typeof eagleWindow.setAlwaysOnTop === "function") await eagleWindow.setAlwaysOnTop(state.collectorPreviousAlwaysOnTop);
+    if (options.clearCollectorState !== false) state.collectorPreviousBounds = null;
+  }
+
+  async function ensureWorkbenchWindowBounds() {
+    try {
+      const eagleWindow = getPluginWindowApi();
+      if (!eagleWindow) return;
+      const bounds = await getCurrentWindowBounds(eagleWindow);
+      const restorePending = consumeWorkbenchRestorePending();
+      if (restorePending || isCollectorSizedBounds(bounds)) {
+        await restoreWorkbenchWindow(eagleWindow, { clearCollectorState: false });
+      }
+    } catch (error) {
+      setStatus(`恢复工作台窗口尺寸失败：${formatError(error)}`);
+    }
+  }
+
+  async function getCurrentAlwaysOnTop(eagleWindow) {
+    if (eagleWindow && typeof eagleWindow.isAlwaysOnTop === "function") {
+      return Boolean(await eagleWindow.isAlwaysOnTop());
+    }
+    return false;
+  }
+
+  async function getCollectorWindowBounds(eagleWindow) {
+    const current = await getCurrentWindowBounds(eagleWindow);
+    const screenBounds = getAvailableScreenBounds(current);
+    const ideal = {
+      x: screenBounds.left + (screenBounds.width - COLLECTOR_WINDOW_BOUNDS.width) / 2,
+      y: screenBounds.top + COLLECTOR_WINDOW_BOUNDS.topOffset,
+      width: COLLECTOR_WINDOW_BOUNDS.width,
+      height: COLLECTOR_WINDOW_BOUNDS.height
+    };
+    return clampCollectorWindowBounds(ideal, screenBounds);
+  }
+
+  async function setWindowBounds(eagleWindow, bounds) {
+    if (!eagleWindow || !bounds) return;
+    if (typeof eagleWindow.setBounds === "function") {
+      await eagleWindow.setBounds(bounds);
+      return;
+    }
+    if (typeof eagleWindow.setSize === "function") {
+      await eagleWindow.setSize(bounds.width, bounds.height);
+    }
+    if (typeof eagleWindow.setPosition === "function") {
+      await eagleWindow.setPosition(bounds.x, bounds.y);
+    }
+  }
+
+  async function enterCollectorMode() {
+    closeSelectedListDialog();
+    closeSettingsDrawer();
+    document.body.classList.add("collector-mode");
+    if (els.collectorBar) els.collectorBar.hidden = false;
+    updateCollectorBar();
+    try {
+      const eagleWindow = getPluginWindowApi();
+      if (eagleWindow && !state.collectorPreviousBounds) {
+        state.collectorPreviousBounds = await getCurrentWindowBounds(eagleWindow);
+        state.collectorPreviousAlwaysOnTop = await getCurrentAlwaysOnTop(eagleWindow);
+      }
+      if (eagleWindow && typeof eagleWindow.setResizable === "function") await eagleWindow.setResizable(false);
+      if (eagleWindow && typeof eagleWindow.setAlwaysOnTop === "function") await eagleWindow.setAlwaysOnTop(true);
+      await setWindowBounds(eagleWindow, await getCollectorWindowBounds(eagleWindow));
+      if (eagleWindow && typeof eagleWindow.showInactive === "function") await eagleWindow.showInactive();
+    } catch (error) {
+      setStatus(`切换采集条失败：${formatError(error)}`);
+    }
+  }
+
+  async function exitCollectorMode() {
+    try {
+      const eagleWindow = getPluginWindowApi();
+      await restoreWorkbenchWindow(eagleWindow);
+    } catch (error) {
+      setStatus(`展开工作台失败：${formatError(error)}`);
+    }
+  }
+
+  function openWorkbenchContextMenu(event, scope) {
+    event.preventDefault();
+    event.stopPropagation();
+    const itemRow = event.target.closest("[data-item-id]");
+    const resultCard = event.target.closest("[data-result-id]");
+    const poolTag = event.target.closest("[data-pool-tag]");
+    const reviewTag = event.target.closest("[data-review-tag-name]");
+    if (itemRow) {
+      openContextMenu(event, [
+        { label: "分析此素材", action: () => analyzeSingleItem(itemRow.dataset.itemId) },
+        { label: "从列表移除", action: () => removeSelectedItem(itemRow.dataset.itemId) },
+        { label: "复制文件路径", action: () => copyItemPath(itemRow.dataset.itemId) }
+      ]);
+      return;
+    }
+    if (reviewTag) {
+      openContextMenu(event, [
+        { label: "移除此标签", action: () => removeReviewTag(reviewTag.dataset.resultId, reviewTag.dataset.reviewTagName) },
+        { label: "复制标签名", action: () => copyText(reviewTag.dataset.reviewTagName) }
+      ]);
+      return;
+    }
+    if (resultCard) {
+      const resultId = resultCard.dataset.resultId;
+      const result = state.results.find((item) => item.id === resultId);
+      openContextMenu(event, [
+        { label: "重新分析", action: () => reanalyzeResult(resultId), disabled: state.running },
+        { label: "写入此项标签", action: () => applySingleResult(resultId), disabled: !result || result.status !== "ready" || !getSelectedReviewTags(result).length },
+        { label: "复制推荐标签", action: () => copyResultTags(resultId), disabled: !result || !getSelectedReviewTags(result).length },
+        { label: "从结果中移除", action: () => removeResult(resultId) }
+      ]);
+      return;
+    }
+    if (poolTag) {
+      openContextMenu(event, [
+        { label: "复制标签名", action: () => copyText(poolTag.dataset.poolTag) },
+        { label: "从本次标签池移除", action: () => removeFromPool(poolTag.dataset.poolTag) }
+      ]);
+      return;
+    }
+    if (scope === "tag-pool") return;
+    openContextMenu(event, [
+      { label: "追加当前选中", action: () => appendSelectedItems("右键菜单追加当前选中") },
+      { label: "替换为当前选中", action: () => replaceSelectedItems("右键菜单替换当前选中") },
+      { label: "清空待分析素材", action: () => clearSelectedQueue() },
+      { label: "展开素材", action: openSelectedListDialog, disabled: !state.selectedItems.length },
+      { label: "进入置顶采集", action: enterCollectorMode }
+    ]);
+  }
+
+  function openContextMenu(event, items) {
+    const availableItems = items.filter((item) => !item.hidden);
+    const nativeMenu = window.eagle && eagle.contextMenu && eagle.contextMenu.open;
+    if (typeof nativeMenu === "function") {
+      nativeMenu.call(eagle.contextMenu, availableItems.map((item) => ({
+        label: item.label,
+        disabled: Boolean(item.disabled),
+        enabled: !item.disabled,
+        click: item.disabled ? undefined : item.action
+      })));
+      return;
+    }
+    showFallbackContextMenu(event, availableItems);
+  }
+
+  function showFallbackContextMenu(event, items) {
+    closeFallbackContextMenu();
+    const menu = document.createElement("div");
+    menu.className = "context-menu";
+    menu.style.left = `${Math.min(event.clientX, window.innerWidth - 190)}px`;
+    menu.style.top = `${Math.min(event.clientY, window.innerHeight - 40)}px`;
+    items.forEach((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = item.label;
+      button.disabled = Boolean(item.disabled);
+      button.addEventListener("click", () => {
+        closeFallbackContextMenu();
+        if (!item.disabled) item.action();
+      });
+      menu.appendChild(button);
+    });
+    document.body.appendChild(menu);
+    window.setTimeout(() => {
+      document.addEventListener("click", closeFallbackContextMenu, { once: true });
+    }, 0);
+  }
+
+  function closeFallbackContextMenu() {
+    document.querySelectorAll(".context-menu").forEach((menu) => menu.remove());
+  }
+
+  async function analyzeSingleItem(itemId) {
+    const item = state.selectedItems.find((candidate) => getItemId(candidate) === itemId);
+    if (!item) {
+      setStatus("找不到这个素材，请重新导入当前选中素材后再试。");
+      return;
+    }
+    state.results = state.results.filter((result) => result.id !== itemId);
+    state.results.push(createPendingResult(item));
+    saveResultsState();
+    renderAll();
+    await analyzeSelected();
+  }
+
+  function removeSelectedItem(itemId) {
+    state.selectedItems = state.selectedItems.filter((item) => getItemId(item) !== itemId);
+    state.results = state.results.filter((result) => result.id !== itemId);
+    saveResultsState();
+    renderAll();
+    setStatus("已从待分析列表移除 1 个素材。");
+  }
+
+  function removeResult(resultId) {
+    state.results = state.results.filter((result) => result.id !== resultId);
+    saveResultsState();
+    resetAnalysisProgress();
+    renderAll();
+    setStatus("已从结果中移除 1 项。");
+  }
+
+  async function applySingleResult(resultId) {
+    if (state.writing || state.running) return;
+    const result = state.results.find((item) => item.id === resultId);
+    const selectedTags = result ? getSelectedReviewTags(result) : [];
+    if (!result || result.status !== "ready" || !selectedTags.length) {
+      setStatus("这个结果没有可写入的标签。");
+      return;
+    }
+    const item = state.selectedItems.find((candidate) => getItemId(candidate) === resultId);
+    if (!item || item.external || typeof item.save !== "function") {
+      updateResult(resultId, { status: "ready", message: "找不到可写回的 Eagle 素材", errorType: "write" });
+      return;
+    }
+    state.writing = true;
+    updateWriteProgress(0, 1, 0);
+    try {
+      const settings = readSettings();
+      await mergeTagsIntoItem(item, selectedTags.map((tag) => tag.name), settings.writeAnnotation ? result.aiReason : "", "右键菜单写入标签");
+      updateResult(resultId, { status: "applied", message: "已写入 Eagle", errorType: "" });
+      updateWriteProgress(1, 1, 0, "已写入 1 个素材。");
+      setStatus("已写入 1 个素材。");
+    } catch (error) {
+      updateResult(resultId, { status: "ready", message: `写入失败：${formatError(error)}`, errorType: "write" });
+      updateWriteProgress(1, 1, 1, "写入失败 1 个素材。");
+    } finally {
+      state.writing = false;
+      renderAll();
+    }
+  }
+
+  function copyItemPath(itemId) {
+    const item = state.selectedItems.find((candidate) => getItemId(candidate) === itemId);
+    copyText(getItemFilePath(item));
+  }
+
+  function copyResultTags(resultId) {
+    const result = state.results.find((item) => item.id === resultId);
+    copyText(getSelectedReviewTags(result || {}).map((tag) => tag.name).join("、"));
+  }
+
+  async function copyText(text) {
+    const value = String(text || "");
+    if (!value) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = value;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        input.remove();
+      }
+      setStatus("已复制到剪贴板。");
+    } catch (error) {
+      setStatus(`复制失败：${formatError(error)}`);
+    }
+  }
+
+  function openSelectedListDialog() {
+    if (!els.selectedListDialog || !els.selectedListOverlay) return;
+    renderSelectedFullList();
+    els.selectedListOverlay.hidden = false;
+    els.selectedListDialog.hidden = false;
+    requestAnimationFrame(() => {
+      els.selectedListOverlay.classList.add("is-open");
+      els.selectedListDialog.classList.add("is-open");
+      els.selectedListDialog.setAttribute("aria-hidden", "false");
+    });
+  }
+
+  function closeSelectedListDialog() {
+    if (!els.selectedListDialog || !els.selectedListOverlay || els.selectedListOverlay.hidden) return;
+    els.selectedListOverlay.classList.remove("is-open");
+    els.selectedListDialog.classList.remove("is-open");
+    els.selectedListDialog.setAttribute("aria-hidden", "true");
+    window.setTimeout(() => {
+      if (!els.selectedListOverlay.classList.contains("is-open")) {
+        els.selectedListOverlay.hidden = true;
+        els.selectedListDialog.hidden = true;
+      }
+    }, 180);
+  }
+
+  function handleMediaPreviewClick(event) {
+    const removeButton = event.target.closest("[data-remove-selected-item]");
+    if (removeButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      removeSelectedItem(removeButton.dataset.removeSelectedItem);
+      return;
+    }
+    const itemButton = event.target.closest("[data-preview-item]");
+    if (itemButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      openMediaPreview({ itemId: itemButton.dataset.previewItem });
+      return;
+    }
+    const resultButton = event.target.closest("[data-preview-result]");
+    if (resultButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      openMediaPreview({ resultId: resultButton.dataset.previewResult });
+    }
+  }
+
+  function openMediaPreview({ itemId = "", resultId = "" } = {}) {
+    const resolvedItemId = itemId || resultId;
+    const order = resultId
+      ? getFilteredResults().map((result) => result.id)
+      : state.selectedItems.map(getItemId);
+    state.mediaPreview = {
+      open: true,
+      itemId: resolvedItemId,
+      resultId,
+      order: order.length ? order : [resolvedItemId].filter(Boolean)
+    };
+    if (els.mediaPreviewOverlay) els.mediaPreviewOverlay.hidden = false;
+    if (els.mediaPreviewDialog) els.mediaPreviewDialog.hidden = false;
+    renderMediaPreview();
+    requestAnimationFrame(() => {
+      els.mediaPreviewOverlay.classList.add("is-open");
+      els.mediaPreviewDialog.classList.add("is-open");
+      els.mediaPreviewDialog.setAttribute("aria-hidden", "false");
+    });
+  }
+
+  function closeMediaPreview() {
+    if (!els.mediaPreviewDialog || !els.mediaPreviewOverlay || els.mediaPreviewOverlay.hidden) return;
+    els.mediaPreviewOverlay.classList.remove("is-open");
+    els.mediaPreviewDialog.classList.remove("is-open");
+    els.mediaPreviewDialog.setAttribute("aria-hidden", "true");
+    state.mediaPreview.open = false;
+    if (els.mediaPreviewBody) els.mediaPreviewBody.innerHTML = "";
+    window.setTimeout(() => {
+      if (!els.mediaPreviewOverlay.classList.contains("is-open")) {
+        els.mediaPreviewOverlay.hidden = true;
+        els.mediaPreviewDialog.hidden = true;
+      }
+    }, 180);
+  }
+
+  function navigateMediaPreview(delta) {
+    const order = Array.isArray(state.mediaPreview.order) ? state.mediaPreview.order.filter(Boolean) : [];
+    if (!order.length) return;
+    const currentId = state.mediaPreview.resultId || state.mediaPreview.itemId;
+    const currentIndex = Math.max(0, order.indexOf(currentId));
+    const nextIndex = (currentIndex + delta + order.length) % order.length;
+    const nextId = order[nextIndex];
+    if (state.mediaPreview.resultId) {
+      openMediaPreview({ resultId: nextId });
+    } else {
+      openMediaPreview({ itemId: nextId });
+    }
+  }
+
+  function buildMediaPreviewModel({ itemId = "", resultId = "" } = {}) {
+    const resolvedId = itemId || resultId;
+    const result = state.results.find((candidate) => candidate.id === (resultId || resolvedId)) || null;
+    const item = state.selectedItems.find((candidate) => getItemId(candidate) === resolvedId) || null;
+    const sourcePath = getItemFilePath(item || {}) || (result && result.diagnostics && result.diagnostics.sourcePath) || "";
+    const previewPath = getItemPreviewPath(item || {}) || (result && result.diagnostics && result.diagnostics.previewPath) || "";
+    const sourceExt = getMediaExt(item || result || {}, sourcePath || result && result.name || "");
+    const previewExt = getMediaExt({}, previewPath);
+    const firstDiagnosticUrl = getFirstDiagnosticImageUrl(result && result.diagnostics);
+    let kind = "unknown";
+    let mediaPath = "";
+    if (sourcePath && VIDEO_EXTS.has(sourceExt)) {
+      kind = "video";
+      mediaPath = sourcePath;
+    } else if (sourcePath && isPreviewableImageExt(sourceExt)) {
+      kind = "image";
+      mediaPath = sourcePath;
+    } else if (previewPath && isPreviewableImageExt(previewExt)) {
+      kind = "image";
+      mediaPath = previewPath;
+    }
+    const fallbackPath = previewPath && previewPath !== mediaPath ? previewPath : "";
+    return {
+      item,
+      result,
+      itemId: resolvedId,
+      resultId: result ? result.id : "",
+      name: result && result.name ? result.name : item ? getItemName(item) : "未命名素材",
+      kind,
+      sourcePath: mediaPath,
+      originalPath: sourcePath,
+      previewPath,
+      sourceUrl: mediaPath ? toFileUrl(mediaPath) : "",
+      fallbackUrl: fallbackPath ? toFileUrl(fallbackPath) : firstDiagnosticUrl,
+      firstDiagnosticUrl,
+      tags: result && Array.isArray(result.reviewTags) ? result.reviewTags : [],
+      reason: result && result.aiReason ? result.aiReason : "",
+      status: result ? stateLabel(result.status) : "待分析",
+      backend: result && result.aiBackend ? formatBackendLabel(result.aiBackend) : "",
+      confidence: result && typeof result.confidence === "number" ? formatConfidence(result.confidence) : ""
+    };
+  }
+
+  function renderMediaPreview() {
+    if (!state.mediaPreview.open || !els.mediaPreviewDialog) return;
+    const model = buildMediaPreviewModel(state.mediaPreview);
+    els.mediaPreviewTitle.textContent = model.name;
+    els.mediaPreviewMeta.textContent = [model.status, model.backend, model.confidence, shortPath(model.originalPath || model.previewPath)]
+      .filter(Boolean)
+      .join(" · ");
+    els.mediaPreviewStatus.textContent = model.kind === "video"
+      ? "插件内尝试播放视频；如果编码不支持，可用 Eagle 打开。"
+      : model.kind === "image"
+        ? "插件内预览图片。"
+        : "没有可直接预览的本地媒体，可尝试用 Eagle 打开。";
+    els.mediaPreviewTags.innerHTML = renderMediaPreviewTags(model);
+    bindMediaPreviewTagEvents();
+    els.mediaPreviewReason.innerHTML = model.reason ? `AI 说明：${escapeHtml(model.reason)}` : "";
+    els.mediaPreviewOpenEagleBtn.disabled = !model.itemId;
+    const orderCount = state.mediaPreview.order.length;
+    els.mediaPreviewPrevBtn.disabled = orderCount < 2;
+    els.mediaPreviewNextBtn.disabled = orderCount < 2;
+    if (model.kind === "video" && model.sourceUrl) {
+      els.mediaPreviewBody.innerHTML = `<video controls preload="metadata" src="${escapeHtml(model.sourceUrl)}"></video>`;
+      const video = els.mediaPreviewBody.querySelector("video");
+      if (video) video.addEventListener("error", () => handleMediaPreviewVideoError(model), { once: true });
+    } else if (model.kind === "image" && model.sourceUrl) {
+      els.mediaPreviewBody.innerHTML = `<img src="${escapeHtml(model.sourceUrl)}" alt="${escapeHtml(model.name)}">`;
+    } else if (model.fallbackUrl) {
+      els.mediaPreviewBody.innerHTML = `<img src="${escapeHtml(model.fallbackUrl)}" alt="${escapeHtml(model.name)}">`;
+    } else {
+      els.mediaPreviewBody.innerHTML = `<div class="media-preview-empty">这个素材没有可直接读取的预览路径。可以用 Eagle 打开，或重新导入素材后再试。</div>`;
+    }
+  }
+
+  function renderMediaPreviewTags(model) {
+    const tags = Array.isArray(model.tags) ? model.tags : [];
+    if (!tags.length) return `<div class="media-preview-empty">还没有待确认标签。</div>`;
+    return tags.map((tag) => `
+      <span class="review-tag ${tag.source === "manual" ? "manual" : ""}">
+        <input type="checkbox" data-preview-result-id="${escapeHtml(model.resultId)}" data-preview-review-tag="${escapeHtml(tag.name)}" ${tag.selected ? "checked" : ""}>
+        <span>${escapeHtml(tag.name)}</span>
+        <strong>${tag.source === "manual" ? "人工" : formatConfidence(tag.confidence)}</strong>
+        <button class="review-tag-remove" type="button" data-preview-result-id="${escapeHtml(model.resultId)}" data-preview-remove-review-tag="${escapeHtml(tag.name)}" title="删除标签">×</button>
+      </span>
+    `).join("");
+  }
+
+  function bindMediaPreviewTagEvents() {
+    els.mediaPreviewTags.querySelectorAll("[data-preview-review-tag]").forEach((input) => {
+      input.addEventListener("change", () => toggleReviewTag(input.dataset.previewResultId, input.dataset.previewReviewTag, input.checked));
+    });
+    els.mediaPreviewTags.querySelectorAll("[data-preview-remove-review-tag]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        removeReviewTag(button.dataset.previewResultId, button.dataset.previewRemoveReviewTag);
+      });
+    });
+  }
+
+  function handleMediaPreviewVideoError(model) {
+    const fallbackUrl = model.fallbackUrl || model.firstDiagnosticUrl;
+    if (fallbackUrl) {
+      els.mediaPreviewBody.innerHTML = `<img src="${escapeHtml(fallbackUrl)}" alt="${escapeHtml(model.name)}">`;
+      els.mediaPreviewStatus.textContent = "插件内视频播放失败，已改为显示缩略图或诊断帧；完整播放请用 Eagle 打开。";
+      return;
+    }
+    els.mediaPreviewBody.innerHTML = `<div class="media-preview-empty">插件内视频播放失败，也没有可用缩略图。请用 Eagle 打开。</div>`;
+    els.mediaPreviewStatus.textContent = "插件内视频播放失败，请用 Eagle 打开。";
+  }
+
+  async function openPreviewInEagle() {
+    const model = buildMediaPreviewModel(state.mediaPreview);
+    try {
+      if (model.item && typeof model.item.open === "function") {
+        await model.item.open({ window: true });
+      } else if (window.eagle && eagle.item && typeof eagle.item.open === "function" && model.itemId) {
+        await eagle.item.open(model.itemId, { window: true });
+      } else {
+        setStatus("当前 Eagle 版本或素材对象不支持直接打开预览。");
+        return;
+      }
+      setStatus("已交给 Eagle 打开素材预览。");
+    } catch (error) {
+      setStatus(`Eagle 打开预览失败：${formatError(error)}`);
+    }
+  }
+
+  function getFirstDiagnosticImageUrl(diagnostics) {
+    if (!diagnostics || !Array.isArray(diagnostics.images)) return "";
+    const image = diagnostics.images.find((candidate) => candidate && candidate.exists && (candidate.previewUrl || candidate.url));
+    return image ? image.previewUrl || image.url : "";
+  }
+
+  function isPreviewableImageExt(ext) {
+    const normalized = String(ext || "").toLowerCase();
+    return STATIC_IMAGE_EXTS.has(normalized) || ANIMATED_EXTS.has(normalized) || normalized === WEBP_EXT || normalized === "svg";
+  }
+
+  function getMediaExt(item, filePath) {
+    const ext = getItemExt(item || {}, filePath);
+    if (ext) return ext;
+    return path && filePath ? path.extname(filePath).slice(1).toLowerCase() : "";
   }
 
   async function refreshTags() {
@@ -208,33 +987,110 @@
   }
 
   async function refreshSelection() {
-    await readSelectedItems("刷新选择");
+    await replaceSelectedItems("刷新当前选中");
   }
 
-  async function readSelectedItems(actionName) {
+  async function fetchEagleSelectedItems() {
     if (!window.eagle || !eagle.item) {
+      throw new Error("未检测到 Eagle 项目 API，请在 Eagle 插件窗口中运行。");
+    }
+    if (typeof eagle.item.getSelected === "function") {
+      return await eagle.item.getSelected();
+    }
+    if (typeof eagle.item.get === "function") {
+      return await eagle.item.get({ isSelected: true });
+    }
+    return [];
+  }
+
+  function getQueueKey(item) {
+    const id = getItemId(item);
+    if (id) return `id:${id}`;
+    const filePath = getItemFilePath(item);
+    return filePath ? `path:${filePath}` : `name:${getItemName(item)}`;
+  }
+
+  function mergeSelectedItems(nextItems, mode) {
+    const incoming = Array.isArray(nextItems) ? nextItems.filter(Boolean) : [];
+    const replacing = mode === "replace";
+    if (replacing) {
       state.selectedItems = [];
-      setStatus("未检测到 Eagle 项目 API，请在 Eagle 插件窗口中运行。");
+      state.results = [];
+      resetAnalysisProgress();
+      resetWriteProgress();
+    }
+    const seen = new Set(state.selectedItems.map(getQueueKey));
+    const addedItems = [];
+    let skipped = 0;
+    incoming.forEach((item) => {
+      const key = getQueueKey(item);
+      if (seen.has(key)) {
+        skipped += 1;
+        return;
+      }
+      seen.add(key);
+      addedItems.push(item);
+    });
+    state.selectedItems = [...state.selectedItems, ...addedItems];
+    state.itemSource = "eagle";
+    saveResultsState();
+    renderAll();
+    return { added: addedItems.length, skipped, total: incoming.length };
+  }
+
+  async function appendSelectedItems(actionName, options = {}) {
+    try {
+      const nextItems = await fetchEagleSelectedItems();
+      const summary = mergeSelectedItems(nextItems, "append");
+      if (!summary.total && !options.silentWhenEmpty) {
+        setStatus("没有读取到 Eagle 当前选中素材。");
+      } else if (summary.added) {
+        setStatus(`${actionName}：新增 ${summary.added} 个，跳过已存在 ${summary.skipped} 个。`);
+      } else if (summary.total && !options.silentWhenEmpty) {
+        setStatus("当前选中素材已在待分析列表中。");
+      }
+    } catch (error) {
+      setStatus(`读取选中素材失败：${formatError(error)}`);
       renderAll();
+    }
+  }
+
+  async function replaceSelectedItems(actionName) {
+    try {
+      const nextItems = await fetchEagleSelectedItems();
+      if (!nextItems.length) {
+        setStatus("没有读取到 Eagle 当前选中素材，待分析列表保持不变。");
+        return;
+      }
+      const summary = mergeSelectedItems(nextItems, "replace");
+      setStatus(`${actionName}：已导入 ${summary.added} 个 Eagle 选中素材。`);
+    } catch (error) {
+      setStatus(`读取选中素材失败：${formatError(error)}，待分析列表保持不变。`);
+      renderAll();
+    }
+  }
+
+  function clearSelectedQueue(options = {}) {
+    if (state.running || state.writing) {
+      setStatus("正在分析或写入，不能清空待分析素材。");
       return;
     }
-    try {
-      if (typeof eagle.item.getSelected === "function") {
-        state.selectedItems = await eagle.item.getSelected();
-      } else if (typeof eagle.item.get === "function") {
-        state.selectedItems = await eagle.item.get({ isSelected: true });
-      } else {
-        state.selectedItems = [];
-      }
-      state.itemSource = "eagle";
-      state.results = [];
-      setStatus(`${actionName}：已读取 ${state.selectedItems.length} 个 Eagle 选中素材`);
-    } catch (error) {
-      state.selectedItems = [];
-      state.results = [];
-      setStatus(`读取选中素材失败：${formatError(error)}`);
+    const hasContent = state.selectedItems.length || state.results.length;
+    if (!hasContent) {
+      setStatus("待分析素材已经是空的。");
+      return;
     }
+    if (!options.skipConfirm && typeof window.confirm === "function" && !window.confirm("清空待分析素材和当前分析结果？")) {
+      return;
+    }
+    closeSelectedListDialog();
+    state.selectedItems = [];
+    state.results = [];
+    resetAnalysisProgress();
+    resetWriteProgress();
+    saveResultsState();
     renderAll();
+    setStatus("已清空待分析素材和当前分析结果。");
   }
 
   async function refreshModelStatus() {
@@ -323,7 +1179,7 @@
   }
 
   async function importSelectedItems() {
-    await readSelectedItems("导入选中素材");
+    await appendSelectedItems("追加当前选中");
   }
 
   function importDefaultTags() {
@@ -366,12 +1222,14 @@
     }
     const settings = readSettings();
     const model = settings.enabledBackends.includes("eagle") ? getAiModel() : null;
+    if (!await ensureHealthyBeforeAnalysis(settings, model)) return;
     const usableBackends = getUsableBackends(settings, model);
     if (!usableBackends.length) {
       setStatus("没有可用 AI 后端：请启用 Claude/Codex CLI，或配置 Eagle 默认视觉模型。");
       return;
     }
     settings.enabledBackends = usableBackends;
+    if (!ensureDiagnosticSettings(settings)) return;
     const existingResults = new Map(state.results.map((result) => [result.id, result]));
     const hasPendingResults = state.results.some((result) => result.status === "pending");
     const itemsToAnalyze = hasPendingResults
@@ -387,8 +1245,13 @@
     state.running = true;
     state.pauseRequested = false;
     state.paused = false;
+    state.analysisAbortController = createAnalysisAbortController();
+    let processed = 0;
+    updateAnalysisProgress(processed, itemsToAnalyze.length, itemsToAnalyze[0], { stage: "准备队列", itemProgress: 0.02 });
     if (!hasPendingResults) {
       state.results = state.selectedItems.map((item) => createPendingResult(item));
+      resetWriteProgress();
+      saveResultsState();
     }
     renderAll();
     setControlsBusy(true);
@@ -396,32 +1259,57 @@
     try {
       await runWithConcurrency(itemsToAnalyze, settings.concurrency, async (item) => {
         const current = state.results.find((result) => result.id === getItemId(item));
-        if (!current) return;
-        updateResult(current.id, { status: "running", message: "分析中" });
+        let lastStage = "";
+        const reportStage = (stage, itemProgress) => {
+          updateAnalysisProgress(processed, itemsToAnalyze.length, item, { stage, itemProgress: Math.min(itemProgress, 0.95) });
+          if (current && stage && stage !== lastStage) {
+            lastStage = stage;
+            updateResult(current.id, { message: `分析中：${stage}` });
+          }
+        };
         try {
+          if (!current) return;
+          updateAnalysisProgress(processed, itemsToAnalyze.length, item, { stage: "准备素材", itemProgress: 0.04 });
+          updateResult(current.id, { status: "running", message: "分析中" });
           if (settings.skipTagged && Array.isArray(item.tags) && item.tags.length) {
             updateResult(current.id, { status: "skipped", message: "已有标签，已跳过" });
             return;
           }
-          const result = await analyzeItem(item, model, allowedTags, settings);
+          const result = await analyzeItem(item, model, allowedTags, settings, reportStage);
           updateResult(current.id, result);
         } catch (error) {
-          updateResult(current.id, {
-            status: "failed",
-            message: formatError(error),
-            errorType: classifyError(error),
-            diagnosticPath: error && error.diagnosticPath ? error.diagnosticPath : current.diagnosticPath,
-            diagnostics: error && error.diagnostics ? error.diagnostics : current.diagnostics,
-            tags: [],
-            reviewTags: [],
-            autoTags: [],
-            filteredTags: []
-          });
+          if (state.pauseRequested && isAnalysisAbortError(error)) {
+            updateResult(current.id, {
+              status: "pending",
+              message: "已暂停，等待继续",
+              errorType: "",
+              tags: [],
+              reviewTags: [],
+              autoTags: [],
+              filteredTags: []
+            });
+          } else {
+            updateResult(current.id, {
+              status: "failed",
+              message: formatError(error),
+              errorType: classifyError(error),
+              diagnosticPath: error && error.diagnosticPath ? error.diagnosticPath : current.diagnosticPath,
+              diagnostics: error && error.diagnostics ? error.diagnostics : current.diagnostics,
+              tags: [],
+              reviewTags: [],
+              autoTags: [],
+              filteredTags: []
+            });
+          }
+        } finally {
+          processed += 1;
+          updateAnalysisProgress(processed, itemsToAnalyze.length, item, { stage: "完成", itemProgress: 1 });
         }
       });
     } finally {
       const paused = state.pauseRequested;
       state.running = false;
+      state.analysisAbortController = null;
       state.pauseRequested = false;
       state.paused = paused && state.results.some((result) => result.status === "pending");
       setControlsBusy(false);
@@ -433,8 +1321,35 @@
   function pauseAnalysis() {
     if (!state.running) return;
     state.pauseRequested = true;
+    abortCurrentAnalysis();
     els.pauseBtn.disabled = true;
-    setStatus("正在暂停：当前正在分析的素材完成后停止，不再派发新素材。");
+    setStatus("正在暂停：本地 CLI 会立即停止，Eagle AI 会在当前请求返回后暂停。");
+  }
+
+  function createAnalysisAbortController() {
+    return typeof AbortController === "function" ? new AbortController() : null;
+  }
+
+  function getAnalysisAbortSignal() {
+    return state.analysisAbortController ? state.analysisAbortController.signal : null;
+  }
+
+  function abortCurrentAnalysis() {
+    const controller = state.analysisAbortController;
+    if (controller && controller.signal && !controller.signal.aborted) {
+      controller.abort();
+    }
+  }
+
+  function isAnalysisAbortError(error) {
+    const message = formatError(error).toLowerCase();
+    return (error && error.name === "AbortError") || message.includes("已停止") || message.includes("abort") || message.includes("中止");
+  }
+
+  function createAnalysisAbortError(message) {
+    const error = new Error(message || "分析已中止");
+    error.name = "AbortError";
+    return error;
   }
 
   async function continueAnalysis() {
@@ -452,15 +1367,21 @@
     await analyzeSelected();
   }
 
-  async function analyzeItem(item, model, allowedTags, settings) {
-    const media = await prepareMedia(item, settings);
+  async function analyzeItem(item, model, allowedTags, settings, onProgress = null) {
+    let media = null;
     let diagnosticPath = "";
     let diagnostics = null;
     try {
+      reportAnalysisStage(onProgress, "准备素材", 0.08);
+      media = await prepareMedia(item, settings, onProgress);
+      reportAnalysisStage(onProgress, `已准备 ${media.frameCount} 张图像`, 0.34);
+      reportAnalysisStage(onProgress, "保存诊断", 0.38);
       const savedDiagnostics = saveDiagnostics(item, media, settings);
       diagnosticPath = savedDiagnostics.path;
       diagnostics = savedDiagnostics.diagnostics;
-      const object = await requestAiTags(item, model, allowedTags, settings, media);
+      reportAnalysisStage(onProgress, "调用 AI", 0.45);
+      const object = await requestAiTagsWithRetry(item, model, allowedTags, settings, media, onProgress);
+      reportAnalysisStage(onProgress, "整理标签", 0.88);
       const candidates = normalizeTagCandidates(Array.isArray(object.tags) ? object.tags : [], object.confidence);
       const allowed = new Set(allowedTags);
       const filteredTags = candidates.filter((tag) => !allowed.has(tag.name)).map((tag) => tag.name);
@@ -477,9 +1398,11 @@
       const hiddenCount = allowedCandidates.filter((tag) => tag.confidence < settings.hideConfidence).length;
       let autoSaved = false;
       if (autoTags.length && typeof item.save === "function" && !item.external) {
+        reportAnalysisStage(onProgress, "写入高置信标签", 0.94);
         await mergeTagsIntoItem(item, autoTags.map((tag) => tag.name), settings.writeAnnotation ? object.reason : "", "自动写入高置信标签");
         autoSaved = true;
       }
+      reportAnalysisStage(onProgress, "完成", 0.98);
       const tags = reviewTags.map((tag) => tag.name);
       const messageParts = [];
       if (object.backend) messageParts.push(`后端：${formatBackendLabel(object.backend)}`);
@@ -498,6 +1421,9 @@
         aiReason: object.reason || "",
         aiBackend: object.backend || "",
         frameCount: media.frameCount,
+        requestCount: object.__requestPlan ? object.__requestPlan.requestCount : 0,
+        mediaChunkCount: object.__requestPlan ? object.__requestPlan.mediaChunkCount : 0,
+        tagChunkCount: object.__requestPlan ? object.__requestPlan.tagChunkCount : 0,
         diagnosticPath,
         diagnostics,
         confidence: clampNumber(object.confidence, 0, 1, 0)
@@ -511,14 +1437,77 @@
     }
   }
 
-  async function requestAiTags(item, model, allowedTags, settings, media) {
+  function reportAnalysisStage(onProgress, stage, itemProgress) {
+    if (typeof onProgress !== "function") return;
+    onProgress(stage, clampNumber(itemProgress, 0, 0.98, 0));
+  }
+
+  async function requestAiTagsWithRetry(item, model, allowedTags, settings, media, onProgress = null) {
+    let lastError = null;
+    const retryCount = clampNumber(settings.aiRetryCount, 0, 10, AI_RETRY_COUNT);
+    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+      try {
+        if (attempt > 0) reportAnalysisStage(onProgress, `重试 AI ${attempt}/${retryCount}`, 0.46);
+        return await requestAiTags(item, model, allowedTags, settings, media, onProgress);
+      } catch (error) {
+        if (isAnalysisAbortError(error)) throw error;
+        lastError = error;
+        if (attempt >= retryCount || !isRetryableAiError(error)) break;
+        reportAnalysisStage(onProgress, `等待重试 ${attempt + 1}/${retryCount}`, 0.46);
+        await delay(AI_RETRY_BASE_DELAY_MS * Math.pow(2, attempt));
+      }
+    }
+    throw new Error(`AI 请求失败，已重试 ${retryCount} 次：${formatError(lastError)}`);
+  }
+
+  async function requestAiTags(item, model, allowedTags, settings, media, onProgress = null) {
+    const plan = buildAiRequestPlan(item, allowedTags, settings, media);
+    reportAnalysisStage(onProgress, "规划请求", 0.42);
+    if (plan.requestCount > 1) {
+      const message = `AI 请求将分为 ${plan.requestCount} 次：图片组 ${plan.mediaChunkCount}，标签组 ${plan.maxTagChunkCount}。`;
+      setStatus(message);
+      updateResult(getItemId(item), {
+        message,
+        requestCount: plan.requestCount,
+        mediaChunkCount: plan.mediaChunkCount,
+        tagChunkCount: plan.maxTagChunkCount
+      });
+    }
+    const objects = [];
+    for (let index = 0; index < plan.requests.length; index += 1) {
+      if (state.pauseRequested) throw createAnalysisAbortError("分析已暂停");
+      const request = plan.requests[index];
+      const requestStart = 0.48 + (index / plan.requestCount) * 0.34;
+      reportAnalysisStage(onProgress, `调用 AI ${index + 1}/${plan.requestCount}`, requestStart);
+      const object = await requestAiTagsSingle(item, model, request.allowedTags, settings, request.media, {
+        ...request.chunkInfo,
+        chunkIndex: index,
+        chunkCount: plan.requestCount
+      });
+      reportAnalysisStage(onProgress, `接收结果 ${index + 1}/${plan.requestCount}`, Math.min(requestStart + 0.18 / plan.requestCount, 0.84));
+      object.__allowedTags = request.allowedTags;
+      object.__chunkInfo = request.chunkInfo;
+      objects.push(object);
+    }
+    reportAnalysisStage(onProgress, "合并结果", 0.86);
+    const merged = mergeAiObjects(objects, plan.requestCount > 1 ? Math.max(settings.maxTags * 3, settings.maxTags + 12) : settings.maxTags);
+    merged.__requestPlan = {
+      requestCount: plan.requestCount,
+      mediaChunkCount: plan.mediaChunkCount,
+      tagChunkCount: plan.maxTagChunkCount
+    };
+    return merged;
+  }
+
+  async function requestAiTagsSingle(item, model, allowedTags, settings, media, chunkInfo = {}) {
     const cliBackendsToTry = settings.enabledBackends.filter((backend) => backend !== "eagle");
     let cliError = null;
     if (cliBackendsToTry.length) {
       try {
-        return await requestCliTags(item, cliBackendsToTry, allowedTags, settings, media);
+        return await requestCliTags(item, cliBackendsToTry, allowedTags, settings, media, chunkInfo);
       } catch (error) {
         cliError = error;
+        if (isAnalysisAbortError(error)) throw error;
         if (!settings.enabledBackends.includes("eagle")) throw error;
       }
     }
@@ -528,22 +1517,26 @@
     if (!model) {
       throw cliError || new Error("未配置默认视觉模型，请先打开 AI 设置。");
     }
-    return requestEagleAiTags(item, model, allowedTags, settings, media);
+    return requestEagleAiTags(item, model, allowedTags, settings, media, chunkInfo);
   }
 
-  async function requestCliTags(item, backends, allowedTags, settings, media) {
+  async function requestCliTags(item, backends, allowedTags, settings, media, chunkInfo = {}) {
     if (!cliBackends || !cp || typeof cp.execFile !== "function") {
       throw new Error("当前 Eagle 插件环境无法调用本地 CLI");
     }
-    const imagePaths = media.images.map(fileUrlToPath).filter(Boolean);
+    const imagePaths = Array.isArray(media.filePaths) && media.filePaths.length
+      ? media.filePaths
+      : media.images.map(fileUrlToPath).filter(Boolean);
     const prompt = cliBackends.createAnalysisPrompt({
       itemName: getItemName(item),
+      includeTitleInPrompt: settings.includeTitleInPrompt,
       mediaKind: media.kind,
       frameCount: media.frameCount,
       allowedTags,
       maxTags: settings.maxTags,
       globalPrompt: settings.globalPrompt,
-      imagePaths
+      imagePaths,
+      chunkInfo
     });
     const result = await cliBackends.runCliBackends({
       backends,
@@ -557,7 +1550,8 @@
       path,
       env: typeof process !== "undefined" ? process.env : undefined,
       execFile: cp.execFile,
-      spawn: cp.spawn
+      spawn: cp.spawn,
+      signal: getAnalysisAbortSignal()
     });
     return {
       ...result.object,
@@ -566,17 +1560,17 @@
     };
   }
 
-  async function requestEagleAiTags(item, model, allowedTags, settings, media) {
+  async function requestEagleAiTags(item, model, allowedTags, settings, media, chunkInfo = {}) {
     const ai = eagle.extraModule.ai;
     const messages = [
       {
         role: "system",
-        content: buildSystemPrompt(allowedTags, settings.maxTags, settings.globalPrompt)
+        content: buildSystemPrompt(allowedTags, settings.maxTags, settings.globalPrompt, chunkInfo)
       },
       {
         role: "user",
         content: [
-          { type: "text", text: buildUserPrompt(item, media.kind, media.frameCount) },
+          { type: "text", text: buildUserPrompt(item, media.kind, media.frameCount, settings, chunkInfo) },
           ...media.images.map((image) => ({ type: "image", image }))
         ]
       }
@@ -595,7 +1589,7 @@
     };
   }
 
-  function buildSystemPrompt(allowedTags, maxTags, globalPrompt) {
+  function buildSystemPrompt(allowedTags, maxTags, globalPrompt, chunkInfo = {}) {
     const promptParts = [
       "你是游戏视觉特效素材标签管理员。",
       "只能从给定标签池中选择标签，禁止创造新标签，禁止输出不在标签池里的同义词。",
@@ -607,6 +1601,12 @@
       "JSON 格式：{\"tags\":[{\"name\":\"标签1\",\"confidence\":0.92},{\"name\":\"标签2\",\"confidence\":0.66}],\"confidence\":0.8,\"reason\":\"简短原因\"}",
       `标签池：${allowedTags.join("、")}`
     ];
+    if (chunkInfo.chunkCount > 1) {
+      const parts = [`这是 AI 请求分块 ${chunkInfo.chunkIndex + 1}/${chunkInfo.chunkCount}`];
+      if (chunkInfo.mediaChunkCount > 1) parts.push(`图片组 ${chunkInfo.mediaChunkIndex + 1}/${chunkInfo.mediaChunkCount}`);
+      if (chunkInfo.tagChunkCount > 1) parts.push(`标签池组 ${chunkInfo.tagChunkIndex + 1}/${chunkInfo.tagChunkCount}`);
+      promptParts.splice(2, 0, `${parts.join("，")}。只从本次请求给出的标签池中选择；最终结果会由插件合并。`);
+    }
     const customPrompt = String(globalPrompt || "").trim();
     if (customPrompt) {
       promptParts.splice(5, 0, `用户全局分析偏好：\n${customPrompt}`, "用户全局分析偏好不能覆盖标签池、JSON 格式和置信度要求。");
@@ -614,39 +1614,196 @@
     return promptParts.join("\n");
   }
 
-  function buildUserPrompt(item, kind, frameCount) {
-    const name = getItemName(item);
+  function buildUserPrompt(item, kind, frameCount, settings = {}, chunkInfo = {}) {
+    const name = settings.includeTitleInPrompt ? `素材“${getItemName(item)}”` : "这个素材";
+    const mediaPart = chunkInfo.mediaChunkCount > 1
+      ? `这是第 ${chunkInfo.mediaChunkIndex + 1}/${chunkInfo.mediaChunkCount} 组图片，本组包含 ${frameCount} 张。`
+      : "";
     if (kind === "animated" || kind === "video") {
-      return `请分析素材“${name}”。这是${kind === "video" ? "视频" : "动图"}抽取出的 ${frameCount} 张代表帧，请根据整体动作变化返回标签。`;
+      return `请分析${name}。这是${kind === "video" ? "视频" : "动图"}抽取出的 ${frameCount} 张代表帧。${mediaPart}请根据可见动作变化返回标签。`;
     }
-    return `请分析素材“${name}”的视觉内容并返回标签。`;
+    return `请分析${name}的视觉内容并返回标签。${mediaPart}`;
   }
 
-  async function prepareMedia(item, settings) {
+  function buildAiRequestPlan(item, allowedTags, settings, media) {
+    const mediaChunks = buildMediaChunks(item, allowedTags, settings, media);
+    const requests = [];
+    let maxTagChunkCount = 1;
+    mediaChunks.forEach((mediaChunk, mediaChunkIndex) => {
+      const mediaChunkInfo = {
+        mediaChunkIndex,
+        mediaChunkCount: mediaChunks.length
+      };
+      const tagChunks = buildAllowedTagChunks(item, allowedTags, settings, mediaChunk, mediaChunkInfo);
+      maxTagChunkCount = Math.max(maxTagChunkCount, tagChunks.length);
+      tagChunks.forEach((tagChunk, tagChunkIndex) => {
+        requests.push({
+          media: mediaChunk,
+          allowedTags: tagChunk,
+          chunkInfo: {
+            mediaChunkIndex,
+            mediaChunkCount: mediaChunks.length,
+            tagChunkIndex,
+            tagChunkCount: tagChunks.length
+          }
+        });
+      });
+    });
+    return {
+      requests,
+      requestCount: requests.length,
+      mediaChunkCount: mediaChunks.length,
+      maxTagChunkCount
+    };
+  }
+
+  function buildMediaChunks(item, allowedTags, settings, media) {
+    const images = Array.isArray(media.images) ? media.images : [];
+    const filePaths = Array.isArray(media.filePaths) ? media.filePaths : [];
+    if (images.length <= 1) return [media];
+    const tokenLimit = getRequestTokenLimit(settings);
+    const baseTokens = estimateBasePromptTokens(item, settings, media, { mediaChunkIndex: 0, mediaChunkCount: 1 });
+    const sampleTagTokens = estimateSampleTagBudget(allowedTags);
+    const imageBudget = Math.max(
+      ESTIMATED_IMAGE_TOKENS,
+      tokenLimit - baseTokens - sampleTagTokens - REQUEST_SAFETY_TOKENS
+    );
+    const maxImagesPerRequest = Math.max(1, Math.floor(imageBudget / ESTIMATED_IMAGE_TOKENS));
+    if (images.length <= maxImagesPerRequest) return [media];
+    const chunks = [];
+    for (let start = 0; start < images.length; start += maxImagesPerRequest) {
+      const chunkImages = images.slice(start, start + maxImagesPerRequest);
+      chunks.push({
+        ...media,
+        images: chunkImages,
+        filePaths: filePaths.slice(start, start + maxImagesPerRequest),
+        frameCount: chunkImages.length,
+        totalFrameCount: media.frameCount,
+        frameStartIndex: start
+      });
+    }
+    return chunks;
+  }
+
+  function buildAllowedTagChunks(item, allowedTags, settings, media, mediaChunkInfo = {}) {
+    const tokenLimit = getRequestTokenLimit(settings);
+    const imageTokens = estimateImageTokens(media);
+    const baseTokens = estimateBasePromptTokens(item, settings, media, mediaChunkInfo);
+    const tagBudget = Math.max(
+      MIN_TAG_BUDGET_TOKENS,
+      tokenLimit - baseTokens - imageTokens - REQUEST_SAFETY_TOKENS
+    );
+    const chunks = [];
+    let current = [];
+    let currentTokens = 0;
+    allowedTags.forEach((tag) => {
+      const tagTokens = estimateTextTokens(tag) + 2;
+      if (current.length && currentTokens + tagTokens > tagBudget) {
+        chunks.push(current);
+        current = [];
+        currentTokens = 0;
+      }
+      current.push(tag);
+      currentTokens += tagTokens;
+    });
+    if (current.length) chunks.push(current);
+    return chunks.length ? chunks : [allowedTags];
+  }
+
+  function estimateBasePromptTokens(item, settings, media, mediaChunkInfo = {}) {
+    return estimateTextTokens(
+      buildSystemPrompt([], settings.maxTags, settings.globalPrompt, { chunkIndex: 0, chunkCount: 1, ...mediaChunkInfo }) +
+      "\n" +
+      buildUserPrompt(item, media.kind, media.frameCount, settings, mediaChunkInfo)
+    );
+  }
+
+  function estimateImageTokens(media) {
+    const count = Array.isArray(media.images) ? media.images.length : 0;
+    return count * ESTIMATED_IMAGE_TOKENS;
+  }
+
+  function estimateSampleTagBudget(allowedTags) {
+    if (!Array.isArray(allowedTags) || !allowedTags.length) return MIN_TAG_BUDGET_TOKENS;
+    const sampleTokens = allowedTags
+      .slice(0, Math.min(allowedTags.length, 120))
+      .reduce((sum, tag) => sum + estimateTextTokens(tag) + 2, 0);
+    return Math.max(MIN_TAG_BUDGET_TOKENS, Math.min(sampleTokens, MIN_TAG_BUDGET_TOKENS * 2));
+  }
+
+  function getRequestTokenLimit(settings) {
+    return Math.max(MIN_REQUEST_CHUNK_K, Math.min(MAX_REQUEST_CHUNK_K, settings.requestChunkK || DEFAULT_REQUEST_CHUNK_K)) * 1024;
+  }
+
+  function mergeAiObjects(objects, maxTags) {
+    const byName = new Map();
+    const reasons = [];
+    let confidenceTotal = 0;
+    let confidenceCount = 0;
+    const backends = new Set();
+    objects.forEach((object) => {
+      if (!object || typeof object !== "object") return;
+      if (object.backend) backends.add(object.backend);
+      if (object.reason) reasons.push(object.reason);
+      const confidence = normalizeConfidenceValue(object.confidence, NaN);
+      if (Number.isFinite(confidence)) {
+        confidenceTotal += confidence;
+        confidenceCount += 1;
+      }
+      normalizeTagCandidates(Array.isArray(object.tags) ? object.tags : [], object.confidence).forEach((tag) => {
+        const existing = byName.get(tag.name);
+        if (!existing || tag.confidence > existing.confidence) byName.set(tag.name, tag);
+      });
+    });
+    return {
+      tags: [...byName.values()].sort((a, b) => b.confidence - a.confidence).slice(0, maxTags),
+      confidence: confidenceCount ? confidenceTotal / confidenceCount : 0.5,
+      reason: dedupeReasonParts(reasons).join("；"),
+      backend: [...backends].join(" + ")
+    };
+  }
+
+  function dedupeReasonParts(parts) {
+    const seen = new Set();
+    const output = [];
+    parts.forEach((part) => {
+      const text = String(part || "").trim();
+      if (!text || seen.has(text)) return;
+      seen.add(text);
+      output.push(text);
+    });
+    return output;
+  }
+
+  async function prepareMedia(item, settings, onProgress = null) {
     const sourcePath = getItemFilePath(item);
     const ext = getItemExt(item, sourcePath);
+    reportAnalysisStage(onProgress, "检查素材格式", 0.1);
     if (!sourcePath && !getItemPreviewPath(item)) {
       throw new Error("找不到原文件或预览图路径");
     }
     if (ext === "png" && await isAnimatedPng(sourcePath)) {
-      return extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings);
+      return extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings, onProgress);
     }
     if (STATIC_IMAGE_EXTS.has(ext)) {
+      reportAnalysisStage(onProgress, "读取图片", 0.28);
       return singleImageMedia(sourcePath || getItemPreviewPath(item), "image");
     }
     if (ext === WEBP_EXT) {
       const animated = await isAnimatedWebp(sourcePath);
-      return animated ? extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings) : singleImageMedia(sourcePath, "image");
+      if (!animated) reportAnalysisStage(onProgress, "读取图片", 0.28);
+      return animated ? extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings, onProgress) : singleImageMedia(sourcePath, "image");
     }
     if (ANIMATED_EXTS.has(ext)) {
-      return extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings);
+      return extractFramesMedia(sourcePath, "animated", settings.maxAnimatedFrames, settings, onProgress);
     }
     if (VIDEO_EXTS.has(ext)) {
-      return extractFramesMedia(sourcePath, "video", settings.maxVideoFrames, settings);
+      return extractFramesMedia(sourcePath, "video", settings.maxVideoFrames, settings, onProgress);
     }
     if (PREVIEW_EXTS.has(ext)) {
       const preview = getItemPreviewPath(item);
       if (!preview) throw new Error("该设计文件没有可用预览图");
+      reportAnalysisStage(onProgress, "读取预览图", 0.28);
       return singleImageMedia(preview, "preview");
     }
     throw new Error(`暂不支持该文件格式：${ext || "未知"}`);
@@ -656,6 +1813,7 @@
     return {
       kind,
       images: [toFileUrl(filePath)],
+      filePaths: [filePath],
       frameCount: 1,
       tempDir: null,
       sourcePath: filePath,
@@ -663,25 +1821,30 @@
     };
   }
 
-  async function extractFramesMedia(sourcePath, kind, maxFrames, settings) {
+  async function extractFramesMedia(sourcePath, kind, maxFrames, settings, onProgress = null) {
     if (!sourcePath) throw new Error("找不到可抽帧的原文件路径");
     if (!fs || !os || !path || !cp) throw new Error("当前插件环境缺少 Node.js 能力，无法抽帧");
+    reportAnalysisStage(onProgress, "检测 FFmpeg", 0.12);
     const ffmpegPaths = await getFfmpegPaths();
     if (!ffmpegPaths.ffmpeg || !ffmpegPaths.ffprobe) throw new Error("未检测到 Eagle FFmpeg 扩展");
+    reportAnalysisStage(onProgress, "读取媒体时长", 0.15);
     const duration = await probeDuration(sourcePath);
     const times = computeFrameTimes(duration, settings.frameStepSeconds, maxFrames, settings.skipStart, settings.skipEnd);
     if (!times.length) throw new Error("无法计算抽帧时间点");
+    reportAnalysisStage(onProgress, `抽帧 0/${times.length}`, 0.17);
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "vfx-ai-tagger-"));
     const frames = [];
     for (let index = 0; index < times.length; index += 1) {
       const output = path.join(tempDir, `frame-${String(index + 1).padStart(3, "0")}.jpg`);
       await runFfmpegExtract(ffmpegPaths.ffmpeg, sourcePath, output, times[index]);
       if (fs.existsSync(output)) frames.push(output);
+      reportAnalysisStage(onProgress, `抽帧 ${index + 1}/${times.length}`, 0.17 + ((index + 1) / times.length) * 0.18);
     }
     if (!frames.length) throw new Error("抽帧失败，没有生成可分析图片");
     return {
       kind,
       images: frames.map(toFileUrl),
+      filePaths: frames,
       frameCount: frames.length,
       tempDir,
       sourcePath,
@@ -830,48 +1993,161 @@
   }
 
   async function applyReadyResults() {
+    if (state.writing) return;
     const ready = state.results.filter((result) => result.status === "ready" && getSelectedReviewTags(result).length);
     if (!ready.length) {
+      resetWriteProgress();
       setStatus("没有可写入的分析结果。");
       return;
     }
+    state.writing = true;
     els.applyBtn.disabled = true;
+    updateWriteProgress(0, ready.length, 0);
     let saved = 0;
     let failed = 0;
     try {
       const settings = readSettings();
       for (const result of ready) {
+        updateWriteProgress(saved + failed, ready.length, failed);
         const item = state.selectedItems.find((candidate) => getItemId(candidate) === result.id);
-        if (!item) continue;
+        if (!item) {
+          failed += 1;
+          updateResult(result.id, { status: "ready", message: "找不到对应素材，请重新导入当前选中素材后再试", errorType: "write" });
+          updateWriteProgress(saved + failed, ready.length, failed);
+          continue;
+        }
         if (item.external || typeof item.save !== "function") {
-          updateResult(result.id, { status: "skipped", message: "外部导入文件无法写回 Eagle，请先把文件加入 Eagle 资源库" });
+          failed += 1;
+          updateResult(result.id, { status: "ready", message: "外部导入文件无法写回 Eagle，请先把文件加入 Eagle 资源库", errorType: "write" });
+          updateWriteProgress(saved + failed, ready.length, failed);
           continue;
         }
         try {
           await mergeTagsIntoItem(item, getSelectedReviewTags(result).map((tag) => tag.name), settings.writeAnnotation ? result.aiReason : "", "手动确认写入标签");
           saved += 1;
-          updateResult(result.id, { status: "applied", message: "已写入 Eagle" });
+          updateResult(result.id, { status: "applied", message: "已写入 Eagle", errorType: "" });
         } catch (error) {
           failed += 1;
-          updateResult(result.id, { status: "failed", message: `写入失败：${formatError(error)}` });
+          updateResult(result.id, { status: "ready", message: `写入失败：${formatError(error)}`, errorType: "write" });
         }
+        updateWriteProgress(saved + failed, ready.length, failed);
       }
     } finally {
+      state.writing = false;
       renderAll();
     }
-    setStatus(failed ? `已写入 ${saved} 个素材，${failed} 个写入失败。` : `已写入 ${saved} 个素材。`);
+    const finalStatus = failed ? `已写入 ${saved} 个素材，${failed} 个写入失败。` : `已写入 ${saved} 个素材。`;
+    setStatus(finalStatus);
+    updateWriteProgress(saved + failed, ready.length, failed, finalStatus);
+  }
+
+  function updateAnalysisProgress(processed, total, currentItem, detail = {}) {
+    if (!els.analysisProgressPanel || !els.analysisProgressBar) return;
+    hideWriteProgressSlot();
+    const safeTotal = Math.max(0, Number(total) || 0);
+    if (!safeTotal) {
+      resetAnalysisProgress();
+      return;
+    }
+    const safeDone = Math.min(safeTotal, Math.max(0, Number(processed) || 0));
+    const safeItemProgress = safeDone >= safeTotal ? 0 : Math.min(clampNumber(detail.itemProgress, 0, 1, 0), 0.95);
+    const effectiveDone = safeDone + safeItemProgress;
+    const percent = Math.round((effectiveDone / safeTotal) * 100);
+    const counts = getAnalysisProgressCounts();
+    const currentName = currentItem ? getItemName(currentItem) : "";
+    els.analysisProgressPanel.hidden = false;
+    els.analysisProgressPanel.classList.toggle("is-active", safeDone < safeTotal);
+    els.analysisProgressText.textContent = safeDone >= safeTotal ? `分析完成 ${safeDone}/${safeTotal}` : `分析中 ${safeDone}/${safeTotal}`;
+    els.analysisProgressPercent.textContent = `${percent}%`;
+    els.analysisProgressBar.style.width = `${percent}%`;
+    const track = els.analysisProgressPanel.querySelector(".analysis-progress-track");
+    if (track) track.setAttribute("aria-valuenow", String(percent));
+    els.analysisProgressMeta.textContent = [
+      detail.stage && safeDone < safeTotal ? `阶段：${detail.stage}` : "",
+      currentName && safeDone < safeTotal ? `当前：${currentName}` : "",
+      `待写入 ${counts.ready}`,
+      `已写入 ${counts.applied}`,
+      `失败 ${counts.failed}`,
+      `跳过 ${counts.skipped}`
+    ].filter(Boolean).join(" · ");
+  }
+
+  function resetAnalysisProgress() {
+    if (!els.analysisProgressPanel || !els.analysisProgressBar) return;
+    hideAnalysisProgressSlot();
+    els.analysisProgressPanel.classList.remove("is-active");
+    els.analysisProgressText.textContent = "等待分析";
+    els.analysisProgressPercent.textContent = "0%";
+    els.analysisProgressBar.style.width = "0%";
+    if (els.analysisProgressMeta) els.analysisProgressMeta.textContent = "";
+    const track = els.analysisProgressPanel.querySelector(".analysis-progress-track");
+    if (track) track.setAttribute("aria-valuenow", "0");
+  }
+
+  function getAnalysisProgressCounts() {
+    return state.results.reduce((counts, result) => {
+      if (result.status === "ready") counts.ready += 1;
+      if (result.status === "applied") counts.applied += 1;
+      if (result.status === "failed") counts.failed += 1;
+      if (result.status === "skipped") counts.skipped += 1;
+      return counts;
+    }, { ready: 0, applied: 0, failed: 0, skipped: 0 });
+  }
+
+  function updateWriteProgress(done, total, failed = 0, message = "") {
+    if (!els.writeProgressPanel || !els.writeProgressBar) return;
+    hideAnalysisProgressSlot();
+    const safeTotal = Math.max(0, Number(total) || 0);
+    const safeDone = Math.min(safeTotal, Math.max(0, Number(done) || 0));
+    const percent = safeTotal ? Math.round((safeDone / safeTotal) * 100) : 0;
+    const text = message || `正在写入 ${safeDone}/${safeTotal} 个素材...`;
+    els.writeProgressPanel.hidden = false;
+    els.writeProgressPanel.classList.toggle("has-failures", failed > 0);
+    els.writeProgressText.textContent = text;
+    els.writeProgressPercent.textContent = `${percent}%`;
+    els.writeProgressBar.style.width = `${percent}%`;
+    const track = els.writeProgressPanel.querySelector(".write-progress-track");
+    if (track) track.setAttribute("aria-valuenow", String(percent));
+    if (els.writeProgressMeta) els.writeProgressMeta.textContent = failed ? `${safeDone}/${safeTotal}，失败 ${failed}` : `${safeDone}/${safeTotal}`;
+    if (!message) setStatus(text);
+  }
+
+  function resetWriteProgress() {
+    if (!els.writeProgressPanel || !els.writeProgressBar) return;
+    hideWriteProgressSlot();
+    els.writeProgressPanel.classList.remove("has-failures");
+    els.writeProgressText.textContent = "";
+    els.writeProgressPercent.textContent = "0%";
+    els.writeProgressBar.style.width = "0%";
+    if (els.writeProgressMeta) els.writeProgressMeta.textContent = "";
+    const track = els.writeProgressPanel.querySelector(".write-progress-track");
+    if (track) track.setAttribute("aria-valuenow", "0");
+  }
+
+  function hideAnalysisProgressSlot() {
+    if (els.analysisProgressPanel) els.analysisProgressPanel.hidden = true;
+  }
+
+  function hideWriteProgressSlot() {
+    if (els.writeProgressPanel) els.writeProgressPanel.hidden = true;
   }
 
   function readSettings() {
     const frequency = clampAndShowFrameRate();
     const maxTags = readInt(els.maxTags.value, 10, 1, 20);
+    const aiRetryCount = readInt(els.aiRetryCount.value, AI_RETRY_COUNT, 0, 10);
+    const requestChunkK = readInt(els.requestChunkK.value, DEFAULT_REQUEST_CHUNK_K, MIN_REQUEST_CHUNK_K, MAX_REQUEST_CHUNK_K);
     const autoConfidence = readFloat(els.autoConfidence.value, 0.8, 0, 1);
     const hideConfidence = Math.min(autoConfidence, readFloat(els.hideConfidence.value, 0.45, 0, 1));
+    els.aiRetryCount.value = String(aiRetryCount);
+    els.requestChunkK.value = String(requestChunkK);
     els.autoConfidence.value = String(autoConfidence);
     els.hideConfidence.value = String(hideConfidence);
     return {
       maxTags,
       concurrency: readInt(els.concurrency.value, 2, 1, 5),
+      aiRetryCount,
+      requestChunkK,
       autoConfidence,
       hideConfidence,
       frameStepSeconds: frequency.stepSeconds,
@@ -884,6 +2160,7 @@
       autoApplyHighConfidence: els.autoApplyHighConfidence.checked,
       globalPrompt: String(els.globalPrompt.value || "").trim(),
       writeAnnotation: els.writeAnnotation.checked,
+      includeTitleInPrompt: els.includeTitleInPrompt.checked,
       diagnosticEnabled: els.diagnosticEnabled.checked,
       diagnosticDir: String(els.diagnosticDir.value || "").trim(),
       enabledBackends: [
@@ -897,8 +2174,45 @@
       codexModel: String(els.codexModel.value || "").trim(),
       codexExtraArgs: String(els.codexExtraArgs.value || "").trim(),
       cliTimeoutSeconds: readInt(els.cliTimeoutSeconds.value, 120, 10, 600),
-      cliWorkingDir: String(els.cliWorkingDir.value || "").trim()
+      cliWorkingDir: String(els.cliWorkingDir.value || "").trim(),
+      analysisPresetName: state.activePresetName
     };
+  }
+
+  function applyAnalysisPreset(name) {
+    const presetName = String(name || "").trim();
+    const preset = ANALYSIS_PRESETS[presetName];
+    state.activePresetName = presetName;
+    if (els.analysisPresetSelect) els.analysisPresetSelect.value = presetName;
+    if (!preset) {
+      saveSettings();
+      renderPresetHint();
+      return;
+    }
+    Object.keys(preset).forEach((key) => {
+      if (!els[key]) return;
+      if (els[key].type === "checkbox") {
+        els[key].checked = Boolean(preset[key]);
+      } else {
+        els[key].value = String(preset[key]);
+      }
+    });
+    clampAndShowFrameRate();
+    saveSettings();
+    refreshModelStatus();
+    renderPresetHint();
+    runHealthCheck({ silent: true });
+    setStatus(`已应用分析预设：${presetName}`);
+  }
+
+  function renderPresetHint() {
+    if (!els.presetHint) return;
+    const presetName = state.activePresetName || "";
+    if (!presetName) {
+      els.presetHint.textContent = "预设只覆盖分析关键参数，不改全局提示词和诊断目录。";
+      return;
+    }
+    els.presetHint.textContent = `当前预设：${presetName}。应用后会保存到下次打开。`;
   }
 
   function clampAndShowFrameRate() {
@@ -918,6 +2232,8 @@
       tagGroupName: state.selectedTagGroupName || "__all",
       maxTags: els.maxTags.value,
       concurrency: els.concurrency.value,
+      aiRetryCount: els.aiRetryCount.value,
+      requestChunkK: els.requestChunkK.value,
       autoConfidence: els.autoConfidence.value,
       hideConfidence: els.hideConfidence.value,
       frameRateValue: els.frameRateValue.value,
@@ -931,6 +2247,7 @@
       autoApplyHighConfidence: els.autoApplyHighConfidence.checked,
       globalPrompt: els.globalPrompt.value,
       writeAnnotation: els.writeAnnotation.checked,
+      includeTitleInPrompt: els.includeTitleInPrompt.checked,
       diagnosticEnabled: els.diagnosticEnabled.checked,
       diagnosticDir: els.diagnosticDir.value,
       enableClaudeCli: els.enableClaudeCli.checked,
@@ -942,20 +2259,19 @@
       codexModel: els.codexModel.value,
       codexExtraArgs: els.codexExtraArgs.value,
       cliTimeoutSeconds: els.cliTimeoutSeconds.value,
-      cliWorkingDir: els.cliWorkingDir.value
+      cliWorkingDir: els.cliWorkingDir.value,
+      activePresetName: state.activePresetName,
+      analysisPresetName: state.activePresetName
     }));
   }
 
   async function chooseDiagnosticDir() {
     try {
-      const dialog = window.eagle && eagle.dialog;
-      if (!dialog || typeof dialog.showOpenDialog !== "function") {
+      const folder = await openDirectoryPicker();
+      if (!folder) {
         setStatus("当前环境无法打开文件夹选择器，请手动粘贴本地文件夹路径。");
         return;
       }
-      const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
-      const folder = Array.isArray(result) ? result[0] : result && Array.isArray(result.filePaths) ? result.filePaths[0] : "";
-      if (!folder) return;
       els.diagnosticDir.value = folder;
       saveSettings();
     } catch (error) {
@@ -963,9 +2279,323 @@
     }
   }
 
+  async function runHealthCheck(options = {}) {
+    const settings = options.settings || readSettings();
+    const model = Object.prototype.hasOwnProperty.call(options, "model")
+      ? options.model
+      : (settings.enabledBackends.includes("eagle") ? getAiModel() : null);
+    state.healthStatus = await buildHealthStatus(settings, model);
+    renderHealthStatus();
+    if (!options.silent) {
+      const blockers = state.healthStatus.filter((check) => check.blocking && !check.ok);
+      setStatus(blockers.length ? `环境检查发现 ${blockers.length} 个阻断项。` : "环境检查完成，未发现阻断项。");
+    }
+    return state.healthStatus;
+  }
+
+  async function ensureHealthyBeforeAnalysis(settings, model) {
+    const checks = await runHealthCheck({ silent: true, settings, model });
+    const blockers = checks.filter((check) => check.blocking && !check.ok);
+    if (!blockers.length) return true;
+    openSettingsDrawer();
+    activateSettingsTab("backend");
+    setStatus(`开始分析前请先处理：${blockers.map((check) => check.label).join("、")}`);
+    return false;
+  }
+
+  async function buildHealthStatus(settings, model) {
+    const checks = [];
+    const enabledCliBackends = (settings.enabledBackends || []).filter((backend) => backend !== "eagle");
+    const selectedNeedsFfmpeg = state.selectedItems.some(itemNeedsFfmpeg);
+
+    checks.push({
+      id: "node",
+      label: "Node 能力",
+      ok: Boolean(nodeRequire && fs && path),
+      blocking: Boolean(enabledCliBackends.length || selectedNeedsFfmpeg || settings.diagnosticEnabled),
+      message: nodeRequire && fs && path ? "Node、fs、path 可用" : "当前插件环境缺少 Node.js 文件能力"
+    });
+    checks.push({
+      id: "child_process",
+      label: "child_process",
+      ok: Boolean(cp && typeof cp.execFile === "function"),
+      blocking: Boolean(enabledCliBackends.length || selectedNeedsFfmpeg),
+      message: cp && typeof cp.execFile === "function" ? "可调用本地命令" : "无法调用本地 CLI 或 FFmpeg"
+    });
+
+    if (enabledCliBackends.length) {
+      if (!cliBackends || typeof cliBackends.createCliHealthChecks !== "function") {
+        enabledCliBackends.forEach((backend) => {
+          checks.push({
+            id: `cli-${backend}`,
+            label: formatBackendLabel(backend),
+            ok: false,
+            blocking: true,
+            message: "CLI 后端模块未加载"
+          });
+        });
+      } else {
+        cliBackends.createCliHealthChecks(enabledCliBackends, settings, {
+          fs,
+          path,
+          env: typeof process !== "undefined" ? process.env : undefined
+        }).forEach((plan) => {
+          checks.push({
+            id: `cli-${plan.backend}`,
+            label: formatBackendLabel(plan.backend),
+            ok: Boolean(plan.ok && cp && typeof cp.execFile === "function"),
+            blocking: true,
+            command: plan.command,
+            message: `${plan.message}${plan.command ? `：${plan.command}` : ""}`
+          });
+        });
+      }
+    } else {
+      checks.push({
+        id: "cli-disabled",
+        label: "本地 CLI",
+        ok: true,
+        blocking: false,
+        message: "未启用 Claude/Codex CLI"
+      });
+    }
+
+    if (settings.enabledBackends.includes("eagle")) {
+      checks.push({
+        id: "eagle-ai",
+        label: "Eagle AI 模型",
+        ok: Boolean(model),
+        blocking: true,
+        message: model ? "已配置默认视觉模型" : "未配置 Eagle 默认视觉模型"
+      });
+    }
+
+    checks.push(await checkFfmpegHealth(selectedNeedsFfmpeg));
+    checks.push(checkDiagnosticHealth(settings));
+    checks.push(checkSelectedPathHealth());
+    return checks.map(normalizeHealthCheck);
+  }
+
+  function normalizeHealthCheck(check) {
+    const ok = Boolean(check && check.ok);
+    const blocking = Boolean(check && check.blocking);
+    return {
+      id: check.id || check.label || "check",
+      label: check.label || "检查项",
+      ok,
+      blocking,
+      severity: ok ? "ok" : (blocking ? "fail" : "warn"),
+      message: check.message || (ok ? "通过" : "需要处理"),
+      command: check.command || ""
+    };
+  }
+
+  async function checkFfmpegHealth(required) {
+    if (!required) {
+      return {
+        id: "ffmpeg",
+        label: "FFmpeg",
+        ok: true,
+        blocking: false,
+        message: "当前素材不需要抽帧"
+      };
+    }
+    const ffmpeg = getFfmpegApi();
+    if (!ffmpeg) {
+      return {
+        id: "ffmpeg",
+        label: "FFmpeg",
+        ok: false,
+        blocking: true,
+        message: "未检测到 Eagle FFmpeg 扩展"
+      };
+    }
+    try {
+      if (typeof ffmpeg.isInstalled === "function" && !await ffmpeg.isInstalled()) {
+        return { id: "ffmpeg", label: "FFmpeg", ok: false, blocking: true, message: "Eagle FFmpeg 扩展未安装" };
+      }
+      if (ffmpeg.isInstalled === false) {
+        return { id: "ffmpeg", label: "FFmpeg", ok: false, blocking: true, message: "Eagle FFmpeg 扩展未安装" };
+      }
+      const paths = typeof ffmpeg.getPaths === "function" ? await ffmpeg.getPaths() : ffmpeg.paths;
+      const ok = Boolean(paths && paths.ffmpeg && paths.ffprobe);
+      return {
+        id: "ffmpeg",
+        label: "FFmpeg",
+        ok,
+        blocking: true,
+        message: ok ? "FFmpeg/ffprobe 路径可用" : "无法读取 FFmpeg/ffprobe 路径"
+      };
+    } catch (error) {
+      return {
+        id: "ffmpeg",
+        label: "FFmpeg",
+        ok: false,
+        blocking: true,
+        message: formatError(error)
+      };
+    }
+  }
+
+  function checkDiagnosticHealth(settings) {
+    if (!settings.diagnosticEnabled) {
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: true,
+        blocking: false,
+        message: "未启用诊断保存"
+      };
+    }
+    if (!settings.diagnosticDir) {
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: false,
+        blocking: true,
+        message: "已开启诊断保存，但尚未选择文件夹"
+      };
+    }
+    if (!fs || !path) {
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: false,
+        blocking: true,
+        message: "缺少 Node.js 文件能力，无法写入诊断目录"
+      };
+    }
+    try {
+      fs.mkdirSync(settings.diagnosticDir, { recursive: true });
+      const probe = path.join(settings.diagnosticDir, `.vfx-ai-tagger-health-${Date.now()}.tmp`);
+      fs.writeFileSync(probe, "ok", "utf8");
+      fs.rmSync(probe, { force: true });
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: true,
+        blocking: true,
+        message: "诊断目录可写"
+      };
+    } catch (error) {
+      return {
+        id: "diagnostic",
+        label: "诊断目录",
+        ok: false,
+        blocking: true,
+        message: formatError(error)
+      };
+    }
+  }
+
+  function checkSelectedPathHealth() {
+    if (!state.selectedItems.length) {
+      return {
+        id: "selected-paths",
+        label: "素材路径",
+        ok: true,
+        blocking: false,
+        message: "尚未导入素材，开始分析前会再次检查"
+      };
+    }
+    const missing = state.selectedItems.filter((item) => {
+      const candidates = [getItemFilePath(item), getItemPreviewPath(item)]
+        .map((candidate) => candidate && fileUrlToPath(candidate))
+        .filter(Boolean);
+      if (!candidates.length) return true;
+      return Boolean(fs && !candidates.some((candidate) => fs.existsSync(candidate)));
+    });
+    return {
+      id: "selected-paths",
+      label: "素材路径",
+      ok: missing.length === 0,
+      blocking: true,
+      message: missing.length
+        ? `${missing.length} 个素材路径不存在或不可访问`
+        : `${state.selectedItems.length} 个素材路径可访问`
+    };
+  }
+
+  function itemNeedsFfmpeg(item) {
+    const filePath = getItemFilePath(item);
+    const ext = getItemExt(item, filePath);
+    return VIDEO_EXTS.has(ext) || ANIMATED_EXTS.has(ext) || ext === WEBP_EXT;
+  }
+
+  function renderHealthStatus() {
+    if (!els.healthStatusList || !els.healthSummary) return;
+    const checks = Array.isArray(state.healthStatus) ? state.healthStatus : [];
+    const blockers = checks.filter((check) => check.blocking && !check.ok);
+    els.healthSummary.textContent = checks.length
+      ? (blockers.length ? `${blockers.length} 个阻断项` : "环境可用")
+      : "等待检查";
+    els.healthStatusList.innerHTML = checks.map((check) => `
+      <div class="health-item ${escapeHtml(check.severity)}">
+        <strong>${check.ok ? "通过" : (check.blocking ? "阻断" : "提醒")}</strong>
+        <span>${escapeHtml(check.label)}：${escapeHtml(check.message)}</span>
+      </div>
+    `).join("");
+  }
+
+  async function openDirectoryPicker() {
+    const dialog = getElectronDialog();
+    if (dialog && typeof dialog.showOpenDialog === "function") {
+      const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
+      const filePaths = result && result.filePaths;
+      return Array.isArray(filePaths) && filePaths.length ? filePaths[0] : "";
+    }
+    const eagleDialog = window.eagle && eagle.dialog;
+    if (eagleDialog && typeof eagleDialog.showOpenDialog === "function") {
+      const result = await eagleDialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
+      if (Array.isArray(result)) return result[0] || "";
+      const filePaths = result && result.filePaths;
+      return Array.isArray(filePaths) && filePaths.length ? filePaths[0] : "";
+    }
+    return "";
+  }
+
+  function getElectronDialog() {
+    if (!nodeRequire) return null;
+    try {
+      const electron = nodeRequire("electron");
+      return electron && ((electron.remote && electron.remote.dialog) || electron.dialog);
+    } catch (error) {
+      try {
+        const remote = nodeRequire("@electron/remote");
+        return remote && remote.dialog;
+      } catch (remoteError) {
+        return null;
+      }
+    }
+  }
+
+  function ensureDiagnosticSettings(settings) {
+    if (!settings.diagnosticEnabled) return true;
+    if (!settings.diagnosticDir) {
+      setStatus("已开启诊断保存，请先选择诊断保存文件夹。");
+      return false;
+    }
+    if (!fs || !path) {
+      setStatus("当前插件环境缺少 Node.js 能力，无法验证诊断保存文件夹。");
+      return false;
+    }
+    try {
+      fs.mkdirSync(settings.diagnosticDir, { recursive: true });
+      const stat = fs.statSync(settings.diagnosticDir);
+      if (!stat.isDirectory()) throw new Error("不是文件夹");
+      return true;
+    } catch (error) {
+      setStatus(`诊断保存文件夹不可用：${formatError(error)}`);
+      return false;
+    }
+  }
+
   function loadStoredState() {
     state.customAllowedTags = readJsonArray(STORAGE_KEYS.customAllowedTags);
     state.disabledTags = readJsonArray(STORAGE_KEYS.disabledTags);
+    state.undoStack = readStoredUndoStack();
+    state.results = readStoredResults();
+    state.paused = state.results.some((result) => result.status === "pending");
     const settings = readJsonObject(STORAGE_KEYS.settings);
     state.selectedTagGroupName = settings.tagGroupName || "__all";
     Object.keys(settings).forEach((key) => {
@@ -976,6 +2606,9 @@
         els[key].value = settings[key];
       }
     });
+    state.activePresetName = settings.analysisPresetName || settings.activePresetName || "";
+    if (els.analysisPresetSelect) els.analysisPresetSelect.value = state.activePresetName;
+    renderPresetHint();
   }
 
   function coerceStoredBoolean(value, fallback) {
@@ -994,38 +2627,243 @@
     localStorage.setItem(STORAGE_KEYS.disabledTags, JSON.stringify(state.disabledTags));
   }
 
+  function saveResultsState() {
+    try {
+      const results = state.results.map((result) => ({
+        id: result.id,
+        name: result.name,
+        status: result.status === "running" ? "pending" : result.status,
+        message: result.message,
+        tags: result.tags,
+        autoTags: result.autoTags,
+        reviewTags: result.reviewTags,
+        aiReason: result.aiReason,
+        aiBackend: result.aiBackend,
+        frameCount: result.frameCount,
+        requestCount: result.requestCount,
+        mediaChunkCount: result.mediaChunkCount,
+        tagChunkCount: result.tagChunkCount,
+        diagnosticPath: result.diagnosticPath,
+        diagnostics: null,
+        filteredTags: result.filteredTags,
+        hiddenCount: result.hiddenCount,
+        confidence: result.confidence,
+        errorType: result.errorType
+      }));
+      localStorage.setItem(STORAGE_KEYS.results, JSON.stringify(results));
+    } catch (error) {
+      // Result cache is a recovery aid. Analysis/write flow should continue if storage is full.
+    }
+  }
+
+  function saveUndoStack() {
+    try {
+      const records = state.undoStack
+        .slice(-50)
+        .map((record) => ({
+          itemId: String(record.itemId || ""),
+          addedTags: normalizeTagList(record.addedTags || []),
+          previousAnnotation: String(record.previousAnnotation || ""),
+          source: String(record.source || "写入标签"),
+          at: Number(record.at) || Date.now()
+        }))
+        .filter((record) => record.itemId);
+      localStorage.setItem(STORAGE_KEYS.undoStack, JSON.stringify(records));
+    } catch (error) {
+      // Undo persistence is a safety net. Write flow should continue if storage is full.
+    }
+  }
+
+  function readStoredUndoStack() {
+    try {
+      const value = JSON.parse(localStorage.getItem(STORAGE_KEYS.undoStack) || "[]");
+      if (!Array.isArray(value)) return [];
+      return value
+        .filter((record) => record && typeof record === "object" && record.itemId)
+        .map((record) => ({
+          itemId: String(record.itemId || ""),
+          addedTags: normalizeTagList(record.addedTags || []),
+          previousAnnotation: String(record.previousAnnotation || ""),
+          source: String(record.source || "写入标签"),
+          at: Number(record.at) || 0
+        }));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function readStoredResults() {
+    try {
+      const value = JSON.parse(localStorage.getItem(STORAGE_KEYS.results) || "[]");
+      if (!Array.isArray(value)) return [];
+      return value
+        .filter((result) => result && typeof result === "object" && result.id)
+        .map((result) => ({
+          ...createStoredResultSkeleton(result),
+          ...result,
+          status: result.status === "running" ? "pending" : result.status
+        }));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function createStoredResultSkeleton(result) {
+    return {
+      id: String(result.id || ""),
+      name: String(result.name || "未命名素材"),
+      status: "pending",
+      message: "从上次会话恢复",
+      tags: [],
+      autoTags: [],
+      reviewTags: [],
+      aiReason: "",
+      aiBackend: "",
+      frameCount: 0,
+      requestCount: 0,
+      mediaChunkCount: 0,
+      tagChunkCount: 0,
+      diagnosticPath: "",
+      diagnostics: null,
+      filteredTags: [],
+      hiddenCount: 0,
+      confidence: 0,
+      errorType: ""
+    };
+  }
+
   function renderAll() {
     renderTagGroupSelect();
     renderTagPool();
+    renderSelectedSummary();
     renderSelectedItems();
+    renderSelectedFullList();
     renderResults();
+    updateCollectorBar();
     els.selectedCount.textContent = String(state.selectedItems.length);
     els.tagPoolCount.textContent = String(getAllowedTags().length);
+  }
+
+  function updateCollectorBar() {
+    if (els.collectorCount) {
+      els.collectorCount.textContent = `${state.selectedItems.length} 个待分析`;
+    }
+    if (els.collectorAnalyzeBtn) {
+      els.collectorAnalyzeBtn.disabled = state.running || state.writing || !state.selectedItems.length;
+    }
+    if (els.collectorAppendBtn) {
+      els.collectorAppendBtn.disabled = state.running || state.writing;
+    }
+    if (els.collectorClearBtn) {
+      els.collectorClearBtn.disabled = state.running || state.writing || (!state.selectedItems.length && !state.results.length);
+    }
+    if (els.clearSelectedBtn) {
+      els.clearSelectedBtn.disabled = state.running || state.writing || (!state.selectedItems.length && !state.results.length);
+    }
+    if (els.appendSelectedBtn) els.appendSelectedBtn.disabled = state.running || state.writing;
+    if (els.replaceSelectedBtn) els.replaceSelectedBtn.disabled = state.running || state.writing;
+    if (els.miniCollectorBtn) els.miniCollectorBtn.disabled = state.running || state.writing;
+  }
+
+  function renderSelectedSummary() {
+    if (!els.selectedSummary) return;
+    const total = state.selectedItems.length;
+    const withTags = state.selectedItems.filter((item) => Array.isArray(item.tags) && item.tags.length).length;
+    const pending = state.results.filter((result) => result.status === "pending" || result.status === "running").length;
+    const failed = state.results.filter((result) => result.status === "failed").length;
+    els.selectedSummary.innerHTML = [
+      `<span>已导入 ${total} 个</span>`,
+      `<span>已有标签 ${withTags} 个</span>`,
+      pending ? `<span>待处理 ${pending} 个</span>` : "",
+      failed ? `<span>失败 ${failed} 个</span>` : ""
+    ].filter(Boolean).join("");
+    if (els.showSelectedListBtn) els.showSelectedListBtn.disabled = total === 0;
   }
 
   function renderSelectedItems() {
     if (!els.selectedItems) return;
     els.selectedItems.innerHTML = "";
     if (!state.selectedItems.length) {
-      els.selectedItems.innerHTML = `<div class="empty">请先在 Eagle 中选择素材，然后点击“导入选中素材”。</div>`;
+      els.selectedItems.innerHTML = `<div class="empty">请先在 Eagle 中选择素材，然后点击“追加当前选中”。</div>`;
+      return;
+    }
+    const hasOverflow = state.selectedItems.length > SELECTED_TRAY_LIMIT;
+    const visibleItems = hasOverflow
+      ? state.selectedItems.slice(0, SELECTED_TRAY_LIMIT - 1)
+      : state.selectedItems.slice(0, SELECTED_TRAY_LIMIT);
+    visibleItems.forEach((item) => {
+      els.selectedItems.appendChild(createSelectedItemCard(item, { compact: true }));
+    });
+    if (hasOverflow) {
+      const remainingCount = state.selectedItems.length - visibleItems.length;
+      els.selectedItems.appendChild(createSelectedExpandCard(remainingCount));
+    }
+  }
+
+  function renderSelectedFullList() {
+    if (!els.selectedItemsFullList) return;
+    els.selectedItemsFullList.innerHTML = "";
+    if (!state.selectedItems.length) {
+      els.selectedItemsFullList.innerHTML = `<div class="empty">还没有导入素材。</div>`;
       return;
     }
     state.selectedItems.forEach((item) => {
-      const filePath = getItemFilePath(item);
-      const ext = getItemExt(item, filePath) || "未知";
-      const tags = Array.isArray(item.tags) ? item.tags : [];
-      const row = document.createElement("div");
-      row.className = "selected-item";
-      row.innerHTML = `
+      els.selectedItemsFullList.appendChild(createSelectedItemCard(item, { compact: false }));
+    });
+  }
+
+  function createSelectedItemCard(item, options = {}) {
+    const compact = Boolean(options.compact);
+    const filePath = getItemFilePath(item);
+    const ext = getItemExt(item, filePath) || "未知";
+    const tags = Array.isArray(item.tags) ? item.tags : [];
+    const previewPath = getItemPreviewPath(item);
+    const previewUrl = previewPath ? toFileUrl(previewPath) : "";
+    const card = document.createElement("div");
+    card.className = compact ? "selected-card is-compact" : "selected-card";
+    card.setAttribute("data-item-id", getItemId(item));
+    card.innerHTML = `
+      <div class="selected-thumb" aria-hidden="true">
+        ${previewUrl ? `<img src="${escapeHtml(previewUrl)}" alt="">` : `<span>${escapeHtml(ext.toUpperCase().slice(0, 4))}</span>`}
+      </div>
+      <div class="selected-item-main">
         <div class="selected-name" title="${escapeHtml(getItemName(item))}">${escapeHtml(getItemName(item))}</div>
         <div class="selected-meta">
           <span>${escapeHtml(ext.toUpperCase())}</span>
           <span>${tags.length} 个已有标签</span>
-          <span title="${escapeHtml(filePath)}">${escapeHtml(shortPath(filePath))}</span>
+          ${compact ? "" : `<span title="${escapeHtml(filePath)}">${escapeHtml(shortPath(filePath))}</span>`}
         </div>
-      `;
-      els.selectedItems.appendChild(row);
-    });
+      </div>
+      <div class="selected-card-actions">
+        <button class="selected-preview-btn" type="button" data-preview-item="${escapeHtml(getItemId(item))}">预览</button>
+        <button class="selected-remove-btn" type="button" data-remove-selected-item="${escapeHtml(getItemId(item))}" aria-label="移除 ${escapeHtml(getItemName(item))}" title="移除">
+          <svg class="selected-trash-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+            <path d="M6 7l1 14h10l1-14"></path>
+            <path d="M9 7V4h6v3"></path>
+          </svg>
+        </button>
+      </div>
+    `;
+    return card;
+  }
+
+  function createSelectedExpandCard(remainingCount) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "selected-expand-card";
+    button.addEventListener("click", openSelectedListDialog);
+    button.innerHTML = `
+      <strong>展开全部</strong>
+      <span>+${remainingCount} 个素材</span>
+    `;
+    return button;
+  }
+
+  function createSelectedItemRow(item) {
+    return createSelectedItemCard(item, { compact: false });
   }
 
   function renderTagPool() {
@@ -1039,6 +2877,7 @@
     tags.forEach((tag) => {
       const chip = document.createElement("div");
       chip.className = "tag-chip";
+      chip.setAttribute("data-pool-tag", tag);
       chip.innerHTML = `<span title="${escapeHtml(tag)}">${escapeHtml(tag)}</span>`;
       const remove = document.createElement("button");
       remove.type = "button";
@@ -1071,17 +2910,25 @@
     const failedCount = state.results.filter((result) => result.status === "failed" || result.status === "skipped").length;
     els.readyCount.textContent = String(readyCount);
     els.failedCount.textContent = String(failedCount);
-    els.applyBtn.disabled = state.running || readyCount === 0;
-    els.undoBtn.disabled = state.running || state.undoStack.length === 0;
+    els.applyBtn.disabled = state.running || state.writing || readyCount === 0;
+    els.undoBtn.disabled = state.running || state.writing || state.undoStack.length === 0;
+    if (els.retryFailedBtn) els.retryFailedBtn.disabled = state.running || state.writing || !state.results.some((result) => result.status === "failed");
+    updateResultFilterButtons();
     updateAnalysisControls();
     els.results.innerHTML = "";
     if (!state.results.length) {
-      els.results.innerHTML = `<div class="empty">导入选中素材后点击“开始分析”，这里会显示待确认标签、置信度和写入状态。</div>`;
+      els.results.innerHTML = `<div class="empty">追加当前选中素材后点击“开始分析”，这里会显示待确认标签、置信度和写入状态。</div>`;
       return;
     }
-    state.results.forEach((result) => {
+    const visibleResults = getFilteredResults();
+    if (!visibleResults.length) {
+      els.results.innerHTML = `<div class="empty">当前过滤条件下没有结果。</div>`;
+      return;
+    }
+    visibleResults.forEach((result) => {
       const item = document.createElement("article");
       item.className = "result";
+      item.setAttribute("data-result-id", result.id);
       item.innerHTML = `
         <div class="result-head">
           <div class="result-title">
@@ -1091,9 +2938,11 @@
               ${result.aiBackend ? `<span class="badge">${escapeHtml(formatBackendLabel(result.aiBackend))}</span>` : ""}
               ${typeof result.confidence === "number" ? `<span class="badge">整体 ${formatConfidence(result.confidence)}</span>` : ""}
               ${result.frameCount ? `<span class="badge">${escapeHtml(String(result.frameCount))} 张图像</span>` : ""}
+              ${result.requestCount > 1 ? `<span class="badge">${escapeHtml(String(result.requestCount))} 次请求</span>` : ""}
             </div>
           </div>
           <div class="result-actions">
+            <button type="button" data-preview-result="${escapeHtml(result.id)}">预览</button>
             <button type="button" data-reanalyze-result="${escapeHtml(result.id)}" ${state.running ? "disabled" : ""}>重新分析</button>
           </div>
         </div>
@@ -1104,6 +2953,7 @@
         </div>
         ${renderAutoTags(result.autoTags)}
         ${renderReviewTags(result)}
+        ${renderResultEditor(result)}
         ${result.aiReason ? `<div class="result-reason">AI 说明：${escapeHtml(result.aiReason)}</div>` : ""}
         ${result.filteredTags && result.filteredTags.length ? `<div class="filtered">已过滤：${escapeHtml(result.filteredTags.join("、"))}</div>` : ""}
         ${result.hiddenCount ? `<div class="muted">${result.hiddenCount} 个低置信标签已隐藏</div>` : ""}
@@ -1114,8 +2964,55 @@
     els.results.querySelectorAll("[data-review-tag]").forEach((input) => {
       input.addEventListener("change", () => toggleReviewTag(input.dataset.resultId, input.dataset.reviewTag, input.checked));
     });
+    els.results.querySelectorAll("[data-remove-review-tag]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        removeReviewTag(button.dataset.resultId, button.dataset.removeReviewTag);
+      });
+    });
+    els.results.querySelectorAll("[data-add-manual-tag]").forEach((button) => {
+      button.addEventListener("click", () => addManualTagToResult(button.dataset.addManualTag));
+    });
+    els.results.querySelectorAll("[data-manual-tag-input]").forEach((input) => {
+      input.addEventListener("focus", () => renderManualTagSuggestions(input.dataset.manualTagInput));
+      input.addEventListener("input", () => renderManualTagSuggestions(input.dataset.manualTagInput));
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addManualTagToResult(input.dataset.manualTagInput);
+        }
+        if (event.key === "Escape") closeManualTagMenus();
+      });
+    });
+    els.results.querySelectorAll("[data-manual-tag-menu]").forEach((menu) => {
+      menu.addEventListener("mousedown", (event) => {
+        const option = event.target.closest("[data-manual-tag-option]");
+        if (!option) return;
+        event.preventDefault();
+        selectManualTagSuggestion(menu.dataset.manualTagMenu, option.dataset.manualTagOption);
+      });
+    });
     els.results.querySelectorAll("[data-reanalyze-result]").forEach((button) => {
       button.addEventListener("click", () => reanalyzeResult(button.dataset.reanalyzeResult));
+    });
+    if (state.mediaPreview.open) renderMediaPreview();
+  }
+
+  function getFilteredResults() {
+    const filter = state.activeResultFilter || "all";
+    if (filter === "all") return state.results;
+    if (filter === "ready") return state.results.filter((result) => result.status === "ready");
+    if (filter === "failed") return state.results.filter((result) => result.status === "failed");
+    if (filter === "applied") return state.results.filter((result) => result.status === "applied");
+    if (filter === "skipped") return state.results.filter((result) => result.status === "skipped");
+    return state.results;
+  }
+
+  function updateResultFilterButtons() {
+    if (!els.resultFilterButtons) return;
+    els.resultFilterButtons.forEach((button) => {
+      button.classList.toggle("is-active", (button.dataset.resultFilter || "all") === (state.activeResultFilter || "all"));
     });
   }
 
@@ -1157,14 +3054,127 @@
       <div class="tag-section-title">待确认</div>
       <div class="review-tags">
         ${result.reviewTags.map((tag) => `
-          <label class="review-tag">
+          <label class="review-tag ${tag.source === "manual" ? "manual" : ""}" data-result-id="${escapeHtml(result.id)}" data-review-tag-name="${escapeHtml(tag.name)}">
             <input type="checkbox" data-result-id="${escapeHtml(result.id)}" data-review-tag="${escapeHtml(tag.name)}" ${tag.selected ? "checked" : ""}>
             <span>${escapeHtml(tag.name)}</span>
-            <strong>${formatConfidence(tag.confidence)}</strong>
+            <strong>${tag.source === "manual" ? "人工" : formatConfidence(tag.confidence)}</strong>
+            <button class="review-tag-remove" type="button" data-result-id="${escapeHtml(result.id)}" data-remove-review-tag="${escapeHtml(tag.name)}" title="删除标签">×</button>
           </label>
         `).join("")}
       </div>
     `;
+  }
+
+  function renderResultEditor(result) {
+    if (["pending", "running"].includes(result.status)) return "";
+    const menuId = `manual-tag-menu-${safeDomId(result.id)}`;
+    return `
+      <div class="result-editor">
+        <input type="search" data-manual-tag-input="${escapeHtml(result.id)}" aria-controls="${escapeHtml(menuId)}" aria-expanded="false" autocomplete="off" placeholder="搜索或输入标签">
+        <button type="button" data-add-manual-tag="${escapeHtml(result.id)}">添加标签</button>
+        <div id="${escapeHtml(menuId)}" class="manual-tag-menu" data-manual-tag-menu="${escapeHtml(result.id)}" hidden></div>
+      </div>
+    `;
+  }
+
+  function getManualTagInput(resultId) {
+    return Array.from(els.results.querySelectorAll("[data-manual-tag-input]"))
+      .find((candidate) => candidate.dataset.manualTagInput === resultId);
+  }
+
+  function getManualTagMenu(resultId) {
+    return Array.from(els.results.querySelectorAll("[data-manual-tag-menu]"))
+      .find((candidate) => candidate.dataset.manualTagMenu === resultId);
+  }
+
+  function renderManualTagSuggestions(resultId) {
+    const input = getManualTagInput(resultId);
+    const menu = getManualTagMenu(resultId);
+    const result = state.results.find((item) => item.id === resultId);
+    if (!input || !menu || !result) return;
+    const query = cleanTag(input.value);
+    const selected = new Set((Array.isArray(result.reviewTags) ? result.reviewTags : []).map((tag) => tag.name));
+    const matches = getAllowedTags()
+      .filter((tag) => !selected.has(tag))
+      .filter((tag) => !query || tag.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 12);
+    const canCreate = query && !selected.has(query) && !matches.some((tag) => tag === query);
+    const createOption = canCreate
+      ? `<button type="button" class="manual-tag-option create" data-manual-tag-option="${escapeHtml(query)}"><span>新增“${escapeHtml(query)}”</span><small>加入本次标签池</small></button>`
+      : "";
+    const matchOptions = matches.map((tag) => `
+      <button type="button" class="manual-tag-option" data-manual-tag-option="${escapeHtml(tag)}">
+        <span>${escapeHtml(tag)}</span>
+        <small>${state.eagleTags.includes(tag) ? "Eagle 标签" : "本次标签"}</small>
+      </button>
+    `).join("");
+    if (!createOption && !matchOptions) {
+      closeManualTagMenu(resultId);
+      return;
+    }
+    menu.innerHTML = `${createOption}${matchOptions}`;
+    menu.hidden = false;
+    menu.classList.add("is-open");
+    input.setAttribute("aria-expanded", "true");
+    positionManualTagMenu(input, menu);
+  }
+
+  function positionManualTagMenu(input, menu) {
+    const rect = input.getBoundingClientRect();
+    const margin = 8;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1180;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 760;
+    const width = Math.min(Math.max(rect.width, 220), viewportWidth - margin * 2);
+    menu.style.width = `${Math.round(width)}px`;
+    menu.style.left = `${Math.round(clampNumber(rect.left, margin, viewportWidth - width - margin, margin))}px`;
+    const maxHeight = Math.min(260, Math.max(120, viewportHeight - margin * 2));
+    menu.style.maxHeight = `${Math.round(maxHeight)}px`;
+    const menuHeight = Math.min(menu.scrollHeight || maxHeight, maxHeight);
+    const belowTop = rect.bottom + 6;
+    const aboveTop = rect.top - menuHeight - 6;
+    const top = belowTop + menuHeight <= viewportHeight - margin ? belowTop : Math.max(margin, aboveTop);
+    menu.style.top = `${Math.round(top)}px`;
+  }
+
+  function selectManualTagSuggestion(resultId, tagName) {
+    const input = getManualTagInput(resultId);
+    if (input) input.value = tagName || "";
+    addManualTagToResult(resultId);
+  }
+
+  function closeManualTagMenu(resultId) {
+    const menu = getManualTagMenu(resultId);
+    const input = getManualTagInput(resultId);
+    if (menu) {
+      menu.hidden = true;
+      menu.classList.remove("is-open");
+      menu.innerHTML = "";
+    }
+    if (input) input.setAttribute("aria-expanded", "false");
+  }
+
+  function closeManualTagMenus() {
+    els.results.querySelectorAll("[data-manual-tag-menu]").forEach((menu) => {
+      closeManualTagMenu(menu.dataset.manualTagMenu);
+    });
+  }
+
+  async function retryFailedResults() {
+    if (state.running) return;
+    const failedIds = state.results.filter((result) => result.status === "failed").map((result) => result.id);
+    if (!failedIds.length) {
+      setStatus("没有失败项需要重试。");
+      return;
+    }
+    const failedSet = new Set(failedIds);
+    state.results = state.results.map((result) => failedSet.has(result.id)
+      ? { ...createPendingResult({ id: result.id, name: result.name }), message: "等待重试" }
+      : result);
+    state.paused = false;
+    saveResultsState();
+    renderResults();
+    setStatus(`准备重试 ${failedIds.length} 个失败项。`);
+    await analyzeSelected();
   }
 
   async function reanalyzeResult(resultId) {
@@ -1181,12 +3191,14 @@
     }
     const settings = readSettings();
     const model = settings.enabledBackends.includes("eagle") ? getAiModel() : null;
+    if (!await ensureHealthyBeforeAnalysis(settings, model)) return;
     const usableBackends = getUsableBackends(settings, model);
     if (!usableBackends.length) {
       setStatus("没有可用 AI 后端：请启用 Claude/Codex CLI，或配置 Eagle 默认视觉模型。");
       return;
     }
     settings.enabledBackends = usableBackends;
+    if (!ensureDiagnosticSettings(settings)) return;
     state.running = true;
     state.pauseRequested = false;
     setControlsBusy(true);
@@ -1206,6 +3218,7 @@
       diagnostics: null,
       errorType: ""
     });
+    state.analysisAbortController = createAnalysisAbortController();
     try {
       const result = await analyzeItem(item, model, allowedTags, settings);
       updateResult(resultId, result);
@@ -1225,6 +3238,7 @@
       setStatus(`重新分析失败：${formatError(error)}`);
     } finally {
       state.running = false;
+      state.analysisAbortController = null;
       state.pauseRequested = false;
       setControlsBusy(false);
       renderAll();
@@ -1237,7 +3251,49 @@
     const tag = result.reviewTags.find((item) => item.name === tagName);
     if (tag) tag.selected = selected;
     result.tags = getSelectedReviewTags(result).map((item) => item.name);
+    saveResultsState();
     renderResults();
+  }
+
+  function removeReviewTag(resultId, tagName) {
+    const result = state.results.find((item) => item.id === resultId);
+    if (!result || !Array.isArray(result.reviewTags)) return;
+    result.reviewTags = result.reviewTags.filter((tag) => tag.name !== tagName);
+    result.tags = getSelectedReviewTags(result).map((item) => item.name);
+    saveResultsState();
+    renderResults();
+  }
+
+  function addManualTagToResult(resultId) {
+    const result = state.results.find((item) => item.id === resultId);
+    if (!result) return;
+    const input = Array.from(els.results.querySelectorAll("[data-manual-tag-input]"))
+      .find((candidate) => candidate.dataset.manualTagInput === resultId);
+    const tagName = cleanTag(input && input.value);
+    if (!tagName) return;
+    const existing = new Set((Array.isArray(result.reviewTags) ? result.reviewTags : []).map((tag) => tag.name));
+    if (!existing.has(tagName)) {
+      result.reviewTags = [
+        ...(Array.isArray(result.reviewTags) ? result.reviewTags : []),
+        { name: tagName, confidence: 1, selected: true, source: "manual" }
+      ];
+    } else {
+      result.reviewTags = result.reviewTags.map((tag) => tag.name === tagName ? { ...tag, selected: true } : tag);
+    }
+    if (!getAllowedTags().includes(tagName)) {
+      state.customAllowedTags = normalizeTagList([...state.customAllowedTags, tagName]);
+      saveStoredTagState();
+    }
+    if (["failed", "skipped", "applied"].includes(result.status)) {
+      result.status = "ready";
+      result.message = "已人工添加标签，可直接写入或重新分析。";
+      result.errorType = "";
+    }
+    result.tags = getSelectedReviewTags(result).map((item) => item.name);
+    if (input) input.value = "";
+    closeManualTagMenu(resultId);
+    saveResultsState();
+    renderAll();
   }
 
   function createPendingResult(item) {
@@ -1250,8 +3306,14 @@
       autoTags: [],
       reviewTags: [],
       aiReason: "",
+      aiBackend: "",
       frameCount: 0,
+      requestCount: 0,
+      mediaChunkCount: 0,
+      tagChunkCount: 0,
       diagnosticPath: "",
+      confidence: 0,
+      errorType: "",
       diagnostics: null,
       filteredTags: []
     };
@@ -1261,6 +3323,7 @@
     const index = state.results.findIndex((result) => result.id === id);
     if (index >= 0) {
       state.results[index] = { ...state.results[index], ...patch };
+      saveResultsState();
       renderResults();
     }
   }
@@ -1299,6 +3362,7 @@
         source: source || "写入标签",
         at: Date.now()
       });
+      saveUndoStack();
       renderResults();
     }
   }
@@ -1331,6 +3395,7 @@
       return;
     }
     state.undoStack.pop();
+    saveUndoStack();
     setStatus(`已撤销：${record.source || "上次写入"}。移除 ${removeSet.size} 个标签。`);
     renderResults();
   }
@@ -1366,11 +3431,15 @@
     els.analyzeBtn.disabled = busy;
     els.pauseBtn.disabled = !busy || state.pauseRequested;
     updateAnalysisControls();
-    els.importBtn.disabled = busy;
-    els.refreshBtn.disabled = busy;
+    els.appendSelectedBtn.disabled = busy;
+    els.replaceSelectedBtn.disabled = busy;
+    els.clearSelectedBtn.disabled = busy || (!state.selectedItems.length && !state.results.length);
+    els.miniCollectorBtn.disabled = busy;
+    updateCollectorBar();
     els.refreshTagsBtn.disabled = busy;
     els.importDefaultsBtn.disabled = busy;
-    els.undoBtn.disabled = busy || state.undoStack.length === 0;
+    els.applyBtn.disabled = busy || state.writing || state.results.filter((result) => result.status === "ready" && getSelectedReviewTags(result).length).length === 0;
+    els.undoBtn.disabled = busy || state.writing || state.undoStack.length === 0;
   }
 
   function updateAnalysisControls() {
@@ -1498,15 +3567,31 @@
       if (!name || seen.has(name)) return;
       seen.add(name);
       const confidence = typeof tag === "object" && tag
-        ? clampNumber(tag.confidence ?? tag.score ?? fallbackConfidence, 0, 1, 0.5)
-        : clampNumber(fallbackConfidence, 0, 1, 0.5);
+        ? normalizeConfidenceValue(tag.confidence ?? tag.score ?? fallbackConfidence, 0.5)
+        : normalizeConfidenceValue(fallbackConfidence, 0.5);
       output.push({ name, confidence });
     });
     return output;
   }
 
+  function normalizeConfidenceValue(value, fallback = 0.5) {
+    if (typeof value === "string" && value.trim().endsWith("%")) {
+      return clampNumber(Number(value.trim().slice(0, -1)) / 100, 0, 1, fallback);
+    }
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return clampNumber(number > 1 ? number / 100 : number, 0, 1, fallback);
+  }
+
   function cleanTag(tag) {
     return String(tag || "").trim().replace(/\s+/g, " ");
+  }
+
+  function safeDomId(value) {
+    return String(value || "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      || "item";
   }
 
   function readJsonArray(key) {
@@ -1556,6 +3641,24 @@
       .replace(/'/g, "&#039;");
   }
 
+  function delay(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+  }
+
+  function isRetryableAiError(error) {
+    const message = formatError(error).toLowerCase();
+    if (message.includes("未配置默认视觉模型") || message.includes("没有启用可用") || message.includes("无法调用本地 cli")) return false;
+    return true;
+  }
+
+  function estimateTextSize(text) {
+    return String(text || "").length;
+  }
+
+  function estimateTextTokens(text) {
+    return Math.ceil(estimateTextSize(text) / 2);
+  }
+
   function parseAiJson(text) {
     const raw = String(text || "").trim();
     if (!raw) throw new Error("AI 没有返回内容");
@@ -1564,18 +3667,41 @@
       .replace(/```$/i, "")
       .trim();
     try {
-      return JSON.parse(cleaned);
+      return normalizeAiObject(JSON.parse(repairJsonText(cleaned)));
     } catch (firstError) {
       const match = cleaned.match(/\{[\s\S]*\}/);
       if (match) {
         try {
-          return JSON.parse(match[0]);
+          return normalizeAiObject(JSON.parse(repairJsonText(match[0])));
         } catch (secondError) {
           throw new Error(`AI 返回内容不是有效 JSON：${cleaned.slice(0, 160)}`);
         }
       }
+      if (cleaned.startsWith("[") && cleaned.endsWith("]")) {
+        try {
+          return normalizeAiObject(JSON.parse(repairJsonText(cleaned)));
+        } catch (arrayError) {}
+      }
       throw new Error(`AI 返回内容不是 JSON：${cleaned.slice(0, 160)}`);
     }
+  }
+
+  function repairJsonText(text) {
+    return String(text || "")
+      .replace(/,\s*([}\]])/g, "$1")
+      .replace(/[“”]/g, "\"")
+      .replace(/[‘’]/g, "'");
+  }
+
+  function normalizeAiObject(value) {
+    if (Array.isArray(value)) return { tags: value, confidence: 0.5, reason: "" };
+    if (!value || typeof value !== "object") {
+      throw new Error(`AI 返回内容不是 JSON：${String(value).slice(0, 160)}`);
+    }
+    if (Array.isArray(value.tags)) return value;
+    if (Array.isArray(value.labels)) return { ...value, tags: value.labels };
+    if (Array.isArray(value.result)) return { ...value, tags: value.result };
+    return value;
   }
 
   function stateLabel(status) {
@@ -1645,5 +3771,6 @@
 
   function setStatus(text) {
     els.statusText.textContent = text;
+    if (els.collectorStatus) els.collectorStatus.textContent = text;
   }
 })();

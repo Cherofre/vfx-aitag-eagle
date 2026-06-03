@@ -1,20 +1,20 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-01 11:09
-- Phase: Release published
-- Superpowers Phase: executing-plans + TDD + project-ledger-loop
-- Branch: codex/single-screen-workbench
-- Goal: 特效 AI 标签管理 Eagle 插件单屏工作台优化、CLI 图像读取修复、验证并重新打包；评估作者新版插件可合并内容
-- Current Focus: Published the current packaged Eagle plugin artifact to GitHub Releases as `v1.0.0`.
-- Superpowers Spec: none
-- Superpowers Plan: `docs/superpowers/plans/2026-05-26-author-ui-merge.md`
-- Current Task: Hand off GitHub release `v1.0.0` and continue Eagle real-host smoke testing when available.
+- Last Updated: 2026-06-03 22:12
+- Phase: v1.0.3 released and local Eagle install synchronized after collector auto-collect fix
+- Superpowers Phase: brainstorming + writing-plans + TDD + project-ledger-loop
+- Branch: codex/media-preview-review
+- Goal: 给结果卡和素材列表增加“验收预览”，让用户检查图片/视频与 AI 标签是否匹配，并提供 Eagle 原生打开兜底。
+- Current Focus: GitHub Release `v1.0.3` is published at `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.3`, superseding `v1.0.2`. The user still saw collector auto-collection because the local Eagle install directory was still version `1.0.2`; it has now been backed up and synchronized to the current `1.0.3` source files.
+- Superpowers Spec: `docs/superpowers/specs/2026-06-03-selected-material-tray-design.md`
+- Superpowers Plan: `docs/superpowers/plans/2026-06-03-selected-material-tray.md`
+- Current Task: Reopen or restart Eagle so it loads the synchronized `1.0.3` plugin files, then run the real-host collector/media preview smoke.
 
 ## Resume Here
-- Start with: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test selection refresh failures, write failures, frameless dragging, settings tabs, diagnostics, and pause/continue/restart controls.
-- Next verification: after merge, run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, `node --check cli-backends.js`, then repackage and inspect archive.
-- Watch out for: author package removes local CLI backend support; keep existing form IDs/storage keys compatible and preserve single-screen body no-scroll contract.
+- Start with: close and reopen the plugin window, or restart Eagle if the old renderer remains cached; then import/select a mix of image, mp4/webm, and mov/mkv assets in Eagle.
+- Next verification: Eagle smoke should confirm clicking `置顶采集` no longer imports current selection until `收集选中` is clicked; the selected-material panel shows at most three tray cards; `展开素材` and `展开全部 +N` open the full local dialog; material cards in both tray/dialog show `预览` plus a right-side trash SVG remove button; only one compact progress slot is visible during analysis/write; then verify preview image/video/native-open/fallback and preview-side tag edit behavior.
+- Watch out for: Browser static `file://` verification was blocked by Browser Use URL policy, so no local browser screenshot was captured. Eagle native open depends on host API support and `window: true` requires Eagle 4.0 build12+; plugin-native `<video>` playback still depends on Chromium codec support.
 
 ## Progress Summary
 - [x] Initialized Project Ledger Loop files.
@@ -43,15 +43,87 @@
 - [x] Fixed broken diagnostic frame previews by embedding preview data URLs before temporary frame cleanup; saved diagnostics still use persistent file URLs.
 - [x] Fixed Codex CLI discovery for other PCs where Codex is installed at `C:\Users\<user>\AppData\Local\OpenAI\Codex\bin\codex.exe`; added bounded discovery under `LOCALAPPDATA\OpenAI`, `LOCALAPPDATA\Programs`, and npm roots.
 - [x] Published GitHub Release `v1.0.0` with asset `vfx-aitag-eagle-cli-1.0.0.eagleplugin`.
+- [x] Extracted and evaluated author package `AI 标签工具0601.eagleplugin`; identified useful feature candidates but confirmed whole-package merge would regress CLI support and single-screen workbench behavior.
+- [x] Selectively merged 0601 features: title-in-prompt toggle, AI retry count, request chunking, write progress, result cache, JSON repair, diagnostic directory validation, and directory picker fallback.
+- [x] Bumped manifest to `1.1.4` and repackaged `dist\特效AI标签管理-cli.eagleplugin`.
+- [x] Created branch `codex/productivity-workbench` from `codex/merge-author-0601-features`.
+- [x] Baseline verified before productivity implementation.
+- [x] Add RED tests for health checks, presets, failed-result retry, result editing, and packaging contract.
+- [x] Implemented environment health checks, analysis presets, failed-result retry/filtering, and manual result tag editing.
+- [x] Verified source implementation with unit/static tests and syntax checks.
+- [x] Bumped manifest to `1.2.0`, updated README, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Fixed Eagle-reported UI regression where topbar wraps and creates page scrollbars.
+- [x] Moved material import/refresh/full-list actions into the selected-material panel.
+- [x] Added local selected-material full-list dialog and analysis progress bar.
+- [x] Bumped manifest to `1.2.1`, updated README, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Fixed closed selected-material full-list dialog intercepting clicks by adding real `hidden` state, CSS `display: none`, and JS open/close hidden toggles.
+- [x] Bumped manifest to `1.2.2`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Pushed `codex/productivity-workbench` to `origin/codex/productivity-workbench`.
+- [x] Created branch `codex/collection-workflow` from the packaged productivity workbench state.
+- [x] Added plan `docs/superpowers/plans/2026-06-02-collection-workflow.md`.
+- [x] Implemented append/replace/clear current Eagle selection, plugin event append, internal context menus, and collector bar mode.
+- [x] Bumped manifest to `1.3.0`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Fixed collector bar so it can really shrink by lowering manifest minimum window size, moving it to a top-center floating position, making it always-on-top while collapsed, and restoring window bounds/top state on expand.
+- [x] Bumped manifest to `1.3.1`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Made collector bar prominent with themed icon actions, changed copy to “素材采集 / 边选边收”, added clear queue, and auto-collected current selection on entering collector mode.
+- [x] Bumped manifest to `1.3.2`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Changed the workbench entry from a small “采集条” button to a first-position primary “置顶采集” action with icon.
+- [x] Scaled collector window and actions down by 15% from `760×132` to `646×112`, added screen-bound clamping, and made the collector content fill the small window.
+- [x] Replaced `logo.png` with the generated minimal tag-plus-sparkle logo resized to `128×128`.
+- [x] Bumped manifest to `1.3.3`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Fixed collector-sized persisted reopen by restoring workbench bounds on init and before closing from collector mode.
+- [x] Changed analysis progress from completed-item-only ticks to staged per-item progress with current stage metadata.
+- [x] Reduced review tag chip height and replaced native manual-tag `datalist` with a styled fixed-position suggestion menu constrained to the viewport.
+- [x] Bumped manifest to `1.3.4`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Increased collector left/right padding, reduced collector height to `646×104`, and slightly reduced collector action/icon/close sizes.
+- [x] Fixed collector close flash by marking a pending workbench restore and closing the small window directly instead of expanding first.
+- [x] Bumped manifest to `1.3.5`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Added explicit page favicon links pointing at the generated logo with a `1.3.6` cache-buster so pinned/collector windows do not fall back to stale default icons.
+- [x] Bumped manifest to `1.3.6`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Added local CLI abort support via AbortController/signal and child `kill()` on pause.
+- [x] Persisted undo stack in `localStorage` so a write can still be undone after closing/reopening the plugin, provided the Eagle item is reselected/imported.
+- [x] Replaced `logo.png` with a larger, brighter tag-plus-sparkle mark and updated favicon cache-buster to `1.3.7`.
+- [x] Bumped manifest to `1.3.7`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Added RED tests for a bright blue app-icon logo and `1.3.8` favicon cache-buster; confirmed they failed against the old dark logo.
+- [x] Replaced `logo.png` with a deterministic flat blue icon with a white tag mark and updated manifest/favicon to `1.3.8`.
+- [x] Repackaged `dist\特效AI标签管理-cli.eagleplugin` version `1.3.8` and inspected archive contents.
+- [x] Added RED test that ordinary plugin open/show must not auto-import Eagle's current selection, while collector entry still auto-collects.
+- [x] Removed startup `appendSelectedItems("打开插件导入当前选中")` and plugin show/run auto-append binding; explicit append/replace/context-menu/collector actions remain.
+- [x] Bumped manifest/favicon to `1.3.9`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected archive contents.
+- [x] Ran three read-only subagent reviews for UI/collector workflow, CLI/analysis/write safety, and release/package hygiene.
+- [x] Fixed review findings: CLI abort no longer falls back to Eagle AI, multi-chunk pause throws `AbortError`, replace-selection failures preserve existing queue/results, unresolved PATH commands fail health checks, collector bar shows status feedback, and collector clear copy now says “清空全部”.
+- [x] Aligned manifest/favicon/package to version `1.0.1`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected archive contents.
+- [x] Pushed tag `v1.0.1` and created GitHub Release `v1.0.1` with asset `vfx-aitag-eagle-cli-1.0.1.eagleplugin`.
+- [x] Created branch `codex/media-preview-review` for media/tag acceptance preview.
+- [x] Added RED UI contract coverage for media preview dialog, material/result preview buttons, Eagle-open fallback, video fallback, and preview-side tag editing.
+- [x] Implemented local image/video preview dialog with previous/next navigation, thumbnail/diagnostic fallback, Eagle native open fallback, and preview-side tag toggle/delete.
+- [x] Bumped branch package manifest/favicon to `1.0.2`, repackaged `dist\特效AI标签管理-cli.eagleplugin`, and inspected archive contents.
+- [x] Compact progress UI so analysis/write progress share one activity slot and do not stack in the result panel.
+- [x] Changed selected-material preview from a clipped summary to a fixed-height local scroller that renders the full imported queue.
+- [x] Repackaged `dist\特效AI标签管理-cli.eagleplugin` version `1.0.2` and inspected archive contents.
+- [x] Reworked selected-material preview into a compact three-slot thumbnail tray with a clear full-list expansion card/button, then repackaged version `1.0.2`.
+- [x] Added a right-side trash SVG remove button next to each selected-material preview action in both the tray and full dialog, then repackaged version `1.0.2`.
+- [x] Pushed tag `v1.0.2` and published GitHub Release `v1.0.2` with asset `vfx-aitag-eagle-cli-1.0.2.eagleplugin`.
+- [x] Removed collector-entry auto-collection, kept manual `收集选中`, bumped manifest/favicon/package to `1.0.3`, and inspected the package.
+- [x] Published GitHub Release `v1.0.3` and synchronized the local installed plugin directory from the current `1.0.3` source files after finding Eagle was still running installed version `1.0.2`.
 
 ## Verification
-- Last command: `Compress-Archive` packaged `dist\特效AI标签管理-cli.eagleplugin` and inspected archive entries.
+- Last command: installed plugin inspection after local Eagle install synchronization
 - Result: pass
-- Evidence / notes: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 18 tests. `node --check plugin.js` and `node --check cli-backends.js` passed. Node smoke for a 40,000-character Codex prompt plus 60 long frame paths produced argv length 1406, stdin length 40000, imageCount 16, final arg `-`. Package inspection confirmed `manifest.json`, `index.html`, `style.css`, `plugin.js`, `cli-backends.js`, `README.md`, and `logo.png` are present. `gh release view v1.0.0` confirmed release URL `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.0`, asset `vfx-aitag-eagle-cli-1.0.0.eagleplugin`, size 32931, sha256 `2465d9a5ef78969268c1d834d7f3a3189ae57ad84c9d59bdd5774cd218c1230b`. Eagle real-host smoke is still required.
+- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected because tests now reject `进入采集条自动收集当前选中`. Fresh GREEN run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 44/44 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `manifest.json`, `index.html`, `style.css`, `plugin.js`, `cli-backends.js`, `README.md`, and `logo.png`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.0.3`, `devTools: false`, `logo.png?v=1.0.3`, manual collector append remains, and auto collector append is absent. GitHub Release `v1.0.3` is published with asset `vfx-aitag-eagle-cli-1.0.3.eagleplugin`. Local installed plugin `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` was version `1.0.2` and contained the old auto-collect call; it was backed up to `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI.backup-codex-20260603-221031` and overwritten with current `1.0.3` files. Installed inspection now shows version `1.0.3`, `HasCollectorAuto=False`, `HasOpenAuto=False`, `HasManualCollector=True`, and `logo.png?v=1.0.3` present. Browser static `file://` verification was blocked earlier by Browser Use URL policy. Eagle real-host smoke is still required after reopening/restarting Eagle. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
-- Needs final manual smoke in Eagle with real selected assets and local CLI backends.
+- Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.
+- Browser static verification for `file://` was blocked by Browser Use URL policy; do not claim browser layout smoke for the preview dialog.
+- Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.
+- Pause can immediately stop local CLI children, but Eagle AI requests are still not truly cancellable by this plugin and will pause only after the current Eagle AI call returns.
+- Persistent undo can restore the undo record after reopening, but the target Eagle item must be available in the current selected/imported list for the plugin to call `item.save()`.
+- If the pinned/collector icon remains old after installing `1.3.8`, the remaining likely cause is Eagle or Windows icon cache; try unpin/re-pin or restart Eagle before clearing broader system caches.
+- Current UI fix must preserve single-screen body no-scroll and keep the main material tray fixed-height, with full material scrolling only in the selected-material modal.
+- New health checks must remain lightweight and must not perform real AI requests.
 - Upstream merge is high-conflict in `plugin.js`, `index.html`, and `style.css`; wholesale replacement would regress local CLI backend and single-screen workbench.
+- The 0601 package is not install/release clean as-is: it embeds nested packages, keeps the author plugin ID, leaves `devTools` enabled, and keeps the localized manifest shape that previously caused Eagle import/open ambiguity.
+- Request chunking is covered by static tests and syntax checks, but still needs real Eagle/CLI smoke with many tags or many frames.
 - Working tree may contain unrelated user file `docs/vfx-tag-taxonomy-review.md`; do not include or delete it unless explicitly requested.
 
 ## History

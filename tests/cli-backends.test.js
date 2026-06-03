@@ -26,6 +26,7 @@ test("parseCliJson extracts tag JSON from plain and wrapped CLI output", () => {
 test("createAnalysisPrompt includes allowed tags, media paths, and JSON contract", () => {
   const prompt = backends.createAnalysisPrompt({
     itemName: "skill_fire.mov",
+    includeTitleInPrompt: true,
     mediaKind: "video",
     frameCount: 2,
     allowedTags: ["火焰", "冰冻"],
@@ -40,6 +41,45 @@ test("createAnalysisPrompt includes allowed tags, media paths, and JSON contract
   assert.match(prompt, /C:\\tmp\\frame-001\.jpg/);
   assert.match(prompt, /优先判断技能用途/);
   assert.match(prompt, /"tags"/);
+});
+
+test("createAnalysisPrompt omits misleading titles unless explicitly enabled", () => {
+  const withoutTitle = backends.createAnalysisPrompt({
+    itemName: "皮肤教程标题可能误导.mov",
+    includeTitleInPrompt: false,
+    mediaKind: "video",
+    frameCount: 3,
+    allowedTags: ["火焰", "教程"],
+    maxTags: 2,
+    imagePaths: ["C:\\tmp\\frame-001.jpg"]
+  });
+
+  assert.doesNotMatch(withoutTitle, /皮肤教程标题可能误导/);
+  assert.match(withoutTitle, /这个素材|素材类型/);
+
+  const withTitle = backends.createAnalysisPrompt({
+    itemName: "皮肤教程标题可能误导.mov",
+    includeTitleInPrompt: true,
+    mediaKind: "video",
+    frameCount: 3,
+    allowedTags: ["火焰", "教程"],
+    maxTags: 2,
+    imagePaths: ["C:\\tmp\\frame-001.jpg"]
+  });
+
+  assert.match(withTitle, /皮肤教程标题可能误导\.mov/);
+});
+
+test("parseCliJson repairs common AI JSON variants", () => {
+  assert.deepEqual(
+    backends.parseCliJson("```json\n{“labels”:[{“name”:“烟雾”,“confidence”:0.74,}],“reason”:“soft smoke”,}\n```"),
+    { labels: [{ name: "烟雾", confidence: 0.74 }], reason: "soft smoke", tags: [{ name: "烟雾", confidence: 0.74 }] }
+  );
+
+  assert.deepEqual(
+    backends.parseCliJson('["火焰","闪电"]'),
+    { tags: ["火焰", "闪电"], confidence: 0.5, reason: "" }
+  );
 });
 
 test("createCliPlan builds Claude and Codex non-interactive commands", () => {
@@ -148,6 +188,67 @@ test("createCliPlan discovers Codex under variable local install folders", () =>
   }
 });
 
+test("createCliHealthChecks builds lightweight command plans without AI prompts", () => {
+  const env = {
+    APPDATA: "C:\\Users\\me\\AppData\\Roaming",
+    LOCALAPPDATA: "C:\\Users\\me\\AppData\\Local",
+    USERPROFILE: "C:\\Users\\me",
+    PATH: "C:\\Windows\\System32"
+  };
+  const existing = new Set([
+    "C:\\Users\\me\\.local\\bin\\claude.exe",
+    "C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe"
+  ]);
+  const checks = backends.createCliHealthChecks(["claude", "codex", "eagle"], {
+    claudeCommand: "claude",
+    codexCommand: "codex",
+    cliWorkingDir: "I:\\AI\\Vibe Coding\\vfx-aitag-eagle"
+  }, {
+    env,
+    fileExists: (filePath) => existing.has(filePath)
+  });
+
+  assert.deepEqual(checks.map((check) => check.backend), ["claude", "codex", "eagle"]);
+  assert.equal(checks[0].ok, true);
+  assert.equal(checks[0].command, "C:\\Users\\me\\.local\\bin\\claude.exe");
+  assert.deepEqual(checks[0].args, ["--version"]);
+  assert.equal(checks[1].ok, true);
+  assert.equal(checks[1].command, "C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe");
+  assert.deepEqual(checks[1].args, ["--version"]);
+  assert.equal(checks[2].ok, false);
+  assert.equal(checks[2].command, "");
+  assert.match(checks[2].message, /Eagle AI/);
+  assert.equal(checks.some((check) => check.args && check.args.includes("PROMPT")), false);
+});
+
+test("createCliHealthChecks marks unresolved PATH commands as unavailable", () => {
+  const checks = backends.createCliHealthChecks(["claude", "codex"], {
+    claudeCommand: "claude",
+    codexCommand: "codex"
+  }, {
+    env: {
+      APPDATA: "C:\\Users\\me\\AppData\\Roaming",
+      LOCALAPPDATA: "C:\\Users\\me\\AppData\\Local",
+      USERPROFILE: "C:\\Users\\me",
+      PATH: "C:\\Missing"
+    },
+    fileExists: () => false,
+    fs: {
+      readdirSync() {
+        throw new Error("missing");
+      }
+    },
+    path
+  });
+
+  assert.equal(checks[0].ok, false);
+  assert.equal(checks[0].command, "claude");
+  assert.match(checks[0].message, /未找到|无法确认/);
+  assert.equal(checks[1].ok, false);
+  assert.equal(checks[1].command, "codex");
+  assert.match(checks[1].message, /未找到|无法确认/);
+});
+
 test("runCliBackends falls back after a failed backend and parses the first success", async () => {
   const attempts = [];
   const result = await backends.runCliBackends({
@@ -245,4 +346,49 @@ test("runCliBackend pipes Codex prompt through stdin when using spawn", async ()
   assert.equal(calls[0].options.stdio[0], "pipe");
   assert.equal(calls[0].args.at(-1), "-");
   assert.equal(stdinText, "PROMPT");
+});
+
+test("runCliBackend kills the current spawn child when aborted", async () => {
+  const controller = new AbortController();
+  let killed = false;
+  let exitHandler = null;
+  const resultPromise = backends.runCliBackend({
+    backend: "codex",
+    settings: {
+      codexCommand: "codex",
+      cliTimeoutSeconds: 30,
+      cliWorkingDir: process.cwd()
+    },
+    prompt: "PROMPT",
+    imagePaths: [],
+    signal: controller.signal,
+    spawn: () => {
+      const handlers = {};
+      exitHandler = (code, signal) => handlers.exit && handlers.exit(code, signal);
+      return {
+        stdin: { write() {}, end() {} },
+        stdout: { on() {} },
+        stderr: { on() {} },
+        on(event, handler) { handlers[event] = handler; return this; },
+        kill() {
+          killed = true;
+          queueMicrotask(() => exitHandler && exitHandler(null, "SIGTERM"));
+        }
+      };
+    }
+  });
+
+  controller.abort();
+  const outcome = await Promise.race([
+    resultPromise.then(
+      () => ({ status: "resolved" }),
+      (error) => ({ status: "rejected", message: error.message })
+    ),
+    new Promise((resolve) => setTimeout(() => resolve({ status: "pending" }), 30))
+  ]);
+  if (!killed && exitHandler) exitHandler(1, "SIGTERM");
+
+  assert.equal(killed, true);
+  assert.equal(outcome.status, "rejected");
+  assert.match(outcome.message, /已停止|中止|abort/i);
 });
