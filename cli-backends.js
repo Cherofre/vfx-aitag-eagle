@@ -213,9 +213,11 @@
       path: options.path,
       env: options.env
     });
+    if (isSignalAborted(options.signal)) return Promise.reject(createAbortError(plan.backend));
     return new Promise((resolve, reject) => {
       let settled = false;
       let timeoutId = null;
+      let cleanupAbort = () => {};
       const child = execFile(plan.command, plan.args, {
         cwd: plan.cwd,
         timeout: plan.timeoutMs,
@@ -226,6 +228,7 @@
         if (settled) return;
         settled = true;
         if (timeoutId) clearTimeout(timeoutId);
+        cleanupAbort();
         if (error) {
           const message = [error.message, stderr && String(stderr).trim()].filter(Boolean).join("\n");
           reject(new Error(message || `${plan.backend} CLI 调用失败`));
@@ -244,11 +247,19 @@
           reject(parseError);
         }
       });
+      cleanupAbort = watchAbortSignal(options.signal, () => {
+        if (settled) return;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        try { if (child && typeof child.kill === "function") child.kill(); } catch (error) {}
+        reject(createAbortError(plan.backend));
+      });
       writeChildStdin(child, plan.stdin);
       if (!settled && child && typeof child.kill === "function" && plan.timeoutMs > 0) {
         timeoutId = setTimeout(() => {
           if (settled) return;
           settled = true;
+          cleanupAbort();
           try { child.kill(); } catch (error) {}
           reject(new Error(`${plan.backend} CLI 超时`));
         }, plan.timeoutMs + 1000);
@@ -262,9 +273,11 @@
       path: options.path,
       env: options.env
     });
+    if (isSignalAborted(options.signal)) return Promise.reject(createAbortError(plan.backend));
     return new Promise((resolve, reject) => {
       let settled = false;
       let timeoutId = null;
+      let cleanupAbort = () => {};
       let stdout = "";
       let stderr = "";
       const child = spawn(plan.command, plan.args, {
@@ -284,12 +297,14 @@
         if (settled) return;
         settled = true;
         if (timeoutId) clearTimeout(timeoutId);
+        cleanupAbort();
         reject(error);
       });
       child.on("exit", (code, signal) => {
         if (settled) return;
         settled = true;
         if (timeoutId) clearTimeout(timeoutId);
+        cleanupAbort();
         if (code !== 0) {
           reject(new Error([`${plan.backend} CLI 退出码 ${code}${signal ? `，信号 ${signal}` : ""}`, stderr.trim()].filter(Boolean).join("\n")));
           return;
@@ -307,10 +322,18 @@
           reject(parseError);
         }
       });
+      cleanupAbort = watchAbortSignal(options.signal, () => {
+        if (settled) return;
+        settled = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        try { if (child && typeof child.kill === "function") child.kill(); } catch (error) {}
+        reject(createAbortError(plan.backend));
+      });
       if (!settled && child && typeof child.kill === "function" && plan.timeoutMs > 0) {
         timeoutId = setTimeout(() => {
           if (settled) return;
           settled = true;
+          cleanupAbort();
           try { child.kill(); } catch (error) {}
           reject(new Error(`${plan.backend} CLI 超时`));
         }, plan.timeoutMs + 1000);
@@ -332,7 +355,8 @@
           path: options.path,
           env: options.env,
           execFile: options.execFile,
-          spawn: options.spawn
+          spawn: options.spawn,
+          signal: options.signal
         });
         return { ...result, failures };
       } catch (error) {
@@ -374,6 +398,36 @@
       child.stdin.write(input);
       if (typeof child.stdin.end === "function") child.stdin.end();
     } catch (error) {}
+  }
+
+  function isSignalAborted(signal) {
+    return Boolean(signal && signal.aborted);
+  }
+
+  function watchAbortSignal(signal, onAbort) {
+    if (!signal || typeof signal.addEventListener !== "function") return () => {};
+    if (signal.aborted) {
+      onAbort();
+      return () => {};
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    return () => {
+      try { signal.removeEventListener("abort", onAbort); } catch (error) {}
+    };
+  }
+
+  function createAbortError(backend) {
+    const error = new Error(`${formatBackendLabel(backend)} CLI 请求已停止`);
+    error.name = "AbortError";
+    return error;
+  }
+
+  function formatBackendLabel(backend) {
+    return {
+      claude: "Claude",
+      codex: "Codex",
+      eagle: "Eagle AI"
+    }[String(backend || "").toLowerCase()] || String(backend || "CLI");
   }
 
   function stringOrDefault(value, fallback) {

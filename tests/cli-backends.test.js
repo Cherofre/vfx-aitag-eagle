@@ -319,3 +319,48 @@ test("runCliBackend pipes Codex prompt through stdin when using spawn", async ()
   assert.equal(calls[0].args.at(-1), "-");
   assert.equal(stdinText, "PROMPT");
 });
+
+test("runCliBackend kills the current spawn child when aborted", async () => {
+  const controller = new AbortController();
+  let killed = false;
+  let exitHandler = null;
+  const resultPromise = backends.runCliBackend({
+    backend: "codex",
+    settings: {
+      codexCommand: "codex",
+      cliTimeoutSeconds: 30,
+      cliWorkingDir: process.cwd()
+    },
+    prompt: "PROMPT",
+    imagePaths: [],
+    signal: controller.signal,
+    spawn: () => {
+      const handlers = {};
+      exitHandler = (code, signal) => handlers.exit && handlers.exit(code, signal);
+      return {
+        stdin: { write() {}, end() {} },
+        stdout: { on() {} },
+        stderr: { on() {} },
+        on(event, handler) { handlers[event] = handler; return this; },
+        kill() {
+          killed = true;
+          queueMicrotask(() => exitHandler && exitHandler(null, "SIGTERM"));
+        }
+      };
+    }
+  });
+
+  controller.abort();
+  const outcome = await Promise.race([
+    resultPromise.then(
+      () => ({ status: "resolved" }),
+      (error) => ({ status: "rejected", message: error.message })
+    ),
+    new Promise((resolve) => setTimeout(() => resolve({ status: "pending" }), 30))
+  ]);
+  if (!killed && exitHandler) exitHandler(1, "SIGTERM");
+
+  assert.equal(killed, true);
+  assert.equal(outcome.status, "rejected");
+  assert.match(outcome.message, /已停止|中止|abort/i);
+});

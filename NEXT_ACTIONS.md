@@ -1,18 +1,18 @@
 # Next Actions
 
 ## Now
-- [x] Added favicon regression coverage for the pinned/collector window icon path.
-- [x] Added `logo.png?v=1.3.6` favicon and shortcut icon links to `index.html`.
-- [x] Manifest bumped to `1.3.6`, `dist\特效AI标签管理-cli.eagleplugin` repackaged, and archive contents inspected.
-- [x] `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js` pass.
-- [ ] Install version `1.3.6` in Eagle and smoke-test plugin-list icon, pinned/collector window icon, collector spacing/height, close-without-flash, and default reopen restore.
+- [x] Added CLI abort regression coverage and implemented `signal`-driven child `kill()` for local Claude/Codex requests.
+- [x] Added persistent undo-stack coverage and saved/restored undo records through `vfxAiTagger.undoStack`.
+- [x] Replaced `logo.png` with a larger visible tag-plus-sparkle mark and updated favicon links to `logo.png?v=1.3.7`.
+- [x] Manifest bumped to `1.3.7`, `dist\特效AI标签管理-cli.eagleplugin` repackaged, and archive contents inspected.
+- [ ] Install version `1.3.7` in Eagle and smoke-test persistent undo, CLI pause/abort, icon size, collector spacing/height, close-without-flash, and default reopen restore.
 
 ## Handoff Notes
-- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.6` in Eagle.
+- Start here: install `I:\AI\Vibe Coding\vfx-aitag-eagle\dist\特效AI标签管理-cli.eagleplugin` version `1.3.7` in Eagle.
 - Do not redo: collection workflow implementation, collector entry/action fix, collector `646×104` spacing/height update, screen-bound clamping, window restore hotfix, close-without-full-window-flash fix, staged progress UI, compact/manual tag menu UI, static tests, syntax checks, browser static smoke, version bump, and package inspection are done.
-- Verify next: Eagle smoke-test the plugin-list icon and pinned/collector window icon both showing the new tag-plus-sparkle logo, right-click plugin entry append, “置顶采集” visibility, entering collector mode auto-collects current selection, “清空队列” clears pending items/results, collector bar shrinks to the top floating window with balanced side padding, stays within visible screen bounds, stays always-on-top, close does not flash a full workbench window, expands back to the full workbench, default reopen is not collector-sized, progress stages update during analysis, and manual tag menu appears near the input.
+- Verify next: Eagle smoke-test persistent undo after plugin close/reopen, pausing a long Claude/Codex request and confirming the child process stops, plugin-list/pinned/collector icon size, right-click plugin entry append, “置顶采集” visibility, entering collector mode auto-collects current selection, “清空队列” clears pending items/results, collector bar shrinks to the top floating window with balanced side padding, stays within visible screen bounds, stays always-on-top, close does not flash a full workbench window, expands back to the full workbench, default reopen is not collector-sized, progress stages update during analysis, and manual tag menu appears near the input.
 - Do not claim: Eagle real-host smoke has passed; Browser local smoke only covered static layout/menu behavior outside the Eagle host.
-- Watch out for: if the pinned/collector icon remains old after reinstalling `1.3.6`, the installed plugin files are likely correct and the next layer to test is Eagle/Windows icon cache via unpin/re-pin or Eagle restart.
+- Watch out for: pause aborts local CLI children only; Eagle AI itself is still host-controlled. Persistent undo requires the affected Eagle item to be imported/selected again so `item.save()` is available.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later

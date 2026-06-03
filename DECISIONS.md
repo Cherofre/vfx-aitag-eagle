@@ -23,8 +23,24 @@
 - 2026-06-02: Restore full workbench bounds when Eagle persists collector-sized window bounds, and use styled manual tag suggestions instead of native `datalist`.
 - 2026-06-02: Use `646×104` collector spacing and defer workbench restore on collector close to avoid a visible full-window flash.
 - 2026-06-02: Declare `logo.png` as the page favicon with a version cache-buster so pinned/collector windows can use the same icon as `manifest.logo`.
+- 2026-06-03: Persist undo history and stop active local CLI children on pause while keeping Eagle AI cancellation best-effort only.
+- 2026-06-03: Enlarge the logo's visible mark rather than changing plugin identity or adding a new visual concept.
 
 ## Decision Log
+
+## 2026-06-03 - Persistent undo and CLI abort
+- Status: active
+- Decision: Store undo records in `vfxAiTagger.undoStack` and restore them on plugin launch; create a batch abort controller during analysis and pass its signal into Claude/Codex CLI calls so pausing kills active local child processes.
+- Reason: Tag writes need a recovery path even after closing the plugin, and long local CLI requests need an immediate stop path instead of waiting for the current material to finish.
+- Alternatives considered: Keep undo in memory only; skipped because closing the plugin discards the safety record. Kill all OS processes by name; skipped because it could terminate unrelated Claude/Codex sessions. Try to cancel Eagle AI directly; skipped because the host API does not expose a reliable cancellation contract here.
+- Consequences / follow-up: Eagle smoke must verify persistent undo with a real selected item. Pausing Eagle AI-only analysis may still wait for the current host request to return.
+
+## 2026-06-03 - Larger visible logo mark
+- Status: active
+- Decision: Keep the tag-plus-sparkle concept, but enlarge the bright mark, reduce perceived dark padding, and update the favicon cache-buster to `1.3.7`.
+- Reason: In Eagle's dark plugin menus the previous dark-background logo blended into the UI, making only the smaller line mark visible compared with neighboring app icons.
+- Alternatives considered: Generate a completely new logo; skipped because the current concept is already recognizable. Only resize the PNG canvas; skipped because the canvas was already `128×128` and the issue was visible mark size.
+- Consequences / follow-up: Reinstall `1.3.7` and compare icon size in the plugin list and pinned bar. If icon cache persists, re-pin or restart Eagle.
 
 ## 2026-06-02 - Page favicon for pinned window icon
 - Status: active

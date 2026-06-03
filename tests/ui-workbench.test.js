@@ -2,11 +2,93 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const zlib = require("node:zlib");
 
 const root = path.resolve(__dirname, "..");
 
 function read(file) {
   return fs.readFileSync(path.join(root, file), "utf8");
+}
+
+function readPngRgba(file) {
+  const buffer = fs.readFileSync(path.join(root, file));
+  assert.equal(buffer.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  const idat = [];
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.subarray(offset + 4, offset + 8).toString("ascii");
+    const data = buffer.subarray(offset + 8, offset + 8 + length);
+    if (type === "IHDR") {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === "IDAT") {
+      idat.push(data);
+    } else if (type === "IEND") {
+      break;
+    }
+    offset += 12 + length;
+  }
+  assert.equal(bitDepth, 8);
+  assert.equal(colorType, 6);
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = width * 4;
+  const pixels = Buffer.alloc(stride * height);
+  let rawOffset = 0;
+  for (let y = 0; y < height; y += 1) {
+    const filter = raw[rawOffset++];
+    const row = raw.subarray(rawOffset, rawOffset + stride);
+    const outOffset = y * stride;
+    rawOffset += stride;
+    for (let x = 0; x < stride; x += 1) {
+      const left = x >= 4 ? pixels[outOffset + x - 4] : 0;
+      const up = y > 0 ? pixels[outOffset - stride + x] : 0;
+      const upLeft = y > 0 && x >= 4 ? pixels[outOffset - stride + x - 4] : 0;
+      const paeth = paethPredictor(left, up, upLeft);
+      const value = row[x];
+      pixels[outOffset + x] = (value + [0, left, up, Math.floor((left + up) / 2), paeth][filter]) & 0xff;
+    }
+  }
+  return { width, height, pixels };
+}
+
+function paethPredictor(left, up, upLeft) {
+  const p = left + up - upLeft;
+  const pa = Math.abs(p - left);
+  const pb = Math.abs(p - up);
+  const pc = Math.abs(p - upLeft);
+  if (pa <= pb && pa <= pc) return left;
+  if (pb <= pc) return up;
+  return upLeft;
+}
+
+function brightContentBounds(image) {
+  let minX = image.width;
+  let minY = image.height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < image.height; y += 1) {
+    for (let x = 0; x < image.width; x += 1) {
+      const offset = (y * image.width + x) * 4;
+      const r = image.pixels[offset];
+      const g = image.pixels[offset + 1];
+      const b = image.pixels[offset + 2];
+      const a = image.pixels[offset + 3];
+      if (a > 20 && Math.max(r, g, b) > 80 && (Math.max(r, g, b) - Math.min(r, g, b) > 20 || Math.max(r, g, b) > 140)) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+  return { width: maxX - minX + 1, height: maxY - minY + 1 };
 }
 
 test("workbench shell keeps settings in a drawer and results in the primary column", () => {
@@ -60,8 +142,18 @@ test("page favicon uses the same logo as the plugin manifest", () => {
   const html = read("index.html");
 
   assert.equal(manifest.logo, "/logo.png");
-  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.3\.6">/);
-  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.3\.6">/);
+  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.3\.7">/);
+  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.3\.7">/);
+});
+
+test("logo bright mark fills the plugin icon canvas", () => {
+  const image = readPngRgba("logo.png");
+  const bounds = brightContentBounds(image);
+
+  assert.equal(image.width, 128);
+  assert.equal(image.height, 128);
+  assert.ok(bounds.width >= 92, `bright mark width should be at least 92px, got ${bounds.width}`);
+  assert.ok(bounds.height >= 92, `bright mark height should be at least 92px, got ${bounds.height}`);
 });
 
 test("workbench css uses viewport locking and region scrolling", () => {
@@ -157,6 +249,24 @@ test("analysis controls expose continue and restart after pause", () => {
   assert.match(js, /function restartAnalysis\(/);
   assert.match(js, /function updateAnalysisControls\(/);
   assert.match(js, /state\.paused/);
+});
+
+test("analysis pause aborts active CLI requests and undo history survives reopen", () => {
+  const js = read("plugin.js");
+
+  assert.match(js, /undoStack:\s*"vfxAiTagger\.undoStack"/);
+  assert.match(js, /analysisAbortController:\s*null/);
+  assert.match(js, /function createAnalysisAbortController\(/);
+  assert.match(js, /function abortCurrentAnalysis\(/);
+  assert.match(js, /function getAnalysisAbortSignal\(/);
+  assert.match(js, /pauseAnalysis\(\)[\s\S]*abortCurrentAnalysis\(\)/);
+  assert.match(js, /signal:\s*getAnalysisAbortSignal\(\)/);
+  assert.match(js, /runCliBackends\(\{[\s\S]*signal/);
+  assert.match(js, /function saveUndoStack\(/);
+  assert.match(js, /function readStoredUndoStack\(/);
+  assert.match(js, /state\.undoStack\s*=\s*readStoredUndoStack\(\)/);
+  assert.match(js, /state\.undoStack\.push\(\{[\s\S]*saveUndoStack\(\)/);
+  assert.match(js, /state\.undoStack\.pop\(\);[\s\S]*saveUndoStack\(\)/);
 });
 
 test("failure-prone Eagle state transitions recover safely", () => {

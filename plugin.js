@@ -12,6 +12,7 @@
     disabledTags: "vfxAiTagger.disabledTags",
     settings: "vfxAiTagger.settings",
     results: "vfxAiTagger.results",
+    undoStack: "vfxAiTagger.undoStack",
     restoreWorkbenchBounds: "vfxAiTagger.restoreWorkbenchBounds"
   };
 
@@ -120,6 +121,7 @@
     healthStatus: [],
     activeResultFilter: "all",
     activePresetName: "",
+    analysisAbortController: null,
     collectorPreviousBounds: null,
     collectorPreviousAlwaysOnTop: false,
     pluginRunCollectionBound: false,
@@ -267,6 +269,7 @@
 
   async function closePluginWindow() {
     closeSettingsDrawer();
+    abortCurrentAnalysis();
     try {
       const eagleWindow = getPluginWindowApi();
       if (document.body.classList.contains("collector-mode")) {
@@ -1024,6 +1027,7 @@
     state.running = true;
     state.pauseRequested = false;
     state.paused = false;
+    state.analysisAbortController = createAnalysisAbortController();
     let processed = 0;
     updateAnalysisProgress(processed, itemsToAnalyze.length, itemsToAnalyze[0], { stage: "准备队列", itemProgress: 0.02 });
     if (!hasPendingResults) {
@@ -1056,17 +1060,29 @@
           const result = await analyzeItem(item, model, allowedTags, settings, reportStage);
           updateResult(current.id, result);
         } catch (error) {
-          updateResult(current.id, {
-            status: "failed",
-            message: formatError(error),
-            errorType: classifyError(error),
-            diagnosticPath: error && error.diagnosticPath ? error.diagnosticPath : current.diagnosticPath,
-            diagnostics: error && error.diagnostics ? error.diagnostics : current.diagnostics,
-            tags: [],
-            reviewTags: [],
-            autoTags: [],
-            filteredTags: []
-          });
+          if (state.pauseRequested && isAnalysisAbortError(error)) {
+            updateResult(current.id, {
+              status: "pending",
+              message: "已暂停，等待继续",
+              errorType: "",
+              tags: [],
+              reviewTags: [],
+              autoTags: [],
+              filteredTags: []
+            });
+          } else {
+            updateResult(current.id, {
+              status: "failed",
+              message: formatError(error),
+              errorType: classifyError(error),
+              diagnosticPath: error && error.diagnosticPath ? error.diagnosticPath : current.diagnosticPath,
+              diagnostics: error && error.diagnostics ? error.diagnostics : current.diagnostics,
+              tags: [],
+              reviewTags: [],
+              autoTags: [],
+              filteredTags: []
+            });
+          }
         } finally {
           processed += 1;
           updateAnalysisProgress(processed, itemsToAnalyze.length, item, { stage: "完成", itemProgress: 1 });
@@ -1075,6 +1091,7 @@
     } finally {
       const paused = state.pauseRequested;
       state.running = false;
+      state.analysisAbortController = null;
       state.pauseRequested = false;
       state.paused = paused && state.results.some((result) => result.status === "pending");
       setControlsBusy(false);
@@ -1086,8 +1103,29 @@
   function pauseAnalysis() {
     if (!state.running) return;
     state.pauseRequested = true;
+    abortCurrentAnalysis();
     els.pauseBtn.disabled = true;
-    setStatus("正在暂停：当前正在分析的素材完成后停止，不再派发新素材。");
+    setStatus("正在暂停：本地 CLI 会立即停止，Eagle AI 会在当前请求返回后暂停。");
+  }
+
+  function createAnalysisAbortController() {
+    return typeof AbortController === "function" ? new AbortController() : null;
+  }
+
+  function getAnalysisAbortSignal() {
+    return state.analysisAbortController ? state.analysisAbortController.signal : null;
+  }
+
+  function abortCurrentAnalysis() {
+    const controller = state.analysisAbortController;
+    if (controller && controller.signal && !controller.signal.aborted) {
+      controller.abort();
+    }
+  }
+
+  function isAnalysisAbortError(error) {
+    const message = formatError(error).toLowerCase();
+    return (error && error.name === "AbortError") || message.includes("已停止") || message.includes("abort") || message.includes("中止");
   }
 
   async function continueAnalysis() {
@@ -1286,7 +1324,8 @@
       path,
       env: typeof process !== "undefined" ? process.env : undefined,
       execFile: cp.execFile,
-      spawn: cp.spawn
+      spawn: cp.spawn,
+      signal: getAnalysisAbortSignal()
     });
     return {
       ...result.object,
@@ -2318,6 +2357,7 @@
   function loadStoredState() {
     state.customAllowedTags = readJsonArray(STORAGE_KEYS.customAllowedTags);
     state.disabledTags = readJsonArray(STORAGE_KEYS.disabledTags);
+    state.undoStack = readStoredUndoStack();
     state.results = readStoredResults();
     state.paused = state.results.some((result) => result.status === "pending");
     const settings = readJsonObject(STORAGE_KEYS.settings);
@@ -2377,6 +2417,42 @@
       localStorage.setItem(STORAGE_KEYS.results, JSON.stringify(results));
     } catch (error) {
       // Result cache is a recovery aid. Analysis/write flow should continue if storage is full.
+    }
+  }
+
+  function saveUndoStack() {
+    try {
+      const records = state.undoStack
+        .slice(-50)
+        .map((record) => ({
+          itemId: String(record.itemId || ""),
+          addedTags: normalizeTagList(record.addedTags || []),
+          previousAnnotation: String(record.previousAnnotation || ""),
+          source: String(record.source || "写入标签"),
+          at: Number(record.at) || Date.now()
+        }))
+        .filter((record) => record.itemId);
+      localStorage.setItem(STORAGE_KEYS.undoStack, JSON.stringify(records));
+    } catch (error) {
+      // Undo persistence is a safety net. Write flow should continue if storage is full.
+    }
+  }
+
+  function readStoredUndoStack() {
+    try {
+      const value = JSON.parse(localStorage.getItem(STORAGE_KEYS.undoStack) || "[]");
+      if (!Array.isArray(value)) return [];
+      return value
+        .filter((record) => record && typeof record === "object" && record.itemId)
+        .map((record) => ({
+          itemId: String(record.itemId || ""),
+          addedTags: normalizeTagList(record.addedTags || []),
+          previousAnnotation: String(record.previousAnnotation || ""),
+          source: String(record.source || "写入标签"),
+          at: Number(record.at) || 0
+        }));
+    } catch (error) {
+      return [];
     }
   }
 
@@ -2866,6 +2942,7 @@
       diagnostics: null,
       errorType: ""
     });
+    state.analysisAbortController = createAnalysisAbortController();
     try {
       const result = await analyzeItem(item, model, allowedTags, settings);
       updateResult(resultId, result);
@@ -2885,6 +2962,7 @@
       setStatus(`重新分析失败：${formatError(error)}`);
     } finally {
       state.running = false;
+      state.analysisAbortController = null;
       state.pauseRequested = false;
       setControlsBusy(false);
       renderAll();
@@ -3008,6 +3086,7 @@
         source: source || "写入标签",
         at: Date.now()
       });
+      saveUndoStack();
       renderResults();
     }
   }
@@ -3040,6 +3119,7 @@
       return;
     }
     state.undoStack.pop();
+    saveUndoStack();
     setStatus(`已撤销：${record.source || "上次写入"}。移除 ${removeSet.size} 个标签。`);
     renderResults();
   }
