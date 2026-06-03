@@ -1,18 +1,18 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-03 22:06
-- Phase: v1.0.3 release-candidate packaged after collector auto-collect fix
+- Last Updated: 2026-06-03 22:12
+- Phase: v1.0.3 released and local Eagle install synchronized after collector auto-collect fix
 - Superpowers Phase: brainstorming + writing-plans + TDD + project-ledger-loop
 - Branch: codex/media-preview-review
 - Goal: 给结果卡和素材列表增加“验收预览”，让用户检查图片/视频与 AI 标签是否匹配，并提供 Eagle 原生打开兜底。
-- Current Focus: GitHub Release `v1.0.2` is published at `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.2`, but the user caught that entering `置顶采集` still auto-collected the current Eagle selection. The fix removes collector-entry auto-collection, keeps manual collector append, bumps manifest/favicon/package to `1.0.3`, and regenerates `dist\特效AI标签管理-cli.eagleplugin`.
+- Current Focus: GitHub Release `v1.0.3` is published at `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.3`, superseding `v1.0.2`. The user still saw collector auto-collection because the local Eagle install directory was still version `1.0.2`; it has now been backed up and synchronized to the current `1.0.3` source files.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-selected-material-tray-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-selected-material-tray.md`
-- Current Task: Commit the `1.0.3` no-auto-collect patch, publish GitHub Release `v1.0.3`, then install the `1.0.3` release asset in Eagle for smoke.
+- Current Task: Reopen or restart Eagle so it loads the synchronized `1.0.3` plugin files, then run the real-host collector/media preview smoke.
 
 ## Resume Here
-- Start with: publish `v1.0.3`, then install release asset `vfx-aitag-eagle-cli-1.0.3.eagleplugin` and import/select a mix of image, mp4/webm, and mov/mkv assets in Eagle.
+- Start with: close and reopen the plugin window, or restart Eagle if the old renderer remains cached; then import/select a mix of image, mp4/webm, and mov/mkv assets in Eagle.
 - Next verification: Eagle smoke should confirm clicking `置顶采集` no longer imports current selection until `收集选中` is clicked; the selected-material panel shows at most three tray cards; `展开素材` and `展开全部 +N` open the full local dialog; material cards in both tray/dialog show `预览` plus a right-side trash SVG remove button; only one compact progress slot is visible during analysis/write; then verify preview image/video/native-open/fallback and preview-side tag edit behavior.
 - Watch out for: Browser static `file://` verification was blocked by Browser Use URL policy, so no local browser screenshot was captured. Eagle native open depends on host API support and `window: true` requires Eagle 4.0 build12+; plugin-native `<video>` playback still depends on Chromium codec support.
 
@@ -105,11 +105,12 @@
 - [x] Added a right-side trash SVG remove button next to each selected-material preview action in both the tray and full dialog, then repackaged version `1.0.2`.
 - [x] Pushed tag `v1.0.2` and published GitHub Release `v1.0.2` with asset `vfx-aitag-eagle-cli-1.0.2.eagleplugin`.
 - [x] Removed collector-entry auto-collection, kept manual `收集选中`, bumped manifest/favicon/package to `1.0.3`, and inspected the package.
+- [x] Published GitHub Release `v1.0.3` and synchronized the local installed plugin directory from the current `1.0.3` source files after finding Eagle was still running installed version `1.0.2`.
 
 ## Verification
-- Last command: package inspection after `1.0.3` repackaging
+- Last command: installed plugin inspection after local Eagle install synchronization
 - Result: pass
-- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected because tests now reject `进入采集条自动收集当前选中`. GREEN run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 44/44 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `manifest.json`, `index.html`, `style.css`, `plugin.js`, `cli-backends.js`, `README.md`, and `logo.png`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.0.3`, `devTools: false`, `logo.png?v=1.0.3`, manual collector append remains, and auto collector append is absent. Release `v1.0.2` was already published before this fix and should be superseded by `v1.0.3`. Browser static `file://` verification was blocked earlier by Browser Use URL policy. Eagle real-host smoke is still required. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: RED run `node --test tests/ui-workbench.test.js` failed as expected because tests now reject `进入采集条自动收集当前选中`. Fresh GREEN run `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 44/44 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `manifest.json`, `index.html`, `style.css`, `plugin.js`, `cli-backends.js`, `README.md`, and `logo.png`; manifest inside package is ID `VFX_AI_TAGGER_CLI`, version `1.0.3`, `devTools: false`, `logo.png?v=1.0.3`, manual collector append remains, and auto collector append is absent. GitHub Release `v1.0.3` is published with asset `vfx-aitag-eagle-cli-1.0.3.eagleplugin`. Local installed plugin `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` was version `1.0.2` and contained the old auto-collect call; it was backed up to `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI.backup-codex-20260603-221031` and overwritten with current `1.0.3` files. Installed inspection now shows version `1.0.3`, `HasCollectorAuto=False`, `HasOpenAuto=False`, `HasManualCollector=True`, and `logo.png?v=1.0.3` present. Browser static `file://` verification was blocked earlier by Browser Use URL policy. Eagle real-host smoke is still required after reopening/restarting Eagle. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.

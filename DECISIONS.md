@@ -39,7 +39,7 @@
 - Decision: Remove automatic current-selection collection from `置顶采集` entry. Keep collection available only through explicit actions such as `追加当前选中`, collector `收集选中`, replace, and context-menu append. Package the fix as manifest/favicon version `1.0.3`.
 - Reason: The user observed that entering collector mode still changed the queue by importing current Eagle selection, which conflicts with the newer expectation that opening or switching modes should not mutate the queue unexpectedly.
 - Alternatives considered: Keep `v1.0.2` and document the behavior; skipped because the user flagged it during release handoff. Rewrite or delete the already-published `v1.0.2`; skipped because release/tag mutation is destructive and should not happen without explicit instruction.
-- Consequences / follow-up: Publish `v1.0.3` and verify in Eagle that `置顶采集` opens the always-on-top collector without importing until `收集选中` is clicked.
+- Consequences / follow-up: `v1.0.3` has been published and the local installed `VFX_AI_TAGGER_CLI` directory has been synchronized after it was found still running `1.0.2`. Verify in Eagle that `置顶采集` opens the always-on-top collector without importing until `收集选中` is clicked.
 
 ## 2026-06-03 - Release 1.0.2 publication
 - Status: active
