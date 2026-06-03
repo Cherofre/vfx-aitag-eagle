@@ -2036,6 +2036,7 @@
 
   function updateAnalysisProgress(processed, total, currentItem, detail = {}) {
     if (!els.analysisProgressPanel || !els.analysisProgressBar) return;
+    hideWriteProgressSlot();
     const safeTotal = Math.max(0, Number(total) || 0);
     if (!safeTotal) {
       resetAnalysisProgress();
@@ -2066,7 +2067,7 @@
 
   function resetAnalysisProgress() {
     if (!els.analysisProgressPanel || !els.analysisProgressBar) return;
-    els.analysisProgressPanel.hidden = true;
+    hideAnalysisProgressSlot();
     els.analysisProgressPanel.classList.remove("is-active");
     els.analysisProgressText.textContent = "等待分析";
     els.analysisProgressPercent.textContent = "0%";
@@ -2088,6 +2089,7 @@
 
   function updateWriteProgress(done, total, failed = 0, message = "") {
     if (!els.writeProgressPanel || !els.writeProgressBar) return;
+    hideAnalysisProgressSlot();
     const safeTotal = Math.max(0, Number(total) || 0);
     const safeDone = Math.min(safeTotal, Math.max(0, Number(done) || 0));
     const percent = safeTotal ? Math.round((safeDone / safeTotal) * 100) : 0;
@@ -2105,7 +2107,7 @@
 
   function resetWriteProgress() {
     if (!els.writeProgressPanel || !els.writeProgressBar) return;
-    els.writeProgressPanel.hidden = true;
+    hideWriteProgressSlot();
     els.writeProgressPanel.classList.remove("has-failures");
     els.writeProgressText.textContent = "";
     els.writeProgressPercent.textContent = "0%";
@@ -2113,6 +2115,14 @@
     if (els.writeProgressMeta) els.writeProgressMeta.textContent = "";
     const track = els.writeProgressPanel.querySelector(".write-progress-track");
     if (track) track.setAttribute("aria-valuenow", "0");
+  }
+
+  function hideAnalysisProgressSlot() {
+    if (els.analysisProgressPanel) els.analysisProgressPanel.hidden = true;
+  }
+
+  function hideWriteProgressSlot() {
+    if (els.writeProgressPanel) els.writeProgressPanel.hidden = true;
   }
 
   function readSettings() {
@@ -2770,15 +2780,9 @@
       els.selectedItems.innerHTML = `<div class="empty">请先在 Eagle 中选择素材，然后点击“追加当前选中”。</div>`;
       return;
     }
-    state.selectedItems.slice(0, 3).forEach((item) => {
+    state.selectedItems.forEach((item) => {
       els.selectedItems.appendChild(createSelectedItemRow(item));
     });
-    if (state.selectedItems.length > 3) {
-      const more = document.createElement("div");
-      more.className = "selected-more";
-      more.textContent = `还有 ${state.selectedItems.length - 3} 个素材，点击“完整列表”查看。`;
-      els.selectedItems.appendChild(more);
-    }
   }
 
   function renderSelectedFullList() {

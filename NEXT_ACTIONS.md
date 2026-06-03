@@ -4,13 +4,14 @@
 - [x] Created branch `codex/media-preview-review`.
 - [x] Added TDD coverage for media preview dialog, material/result preview buttons, Eagle-open fallback, video fallback, and preview-side tag editing.
 - [x] Implemented media preview review dialog and regenerated `dist\特效AI标签管理-cli.eagleplugin` as version `1.0.2`.
-- [x] Verified tests, syntax checks, and package contents.
-- [ ] Install the branch package in Eagle and run real-host media preview smoke.
+- [x] Compact progress UI into one active slot and make the selected-material panel a local scroll list.
+- [x] Verified tests, syntax checks, and package contents after repackaging.
+- [ ] Install the branch package in Eagle and run real-host release-candidate smoke.
 
 ## Handoff Notes
 - Start here: install `dist\特效AI标签管理-cli.eagleplugin` from branch `codex/media-preview-review`.
-- Do not redo: media preview plan, RED/GREEN UI contract tests, local preview dialog implementation, `1.0.2` manifest/favicon bump, package regeneration, and archive inspection are done.
-- Verify next: in Eagle, import selected assets, run analysis, click `预览` from both selected-material rows and result cards, test image playback, mp4/webm playback, unsupported video fallback, `用 Eagle 打开`, previous/next navigation, and preview-side tag toggle/delete before writing.
+- Do not redo: media preview plan, RED/GREEN UI contract tests, local preview dialog implementation, selected-material scroll fix, compact progress activity slot, `1.0.2` manifest/favicon bump, package regeneration, and archive inspection are done.
+- Verify next: in Eagle, import many selected assets and confirm the selected-material panel scrolls locally without relying only on “完整列表”; run analysis/write and confirm only one compact progress slot is visible; click `预览` from both selected-material rows and result cards, test image playback, mp4/webm playback, unsupported video fallback, `用 Eagle 打开`, previous/next navigation, and preview-side tag toggle/delete before writing.
 - Do not claim: Eagle native playback/open smoke has passed; Browser `file://` static verification was blocked by Browser Use URL policy.
 - Watch out for: `item.open({ window: true })` relies on Eagle host API support, and plugin-native `<video>` support depends on Chromium codecs. Persistent undo still requires the affected Eagle item to be imported/selected again so `item.save()` is available.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.

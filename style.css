@@ -583,9 +583,11 @@ h2 {
 
 .selected-list {
   display: grid;
+  align-content: start;
   gap: 8px;
-  max-height: 86px;
-  overflow: hidden;
+  max-height: clamp(118px, 18vh, 168px);
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .selected-item {
@@ -593,13 +595,15 @@ h2 {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
+  min-height: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-3);
-  padding: 9px 10px;
+  padding: 8px 10px;
 }
 
 .selected-preview-btn {
+  min-height: 30px;
   padding: 5px 8px;
   font-size: 12px;
 }
@@ -870,12 +874,14 @@ h2 {
 .analysis-progress,
 .write-progress {
   display: grid;
-  gap: 7px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-2);
-  margin-bottom: 10px;
-  padding: 10px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
 }
 
 .analysis-progress {
@@ -893,8 +899,8 @@ h2 {
 .write-progress-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .analysis-progress-head strong,
@@ -908,16 +914,26 @@ h2 {
 }
 
 .analysis-progress-head span,
+.write-progress-head span {
+  color: var(--accent);
+  font-size: 12px;
+}
+
 .analysis-progress-meta,
-.write-progress-head span,
 .write-progress-meta {
+  max-width: min(380px, 34vw);
+  min-width: 0;
+  overflow: hidden;
   color: var(--muted);
   font-size: 12px;
+  justify-content: flex-end;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .analysis-progress-track,
 .write-progress-track {
-  height: 7px;
+  height: 5px;
   overflow: hidden;
   border-radius: 999px;
   background: var(--panel-3);

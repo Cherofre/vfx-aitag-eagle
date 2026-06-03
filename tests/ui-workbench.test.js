@@ -450,6 +450,32 @@ test("compact workbench keeps material actions local and exposes analysis progre
   assert.match(css, /\.analysis-progress-bar\s*{/);
 });
 
+test("selected material panel is a local scroll list instead of a clipped summary", () => {
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.doesNotMatch(js, /state\.selectedItems\.slice\(0,\s*3\)/);
+  assert.match(js, /state\.selectedItems\.forEach\(\(item\) => \{\s*els\.selectedItems\.appendChild\(createSelectedItemRow\(item\)\)/);
+  assert.doesNotMatch(js, /className\s*=\s*"selected-more"/);
+  assert.match(css, /\.selected-list\s*{[\s\S]*max-height:\s*clamp\(118px,\s*18vh,\s*168px\)[\s\S]*overflow:\s*auto/);
+  assert.doesNotMatch(css, /\.selected-list\s*{[^}]*overflow:\s*hidden/);
+  assert.match(css, /\.selected-item\s*{[\s\S]*min-height:\s*0/);
+  assert.match(css, /\.selected-preview-btn\s*{[\s\S]*min-height:\s*30px/);
+});
+
+test("analysis and write progress share one compact activity slot", () => {
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(js, /function hideWriteProgressSlot\(/);
+  assert.match(js, /function hideAnalysisProgressSlot\(/);
+  assert.match(js, /function updateAnalysisProgress\([\s\S]*hideWriteProgressSlot\(\)/);
+  assert.match(js, /function updateWriteProgress\([\s\S]*hideAnalysisProgressSlot\(\)/);
+  assert.match(css, /\.analysis-progress,\s*\.write-progress\s*{[\s\S]*grid-template-columns:\s*auto minmax\(0,\s*1fr\) auto[\s\S]*padding:\s*6px 8px/);
+  assert.match(css, /\.analysis-progress-track,\s*\.write-progress-track\s*{[\s\S]*height:\s*5px/);
+  assert.match(css, /\.analysis-progress-meta,\s*\.write-progress-meta\s*{[\s\S]*overflow:\s*hidden[\s\S]*text-overflow:\s*ellipsis[\s\S]*white-space:\s*nowrap/);
+});
+
 test("closed selected material dialog is removed from hit testing", () => {
   const html = read("index.html");
   const js = read("plugin.js");
