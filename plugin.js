@@ -1112,9 +1112,29 @@
     });
     state.selectedItems = [...state.selectedItems, ...addedItems];
     state.itemSource = "eagle";
+    if (!replacing && addedItems.length && state.results.length) {
+      syncPendingResultsForSelectedItems({ message: "新增素材，等待分析" });
+    }
     saveResultsState();
     renderAll();
     return { added: addedItems.length, skipped, total: incoming.length };
+  }
+
+  function syncPendingResultsForSelectedItems(options = {}) {
+    const existingIds = new Set(state.results.map((result) => result.id));
+    const missingResults = state.selectedItems
+      .filter((item) => {
+        const id = getItemId(item);
+        return id && !existingIds.has(id);
+      })
+      .map((item) => ({
+        ...createPendingResult(item),
+        message: options.message || "等待分析"
+      }));
+    if (!missingResults.length) return 0;
+    state.results = [...state.results, ...missingResults];
+    saveResultsState();
+    return missingResults.length;
   }
 
   async function appendSelectedItems(actionName, options = {}) {
@@ -1309,6 +1329,7 @@
     }
     settings.enabledBackends = usableBackends;
     if (!ensureDiagnosticSettings(settings)) return;
+    if (state.results.length) syncPendingResultsForSelectedItems({ message: "新增素材，等待分析" });
     const existingResults = new Map(state.results.map((result) => [result.id, result]));
     const hasPendingResults = state.results.some((result) => result.status === "pending");
     const itemsToAnalyze = hasPendingResults

@@ -33,10 +33,18 @@
 - 2026-06-03: Collector placement uses draggable remembered plugin-window bounds, not Eagle main-window following.
 - 2026-06-04: Release `v1.0.4` from merged `master` with collector position memory and an English-named `.eagleplugin` asset.
 - 2026-06-04: Media preview tag-only edits refresh only the preview side panel; the player node is rebuilt only when opening or navigating preview.
+- 2026-06-04: Appending materials into an existing analysis result set creates pending results immediately and before pending filtering.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - Incremental queue sync for appended materials
+- Status: active
+- Decision: When appending new Eagle-selected materials into an existing result set, create missing pending result records for those materials immediately. Also run the same sync before `analyzeSelected()` computes pending work.
+- Reason: Paused analysis resumes by filtering `state.results` for pending items. New materials were only added to `state.selectedItems`, so they were invisible to the pending filter until the old pending batch finished and the user started again.
+- Alternatives considered: Rebuild all results from `selectedItems` on every start; skipped because it would rerun completed/ready items unexpectedly. Only change the paused path; skipped because completed-result-plus-new-append has the same incremental queue need.
+- Consequences / follow-up: Eagle smoke must confirm pause -> append -> start/continue processes old and new pending items in one run.
 
 ## 2026-06-04 - Stable video preview during tag review
 - Status: active

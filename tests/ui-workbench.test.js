@@ -274,6 +274,22 @@ test("analysis controls expose continue and restart after pause", () => {
   assert.match(js, /state\.paused/);
 });
 
+test("paused analysis includes newly appended materials in the next run", () => {
+  const js = read("plugin.js");
+
+  assert.match(js, /function syncPendingResultsForSelectedItems\(/);
+  assert.match(js, /state\.results = \[\.\.\.state\.results, \.\.\.missingResults\]/);
+  assert.match(js, /message:\s*options\.message \|\| "等待分析"/);
+  assert.match(js, /!replacing && addedItems\.length && state\.results\.length/);
+  assert.match(js, /syncPendingResultsForSelectedItems\(\{ message: "新增素材，等待分析" \}\)/);
+
+  const analyzeStart = js.indexOf("async function analyzeSelected()");
+  const existingResultsIndex = js.indexOf("const existingResults = new Map", analyzeStart);
+  const syncIndex = js.indexOf("syncPendingResultsForSelectedItems", analyzeStart);
+  assert.ok(syncIndex > analyzeStart, "analyzeSelected should sync missing queued items");
+  assert.ok(syncIndex < existingResultsIndex, "missing selected items must become pending before pending filtering");
+});
+
 test("analysis pause aborts active CLI requests and undo history survives reopen", () => {
   const js = read("plugin.js");
 

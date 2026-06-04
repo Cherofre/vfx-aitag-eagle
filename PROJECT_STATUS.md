@@ -1,20 +1,20 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 09:43
-- Phase: media preview video stability fix implemented and locally synced
+- Last Updated: 2026-06-04 09:53
+- Phase: paused analysis append-queue fix implemented and locally synced
 - Superpowers Phase: systematic-debugging + TDD + project-ledger-loop
 - Branch: codex/media-preview-video-stability
-- Goal: 让素材预览中的视频打开后自动播放，并且勾选/删除预览侧栏标签时不重建播放器、不打断播放。
-- Current Focus: `plugin.js` now splits media preview rendering into player and details refresh paths. Opening/navigating preview rebuilds the player, while result/tag-only updates refresh only the preview side panel. Video preview uses muted autoplay/playsinline and calls `video.play()`. Local installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js` has been backed up and synchronized to this branch.
+- Goal: 修复“暂停分析后追加新素材，再点开始/继续时新素材不进入本轮 pending 队列”的问题，同时保留刚完成的视频预览稳定性修复。
+- Current Focus: `plugin.js` now syncs missing selected materials into `state.results` as pending items whenever appending into an existing result set, and again before `analyzeSelected()` calculates pending work. Local installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js` has been backed up and synchronized to this branch.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Reopen/restart the Eagle plugin renderer and smoke-test video preview autoplay plus tag-toggle playback preservation.
+- Current Task: Reopen/restart the Eagle plugin renderer and smoke-test paused analysis: pause a batch, append more selected materials, then click start/continue and confirm old pending plus newly appended pending items run together.
 
 ## Resume Here
-- Start with: close and reopen the plugin window, or restart Eagle if the old renderer remains cached, then open a video asset preview from a result card.
-- Next verification: video should autoplay in the preview dialog; while it is playing, uncheck/check or delete a preview-side tag and confirm the video keeps playing without spinner/reload.
-- Watch out for: browser autoplay policies generally require muted playback, so the plugin sets `muted` for reliable autoplay; the user can unmute manually in the native video controls if the codec/audio path supports it.
+- Start with: close and reopen the plugin window, or restart Eagle if the old renderer remains cached, then start analyzing several materials, pause, append more selected materials, and click `开始分析` or `继续`.
+- Next verification: the result list should immediately show the newly appended materials as `等待分析`/pending, and the next run should process both the old pending items and the new pending items without needing a second start click.
+- Watch out for: append buttons are intentionally disabled while actively running; this smoke starts after pause completes and controls re-enable.
 
 ## Progress Summary
 - [x] Initialized Project Ledger Loop files.
@@ -124,13 +124,18 @@
 - [x] Added muted autoplay/playsinline video markup and a guarded `video.play()` call.
 - [x] Verified 46/46 tests plus `node --check plugin.js` and `node --check cli-backends.js`.
 - [x] Backed up and synchronized the local installed plugin `plugin.js`; source and installed SHA256 both equal `5C76CD2AB36D3B0AAB1A5FC9D3CC82A15CAC4EA19F67954C018D9E16D16A5A3A`.
+- [x] Added RED/GREEN coverage for paused analysis including newly appended materials in the next run.
+- [x] Added `syncPendingResultsForSelectedItems()` and call sites after append into an existing result set and before pending filtering in `analyzeSelected()`.
+- [x] Verified 47/47 tests plus `node --check plugin.js` and `node --check cli-backends.js`.
+- [x] Backed up and synchronized the local installed plugin `plugin.js`; source and installed SHA256 both equal `9726BBBFB20971BA779A3B27BAD370802FC4DAD28C5EBC3167F37803E0F39E23`.
 
 ## Verification
 - Last command: source/installed `plugin.js` SHA256 comparison
 - Result: pass
-- Evidence / notes: On `codex/media-preview-video-stability`, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 46/46 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. The new RED test first failed because `renderMediaPreviewPlayer()` was missing, then passed after the split render implementation. Source `plugin.js` and installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js` share SHA256 `5C76CD2AB36D3B0AAB1A5FC9D3CC82A15CAC4EA19F67954C018D9E16D16A5A3A`; installed backup is `plugin.js.backup-codex-20260604-094246`. Browser/Eagle real-host smoke has not yet confirmed autoplay and playback preservation. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: On `codex/media-preview-video-stability`, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 47/47 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. The new RED test first failed because `syncPendingResultsForSelectedItems()` was missing, then passed after the queue-sync implementation. Source `plugin.js` and installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js` share SHA256 `9726BBBFB20971BA779A3B27BAD370802FC4DAD28C5EBC3167F37803E0F39E23`; installed backup is `plugin.js.backup-codex-20260604-095153`. Browser/Eagle real-host smoke has not yet confirmed paused append queue behavior. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
+- Needs Eagle real-host smoke for paused analysis append behavior: pause, append more materials, start/continue, and confirm new items run in the same pending batch.
 - Needs Eagle real-host smoke for the new media preview behavior: local video autoplay, codec support, and no reload/spinner after preview-side tag edits.
 - Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.
 - Browser static verification for `file://` was blocked by Browser Use URL policy; do not claim browser layout smoke for the preview dialog.
