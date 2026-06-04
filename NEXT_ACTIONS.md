@@ -1,20 +1,20 @@
 # Next Actions
 
 ## Now
-- [x] Added and verified RED/GREEN UI regression coverage for default loop playback in local video preview.
-- [x] Added `loop` to the preview `<video>` markup while preserving autoplay/muted/playsinline and no-player-rebuild behavior.
-- [x] Verified `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
-- [x] Backed up and synchronized installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js`.
-- [ ] Reopen/restart Eagle and smoke-test: open a short video preview, confirm autoplay, confirm it loops after reaching the end, then toggle/delete preview-side tags and confirm playback is not interrupted.
-- [ ] Also smoke-test paused analysis append behavior: pause, append more selected materials, click `开始分析` or `继续`, and confirm all pending old+new items run in the same batch.
-- [ ] After Eagle smoke, decide whether to package/release a small patch containing both fixes.
+- [x] Fast-forward merged `codex/media-preview-video-stability` into `master`.
+- [x] Verified merged `master` with `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
+- [x] Regenerated and inspected `dist\特效AI标签管理-cli.eagleplugin`; manifest is `VFX_AI_TAGGER_CLI` version `1.0.4`, `devTools=false`.
+- [x] Confirmed packaged `plugin.js` contains video loop playback, paused-append queue sync, and stable preview-side refresh.
+- [ ] Commit the regenerated package and ledger update.
+- [ ] Push `master`, force-move tag `v1.0.4`, and overwrite GitHub Release asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
+- [ ] Verify remote release digest matches local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
 
 ## Handoff Notes
-- Start here: close and reopen the plugin window or restart Eagle if it keeps the old renderer cached; installed `plugin.js` has been synchronized from `codex/media-preview-video-stability`.
-- Do not redo: root-cause investigation, RED/GREEN static tests, queue-sync implementation, preview-stability implementation, source/installed hash comparisons, and syntax/unit verification are done.
-- Verify next: open a short video in the local preview dialog and confirm it autoplay-loops; then toggle/delete preview-side tags while playing to confirm playback is still not rebuilt.
-- Do not claim: Eagle real-host loop playback has passed until the above smoke is done in Eagle.
-- Watch out for: autoplay remains intentionally muted for browser policy. If Eagle keeps old renderer code, restart Eagle before judging the behavior.
+- Start here: commit the regenerated `dist\特效AI标签管理-cli.eagleplugin` and ledger update, then push `master` and overwrite GitHub Release `v1.0.4`.
+- Do not redo: feature implementation, branch merge, merged-master tests, syntax checks, package regeneration, and package inspection are done.
+- Verify next: after `gh release upload --clobber`, run `gh release view v1.0.4 --json assets,url` and confirm the asset digest matches local SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
+- Do not claim: `v1.0.4` release is overwritten until the remote asset digest has been checked.
+- Watch out for: moving `v1.0.4` is intentional per user request; unrelated untracked `docs/vfx-tag-taxonomy-review.md` must remain untouched.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later

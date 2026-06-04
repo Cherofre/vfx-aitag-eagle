@@ -1,20 +1,20 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 10:02
-- Phase: media preview loop playback fix implemented and locally synced
+- Last Updated: 2026-06-04 10:10
+- Phase: media preview/queue fixes merged to master and 1.0.4 overwrite package prepared
 - Superpowers Phase: systematic-debugging + TDD + project-ledger-loop
-- Branch: codex/media-preview-video-stability
-- Goal: 让本地媒体预览中的视频默认循环播放，同时保留刚完成的视频预览稳定性和暂停追加队列修复。
-- Current Focus: `plugin.js` video preview markup now includes `loop` alongside `controls autoplay muted playsinline preload="auto"`. Local installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js` has been backed up and synchronized to this branch.
+- Branch: master
+- Goal: 合并媒体预览/暂停追加队列修复，重新打包，并按用户要求覆盖远端 GitHub Release `v1.0.4`。
+- Current Focus: `codex/media-preview-video-stability` has been fast-forward merged into `master`. `dist\特效AI标签管理-cli.eagleplugin` has been regenerated with manifest version `1.0.4`; package SHA256 is `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`. Next step is pushing `master`, force-moving tag `v1.0.4`, and replacing the release asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Reopen/restart the Eagle plugin renderer and smoke-test local video preview: it should autoplay, loop at the end, and keep playing through preview-side tag edits.
+- Current Task: Push `master`, move `v1.0.4` to the new release commit, and overwrite GitHub Release `v1.0.4` with the regenerated package.
 
 ## Resume Here
-- Start with: close and reopen the plugin window, or restart Eagle if the old renderer remains cached, then open a short video in the local preview dialog.
-- Next verification: the video should autoplay muted, continue looping after it reaches the end, and not reload when preview-side tags are toggled or removed.
-- Watch out for: browser autoplay policies still require muted playback; users can unmute manually through the video controls if desired.
+- Start with: push `master`, force-push tag `v1.0.4` to the new release commit, upload `vfx-aitag-eagle-cli-1.0.4.eagleplugin` with `gh release upload --clobber`, then verify the remote asset digest.
+- Next verification: GitHub Release `v1.0.4` should point to the new tag commit and its asset digest should match local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
+- Watch out for: this intentionally overwrites an existing published tag/release asset per the user's explicit request.
 
 ## Progress Summary
 - [x] Initialized Project Ledger Loop files.
@@ -132,11 +132,15 @@
 - [x] Added `loop` to the local preview `<video>` markup.
 - [x] Verified 47/47 tests plus `node --check plugin.js` and `node --check cli-backends.js`.
 - [x] Backed up and synchronized the local installed plugin `plugin.js`; source and installed SHA256 both equal `26E872F51919967FA93E17C319157870C64B3DF40CE8AFAFD4118067ABC81AC9`.
+- [x] Fast-forward merged `codex/media-preview-video-stability` into `master`.
+- [x] Verified merged `master`: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
+- [x] Regenerated `dist\特效AI标签管理-cli.eagleplugin` for manifest version `1.0.4` and inspected package contents.
+- [ ] Push `master`, move remote tag `v1.0.4`, and overwrite release asset.
 
 ## Verification
 - Last command: source/installed `plugin.js` SHA256 comparison
 - Result: pass
-- Evidence / notes: On `codex/media-preview-video-stability`, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 47/47 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. The loop RED test first failed because the video markup lacked `loop`, then passed after adding it. Source `plugin.js` and installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js` share SHA256 `26E872F51919967FA93E17C319157870C64B3DF40CE8AFAFD4118067ABC81AC9`; installed backup is `plugin.js.backup-codex-20260604-100210`. Browser/Eagle real-host smoke has not yet confirmed loop playback. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: On merged `master`, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 47/47 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.4`, `main.devTools=false`; packaged `plugin.js` contains video loop playback, pending queue sync, and preview-side refresh. Local package SHA256 is `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`. Release upload/remote digest verification is still pending. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs Eagle real-host smoke for loop playback in the local media preview dialog.

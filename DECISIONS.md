@@ -35,10 +35,18 @@
 - 2026-06-04: Media preview tag-only edits refresh only the preview side panel; the player node is rebuilt only when opening or navigating preview.
 - 2026-06-04: Appending materials into an existing analysis result set creates pending results immediately and before pending filtering.
 - 2026-06-04: Local video preview loops by default.
+- 2026-06-04: Overwrite GitHub Release `v1.0.4` with the merged media-preview/queue fixes at the user's explicit request.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - Overwrite release 1.0.4 with merged fixes
+- Status: active
+- Decision: Fast-forward merge `codex/media-preview-video-stability` into `master`, keep manifest version `1.0.4`, regenerate the `.eagleplugin`, force-move tag `v1.0.4` to the merged release commit, and replace the GitHub Release `v1.0.4` asset with the same English filename.
+- Reason: The user explicitly requested “合并，然后传远端，覆盖release1.0.4”. Keeping the version and asset name stable lets the current public release include the preview playback and paused-queue fixes without creating a new release number.
+- Alternatives considered: Create `v1.0.5`; skipped because the user asked to overwrite `1.0.4`. Push only `master` without moving the tag or asset; skipped because the published download would remain stale.
+- Consequences / follow-up: Because this mutates a published release/tag, verify the remote asset digest after upload and record the final evidence in the ledger.
 
 ## 2026-06-04 - Default loop playback for local preview
 - Status: active
