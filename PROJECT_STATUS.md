@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 20:28
+- Last Updated: 2026-06-04 20:43
 - Phase: v1.0.5 packaged on feature branch; pending Eagle real-host smoke and merge/release decision
 - Superpowers Phase: executing-plans + TDD + verification-before-completion + project-ledger-loop
 - Branch: codex/v1.0.5-tag-workflow
-- Goal: 构建 `1.0.5` 标签工作流增强：默认模板可查看/编辑/增删/重置，语义规则进入提示词，预览侧可新增标签，CLI 健康检查实际执行 `--version`/`--help`，默认分析超时调到 180 秒。
-- Current Focus: `dist\特效AI标签管理-cli.eagleplugin` 已按 manifest `1.0.5` 重新打包并检查，包内只有核心 7 个文件，manifest ID 为 `VFX_AI_TAGGER_CLI`，`main.devTools=false`，本地 SHA256 为 `9F2E50AD557A9D2830677C7013F023571814D0D945FC3E4A2E439B03C6DAF0AF`。本轮没有修改 Eagle 全局标签，也没有 push 或发布 release。
+- Goal: 构建 `1.0.5` 标签工作流增强：默认模板可查看/编辑/增删/重置，默认模板可作为分析兜底候选，缺口标签以内联绿色 `+` 标识，语义规则进入提示词，预览侧可新增标签，CLI 健康检查实际执行 `--version`/`--help`，默认分析超时调到 180 秒。
+- Current Focus: `dist\特效AI标签管理-cli.eagleplugin` 已按 manifest `1.0.5` 重新打包并检查，包内只有核心 7 个文件，manifest ID 为 `VFX_AI_TAGGER_CLI`，`main.devTools=false`，本地 SHA256 为 `13D6E0D8261233C8A9A49EEC696111569276917AE466133B6727DA3C8D2B46D4`。本轮没有修改 Eagle 全局标签，也没有 push 或发布 release。
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-04-v1.0.5-tag-workflow.md`
 - Current Task: Commit the packaged 1.0.5 handoff; next user-visible step is installing the package in Eagle and smoke-testing template management, preview-side tag editing, and CLI health checks.
 
 ## Resume Here
 - Start with: install `dist\特效AI标签管理-cli.eagleplugin` from this branch if the user wants to try 1.0.5 before merge/release.
-- Next verification: Eagle real-host smoke for “管理模板” local edits/import/reset, preview窗口内新增/勾选/删除标签且视频不断播, Claude/Codex 环境检查, and 180 秒默认 CLI timeout display/persistence.
+- Next verification: Eagle real-host smoke for “管理模板” local edits/import/reset, 未导入默认模板时分析仍可命中模板兜底标签且显示绿色 `+`, preview窗口内新增/勾选/删除标签且视频不断播, Claude/Codex 环境检查, and 180 秒默认 CLI timeout display/persistence.
 - Watch out for: unrelated untracked docs may exist (`docs/v1.0.5-tag-system-preview-plan.md`, `docs/vfx-tag-taxonomy-review.md`); do not include/delete them unless explicitly requested. Do not push or publish `1.0.5` unless the user asks.
 
 ## Progress Summary
@@ -154,6 +154,7 @@
 - [x] Created branch `codex/v1.0.5-tag-workflow` and added plan `docs/superpowers/plans/2026-06-04-v1.0.5-tag-workflow.md`.
 - [x] Added editable local default-template workflow with search/add/rename/delete/reset/import and storage key `vfxAiTagger.defaultTemplateTags`.
 - [x] Added tag semantic guidance to Eagle AI and Claude/Codex CLI prompts without expanding the allowed tag pool.
+- [x] Added default-template fallback analysis candidates: tags missing from the current pool but present in the local default template can return as confirmable gap tags, marked with an inline green `+`, and excluded from automatic high-confidence writes.
 - [x] Added preview-side manual tag adding while keeping tag-only preview edits from rebuilding the video player.
 - [x] Executed CLI health checks through `--version`, falling back to `--help`, with no AI requests; tuned default analysis timeout to 180 seconds and added Windows process-tree abort support.
 - [x] Bumped manifest/favicon/package to `1.0.5`, updated README, regenerated `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
@@ -161,7 +162,7 @@
 ## Verification
 - Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`; `node --check plugin.js`; `node --check cli-backends.js`; `Compress-Archive -Path cli-backends.js,index.html,logo.png,manifest.json,plugin.js,README.md,style.css -DestinationPath dist\特效AI标签管理-cli.eagleplugin -Force`; zip entry/manifest inspection; `Get-FileHash -Algorithm SHA256 dist\特效AI标签管理-cli.eagleplugin`; `git status --short --branch`
 - Result: pass
-- Evidence / notes: Fresh verification on `codex/v1.0.5-tag-workflow` passed: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 54/54 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.5`, `main.devTools=false`; local package SHA256 is `9F2E50AD557A9D2830677C7013F023571814D0D945FC3E4A2E439B03C6DAF0AF`. Unrelated untracked docs remain untouched.
+- Evidence / notes: Fresh verification on `codex/v1.0.5-tag-workflow` passed: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 55/55 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.5`, `main.devTools=false`; local package SHA256 is `13D6E0D8261233C8A9A49EEC696111569276917AE466133B6727DA3C8D2B46D4`. Unrelated untracked docs remain untouched.
 
 ## Blockers And Risks
 - Needs Eagle real-host smoke for new `1.0.5` UI paths: default-template manager, import edited template, preview-side manual tag adding, and real Claude/Codex health checks.

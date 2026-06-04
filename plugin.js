@@ -1005,10 +1005,11 @@
   function renderMediaPreviewTags(model) {
     const tags = Array.isArray(model.tags) ? model.tags : [];
     const tagHtml = tags.length ? tags.map((tag) => `
-      <span class="review-tag ${tag.source === "manual" ? "manual" : ""}">
+      <span class="${escapeHtml(reviewTagClassName(tag))}">
         <input type="checkbox" data-preview-result-id="${escapeHtml(model.resultId)}" data-preview-review-tag="${escapeHtml(tag.name)}" ${tag.selected ? "checked" : ""}>
         <span>${escapeHtml(tag.name)}</span>
-        <strong>${tag.source === "manual" ? "人工" : formatConfidence(tag.confidence)}</strong>
+        ${renderReviewTagSourceBadge(tag)}
+        <strong>${escapeHtml(reviewTagMetaText(tag))}</strong>
         <button class="review-tag-remove" type="button" data-preview-result-id="${escapeHtml(model.resultId)}" data-preview-remove-review-tag="${escapeHtml(tag.name)}" title="删除标签">×</button>
       </span>
     `).join("") : `<div class="media-preview-empty">还没有待确认标签。</div>`;
@@ -1499,7 +1500,8 @@
 
   async function analyzeSelected() {
     if (state.running) return;
-    const allowedTags = getAllowedTags();
+    const baseAllowedTags = getAllowedTags();
+    const allowedTags = getAnalysisAllowedTags(baseAllowedTags);
     if (!allowedTags.length) {
       setStatus("标签池为空，请先刷新 Eagle 标签或导入默认模板。");
       return;
@@ -1673,16 +1675,18 @@
       reportAnalysisStage(onProgress, "整理标签", 0.88);
       const candidates = normalizeTagCandidates(Array.isArray(object.tags) ? object.tags : [], object.confidence);
       const allowed = new Set(allowedTags);
+      const baseAllowed = new Set(getAllowedTags());
       const filteredTags = candidates.filter((tag) => !allowed.has(tag.name)).map((tag) => tag.name);
       const allowedCandidates = candidates
         .filter((tag) => allowed.has(tag.name))
+        .map((tag) => ({ ...tag, source: getReviewTagSource(tag.name, baseAllowed) }))
         .sort((a, b) => b.confidence - a.confidence)
         .slice(0, settings.maxTags);
       const highConfidenceTags = allowedCandidates.filter((tag) => tag.confidence >= settings.autoConfidence);
       const autoWriteEnabled = settings.autoApplyHighConfidence && !settings.previewBeforeWrite;
-      const autoTags = autoWriteEnabled ? highConfidenceTags : [];
+      const autoTags = autoWriteEnabled ? highConfidenceTags.filter((tag) => tag.source !== "template") : [];
       const reviewTags = allowedCandidates
-        .filter((tag) => tag.confidence >= settings.hideConfidence && (!autoWriteEnabled || tag.confidence < settings.autoConfidence))
+        .filter((tag) => tag.confidence >= settings.hideConfidence && (!autoWriteEnabled || tag.source === "template" || tag.confidence < settings.autoConfidence))
         .map((tag) => ({ ...tag, selected: true }));
       const hiddenCount = allowedCandidates.filter((tag) => tag.confidence < settings.hideConfidence).length;
       let autoSaved = false;
@@ -3408,15 +3412,33 @@
       <div class="tag-section-title">待确认</div>
       <div class="review-tags">
         ${result.reviewTags.map((tag) => `
-          <label class="review-tag ${tag.source === "manual" ? "manual" : ""}" data-result-id="${escapeHtml(result.id)}" data-review-tag-name="${escapeHtml(tag.name)}">
+          <label class="${escapeHtml(reviewTagClassName(tag))}" data-result-id="${escapeHtml(result.id)}" data-review-tag-name="${escapeHtml(tag.name)}">
             <input type="checkbox" data-result-id="${escapeHtml(result.id)}" data-review-tag="${escapeHtml(tag.name)}" ${tag.selected ? "checked" : ""}>
             <span>${escapeHtml(tag.name)}</span>
-            <strong>${tag.source === "manual" ? "人工" : formatConfidence(tag.confidence)}</strong>
+            ${renderReviewTagSourceBadge(tag)}
+            <strong>${escapeHtml(reviewTagMetaText(tag))}</strong>
             <button class="review-tag-remove" type="button" data-result-id="${escapeHtml(result.id)}" data-remove-review-tag="${escapeHtml(tag.name)}" title="删除标签">×</button>
           </label>
         `).join("")}
       </div>
     `;
+  }
+
+  function reviewTagClassName(tag) {
+    return [
+      "review-tag",
+      tag && tag.source === "manual" ? "manual" : "",
+      tag && tag.source === "template" ? "template-gap" : ""
+    ].filter(Boolean).join(" ");
+  }
+
+  function renderReviewTagSourceBadge(tag) {
+    if (!tag || tag.source !== "template") return "";
+    return `<span class="review-tag-source-add" title="来自默认模板，当前标签池中不存在">+</span>`;
+  }
+
+  function reviewTagMetaText(tag) {
+    return tag && tag.source === "manual" ? "人工" : formatConfidence(tag && tag.confidence);
   }
 
   function renderResultEditor(result) {
@@ -3605,7 +3627,8 @@
       setStatus("找不到这个素材，请重新导入当前选中素材后再试。");
       return;
     }
-    const allowedTags = getAllowedTags();
+    const baseAllowedTags = getAllowedTags();
+    const allowedTags = getAnalysisAllowedTags(baseAllowedTags);
     if (!allowedTags.length) {
       setStatus("标签池为空，请先刷新 Eagle 标签或导入默认模板。");
       return;
@@ -3754,6 +3777,18 @@
     const removed = new Set(state.sessionRemovedTags);
     const custom = state.customAllowedTags.filter((tag) => !disabled.has(tag));
     return normalizeTagList([...state.eagleTags, ...custom]).filter((tag) => !removed.has(tag));
+  }
+
+  function getAnalysisAllowedTags(baseAllowedTags = getAllowedTags()) {
+    const removed = new Set(state.sessionRemovedTags);
+    return normalizeTagList([...baseAllowedTags, ...getDefaultTemplateTags()]).filter((tag) => !removed.has(tag));
+  }
+
+  function getReviewTagSource(tagName, baseAllowedSet) {
+    const tag = cleanTag(tagName);
+    if (!tag) return "";
+    if (baseAllowedSet && baseAllowedSet.has(tag)) return "";
+    return getDefaultTemplateTags().includes(tag) ? "template" : "";
   }
 
   function getSelectedReviewTags(result) {

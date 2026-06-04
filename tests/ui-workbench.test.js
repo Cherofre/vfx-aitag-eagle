@@ -290,6 +290,24 @@ test("default template manager exposes local editable tags without mutating Eagl
   assert.match(css, /\.default-template-list/);
 });
 
+test("default template acts as analysis fallback and marks gap tags with inline green plus", () => {
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(js, /function getAnalysisAllowedTags\(/);
+  assert.match(js, /normalizeTagList\(\[\.\.\.baseAllowedTags,\s*\.\.\.getDefaultTemplateTags\(\)\]\)/);
+  assert.match(js, /const baseAllowedTags = getAllowedTags\(\);\s*const allowedTags = getAnalysisAllowedTags\(baseAllowedTags\)/);
+  assert.match(js, /function getReviewTagSource\(tagName,\s*baseAllowedSet\)/);
+  assert.match(js, /source:\s*getReviewTagSource\(tag\.name,\s*baseAllowed\)/);
+  assert.match(js, /autoTags = autoWriteEnabled \? highConfidenceTags\.filter\(\(tag\) => tag\.source !== "template"\) : \[\]/);
+  assert.match(js, /tag\.source === "template" \|\| tag\.confidence < settings\.autoConfidence/);
+  assert.match(js, /function renderReviewTagSourceBadge\(/);
+  assert.match(js, /review-tag-source-add/);
+  assert.match(js, /title="来自默认模板，当前标签池中不存在"/);
+  assert.match(css, /\.review-tag\.template-gap/);
+  assert.match(css, /\.review-tag-source-add\s*{[\s\S]*color:\s*#4ade80/);
+});
+
 test("result cards expose diagnostics and actionable failure details", () => {
   const html = read("index.html");
   const js = read("plugin.js");

@@ -1,10 +1,10 @@
 # Next Actions
 
 ## Now
-- [x] Implemented 1.0.5 editable local default-template workflow, prompt semantic guidance, preview-side tag adding, executable CLI health checks, 180-second default timeout, and Windows wrapper process-tree abort support.
-- [x] Verified 54/54 tests plus `node --check plugin.js` and `node --check cli-backends.js`.
+- [x] Implemented 1.0.5 editable local default-template workflow, default-template fallback analysis candidates with inline green `+` gap markers, prompt semantic guidance, preview-side tag adding, executable CLI health checks, 180-second default timeout, and Windows wrapper process-tree abort support.
+- [x] Verified 55/55 tests plus `node --check plugin.js` and `node --check cli-backends.js`.
 - [x] Regenerated `dist\特效AI标签管理-cli.eagleplugin`; package contains only the 7 core plugin files, manifest ID `VFX_AI_TAGGER_CLI`, version `1.0.5`, and `main.devTools=false`.
-- [ ] Install the local `1.0.5` package in Eagle and smoke-test template manager, edited-template import, preview-side tag add/delete/toggle without video reload, and real Claude/Codex health checks.
+- [ ] Install the local `1.0.5` package in Eagle and smoke-test template manager, edited-template import, default-template gap tags showing green `+`, preview-side tag add/delete/toggle without video reload, and real Claude/Codex health checks.
 - [ ] After smoke, decide whether to merge/push/publish `1.0.5`; do not push or create a release without explicit user instruction.
 - [ ] Optional future Eagle tag-library operations remain deferred: material parent-tag backfill or `武器附魔 -> 附魔` merge require a fresh backup and explicit approval.
 

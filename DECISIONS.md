@@ -41,6 +41,7 @@
 - 2026-06-04: Apply Eagle taxonomy writes incrementally; the first approved write only creates `溶解消散` tag group with `消失` and `溶解`.
 - 2026-06-04: Applying "all" taxonomy changes means creating taxonomy tag groups, not merging/renaming tags or backfilling material tags.
 - 2026-06-04: Default template management and tag semantic rules are plugin-local only; the editable default template is not auto-derived from the current Eagle tag library and does not write to Eagle global tags.
+- 2026-06-04: Default-template fallback candidates may appear in analysis results as confirmable gap tags with an inline green `+`, but they are not auto-written.
 - 2026-06-04: CLI health checks should execute lightweight `--version`/`--help` probes without AI prompts; CLI analysis default timeout is 180 seconds.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
@@ -60,6 +61,13 @@
 - Reason: Command resolution alone can pass broken executables, but a real AI request would be costly and invasive during setup. The previous 120-second default can be tight for multi-frame or long-tag-pool runs.
 - Alternatives considered: Keep health checks as path-only checks; skipped because it misses broken CLI installs. Run a real “hello” AI prompt; skipped because health checks should not spend model quota or depend on account/model behavior. Raise the default to 300 seconds globally; skipped because it could make failed backends feel stuck.
 - Consequences / follow-up: Eagle smoke should verify that real local CLI settings show useful health status and that user-custom timeout values continue to persist.
+
+## 2026-06-04 - Default-template gap tags use inline plus
+- Status: active
+- Decision: During analysis, use the current tag pool plus the local default template as the AI candidate pool. If a returned tag is not in the current pool but is in the default template, keep it as a confirmable review tag, mark it with an inline green `+`, and prevent it from being automatically high-confidence written.
+- Reason: The user wants good default-template labels to be discoverable even without importing the whole template, while keeping the visible tag pool clean and avoiding bulky extra result rows.
+- Alternatives considered: Require users to import the default template first; skipped because it misses useful tags when the current Eagle library is sparse. Let AI freely create labels; skipped because it would produce uncontrolled vocabulary. Show a separate “缺口标签” line; skipped because it makes result cards too tall.
+- Consequences / follow-up: Eagle smoke should verify the green `+` marker is visible in both result cards and media preview, and that users can uncheck the gap tag before writing.
 
 ## 2026-06-04 - Apply taxonomy groups without destructive writes
 - Status: active
