@@ -42,6 +42,7 @@
 - 2026-06-04: Applying "all" taxonomy changes means creating taxonomy tag groups, not merging/renaming tags or backfilling material tags.
 - 2026-06-04: Default template management and tag semantic rules are plugin-local only; the editable default template is not auto-derived from the current Eagle tag library and does not write to Eagle global tags.
 - 2026-06-04: Default-template fallback candidates may appear in analysis results as confirmable gap tags with an inline green `+`, but they are not auto-written.
+- 2026-06-04: Dynamic review content such as long filenames, paths, and source markers must not move action buttons; truncate text and draw compact markers with CSS primitives.
 - 2026-06-04: CLI health checks should execute lightweight `--version`/`--help` probes without AI prompts; CLI analysis default timeout is 180 seconds.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
@@ -68,6 +69,13 @@
 - Reason: The user wants good default-template labels to be discoverable even without importing the whole template, while keeping the visible tag pool clean and avoiding bulky extra result rows.
 - Alternatives considered: Require users to import the default template first; skipped because it misses useful tags when the current Eagle library is sparse. Let AI freely create labels; skipped because it would produce uncontrolled vocabulary. Show a separate “缺口标签” line; skipped because it makes result cards too tall.
 - Consequences / follow-up: Eagle smoke should verify the green `+` marker is visible in both result cards and media preview, and that users can uncheck the gap tag before writing.
+
+## 2026-06-04 - Stable preview controls under long content
+- Status: active
+- Decision: Treat media preview names, paths, and compact source markers as dynamic content that must be constrained. Preview title/meta text uses ellipsis with full values preserved in `title`, right-side action buttons do not wrap, and the green `+` marker is drawn with centered CSS pseudo-elements instead of relying on a font glyph.
+- Reason: Eagle smoke showed long media filenames can push action buttons around, and text-rendered `+` glyphs look optically off-center inside tiny badges.
+- Alternatives considered: Let the header wrap to multiple rows; skipped because it makes “上一个/下一个/用 Eagle 打开/关闭” jump while reviewing. Shorten filenames in JavaScript; skipped because CSS ellipsis plus hover title preserves the full value without mutating data. Keep text `+` and tweak line-height; skipped because glyph centering varies by font.
+- Consequences / follow-up: Real Eagle smoke should verify the header with very long filenames and the `+` marker at the installed plugin scale.
 
 ## 2026-06-04 - Apply taxonomy groups without destructive writes
 - Status: active

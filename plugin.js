@@ -965,7 +965,12 @@
 
   function renderMediaPreviewDetails(model, { updatePlaybackStatus = true } = {}) {
     els.mediaPreviewTitle.textContent = model.name;
-    els.mediaPreviewMeta.textContent = [model.status, model.backend, model.confidence, shortPath(model.originalPath || model.previewPath)]
+    els.mediaPreviewTitle.title = model.name;
+    const previewMeta = [model.status, model.backend, model.confidence, shortPath(model.originalPath || model.previewPath)]
+      .filter(Boolean)
+      .join(" · ");
+    els.mediaPreviewMeta.textContent = previewMeta;
+    els.mediaPreviewMeta.title = [model.status, model.backend, model.confidence, model.originalPath || model.previewPath]
       .filter(Boolean)
       .join(" · ");
     if (updatePlaybackStatus) {
@@ -3434,7 +3439,7 @@
 
   function renderReviewTagSourceBadge(tag) {
     if (!tag || tag.source !== "template") return "";
-    return `<span class="review-tag-source-add" title="来自默认模板，当前标签池中不存在">+</span>`;
+    return `<span class="review-tag-source-add" title="来自默认模板，当前标签池中不存在" aria-label="默认模板新增"></span>`;
   }
 
   function reviewTagMetaText(tag) {

@@ -304,8 +304,11 @@ test("default template acts as analysis fallback and marks gap tags with inline 
   assert.match(js, /function renderReviewTagSourceBadge\(/);
   assert.match(js, /review-tag-source-add/);
   assert.match(js, /title="来自默认模板，当前标签池中不存在"/);
+  assert.match(js, /aria-label="默认模板新增"/);
   assert.match(css, /\.review-tag\.template-gap/);
-  assert.match(css, /\.review-tag-source-add\s*{[\s\S]*color:\s*#4ade80/);
+  assert.match(css, /\.review-tag-source-add\s*{[\s\S]*position:\s*relative[\s\S]*color:\s*#4ade80/);
+  assert.match(css, /\.review-tag-source-add::before,\s*\.review-tag-source-add::after\s*{/);
+  assert.match(css, /\.review-tag-source-add::after\s*{[\s\S]*rotate\(90deg\)/);
 });
 
 test("result cards expose diagnostics and actionable failure details", () => {
@@ -603,6 +606,7 @@ test("media preview review dialog opens from materials and results with Eagle fa
 
   assert.match(html, /id="mediaPreviewOverlay"/);
   assert.match(html, /id="mediaPreviewDialog"/);
+  assert.match(html, /class="media-preview-title-block"/);
   assert.match(html, /id="mediaPreviewTitle"/);
   assert.match(html, /id="mediaPreviewMeta"/);
   assert.match(html, /id="mediaPreviewBody"/);
@@ -645,6 +649,10 @@ test("media preview review dialog opens from materials and results with Eagle fa
   assert.match(css, /\.media-preview-overlay/);
   assert.match(css, /\.media-preview-dialog\s*{[\s\S]*max-width:\s*92vw[\s\S]*max-height:\s*88vh/);
   assert.match(css, /\.media-preview-dialog\[hidden\]\s*{[\s\S]*display:\s*none/);
+  assert.match(css, /\.media-preview-title-block\s*{[\s\S]*min-width:\s*0/);
+  assert.match(css, /\.media-preview-head h2\s*{[\s\S]*overflow:\s*hidden[\s\S]*text-overflow:\s*ellipsis[\s\S]*white-space:\s*nowrap/);
+  assert.match(css, /#mediaPreviewMeta\s*{[\s\S]*overflow:\s*hidden[\s\S]*text-overflow:\s*ellipsis[\s\S]*white-space:\s*nowrap/);
+  assert.match(css, /\.media-preview-actions\s*{[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(css, /\.media-preview-main/);
   assert.match(css, /\.media-preview-player\s*{[\s\S]*min-height:\s*0/);
   assert.match(css, /\.media-preview-player video,\s*\.media-preview-player img/);
