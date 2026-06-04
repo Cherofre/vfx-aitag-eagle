@@ -1,20 +1,20 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 15:26
-- Phase: v1.0.4 release reviewed; Eagle tag library taxonomy groups applied
-- Superpowers Phase: systematic-debugging + TDD + project-ledger-loop
-- Branch: master
-- Goal: 补做发布前审查，并按用户要求把远端 GitHub Release `v1.0.4` 改为中文优先展示。
-- Current Focus: `v1.0.4` release is stable. Eagle tag taxonomy group plan has been applied to Eagle `4.0.0` library `I:\资源同步库\Cherofre特效素材库.library`: created `溶解消散` plus 15 additional taxonomy tag groups. This created unused tags `溶解` and `枪口` (both count 0) and increased totals from 135 tags / 1 tag group to 137 tags / 17 tag groups. No tag merge, rename, deletion, source-group move, or material tag backfill was executed.
+- Last Updated: 2026-06-04 20:28
+- Phase: v1.0.5 packaged on feature branch; pending Eagle real-host smoke and merge/release decision
+- Superpowers Phase: executing-plans + TDD + verification-before-completion + project-ledger-loop
+- Branch: codex/v1.0.5-tag-workflow
+- Goal: 构建 `1.0.5` 标签工作流增强：默认模板可查看/编辑/增删/重置，语义规则进入提示词，预览侧可新增标签，CLI 健康检查实际执行 `--version`/`--help`，默认分析超时调到 180 秒。
+- Current Focus: `dist\特效AI标签管理-cli.eagleplugin` 已按 manifest `1.0.5` 重新打包并检查，包内只有核心 7 个文件，manifest ID 为 `VFX_AI_TAGGER_CLI`，`main.devTools=false`，本地 SHA256 为 `9F2E50AD557A9D2830677C7013F023571814D0D945FC3E4A2E439B03C6DAF0AF`。本轮没有修改 Eagle 全局标签，也没有 push 或发布 release。
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
-- Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Review whether to perform any optional future operations such as material parent-tag backfill or the still-deferred `武器附魔 -> 附魔` merge.
+- Superpowers Plan: `docs/superpowers/plans/2026-06-04-v1.0.5-tag-workflow.md`
+- Current Task: Commit the packaged 1.0.5 handoff; next user-visible step is installing the package in Eagle and smoke-testing template management, preview-side tag editing, and CLI health checks.
 
 ## Resume Here
-- Start with: install or reopen the reviewed `v1.0.4` package from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`, downloading `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin`, and restarting Eagle if renderer cache remains stale.
-- Next verification: user should review `docs/vfx-tag-library-merge-plan-2026-06-04.md`; only after explicit approval should any material parent-tag backfill or `tag_merge` be run.
-- Watch out for: this release intentionally overwrote an existing published tag/asset per the user's explicit request. GitHub sanitized a pure Chinese upload filename to a broken-looking ASCII name, so the final release uses a pinyin-safe filename with Chinese title/body/asset label.
+- Start with: install `dist\特效AI标签管理-cli.eagleplugin` from this branch if the user wants to try 1.0.5 before merge/release.
+- Next verification: Eagle real-host smoke for “管理模板” local edits/import/reset, preview窗口内新增/勾选/删除标签且视频不断播, Claude/Codex 环境检查, and 180 秒默认 CLI timeout display/persistence.
+- Watch out for: unrelated untracked docs may exist (`docs/v1.0.5-tag-system-preview-plan.md`, `docs/vfx-tag-taxonomy-review.md`); do not include/delete them unless explicitly requested. Do not push or publish `1.0.5` unless the user asks.
 
 ## Progress Summary
 - [x] Initialized Project Ledger Loop files.
@@ -151,17 +151,20 @@
 - [x] Created 15 additional Eagle tag groups: `斩击挥砍`, `枪械`, `地面特效`, `位移残影`, `突刺攻击`, `冰雪`, `风`, `流体`, `推进喷尾`, `破坏碎片`, `科幻赛博`, `暗`, `国风`, `屏幕特效`, `附魔`.
 - [x] Verified write result: 137 tags / 17 tag groups; new `枪口` tag has count 0; no tag merge, rename, deletion, source-group move, or material tag backfill was executed.
 - [x] Saved post-all-groups Eagle tag state to `docs/vfx-tag-library-after-all-taxonomy-groups-2026-06-04.json`.
+- [x] Created branch `codex/v1.0.5-tag-workflow` and added plan `docs/superpowers/plans/2026-06-04-v1.0.5-tag-workflow.md`.
+- [x] Added editable local default-template workflow with search/add/rename/delete/reset/import and storage key `vfxAiTagger.defaultTemplateTags`.
+- [x] Added tag semantic guidance to Eagle AI and Claude/Codex CLI prompts without expanding the allowed tag pool.
+- [x] Added preview-side manual tag adding while keeping tag-only preview edits from rebuilding the video player.
+- [x] Executed CLI health checks through `--version`, falling back to `--help`, with no AI requests; tuned default analysis timeout to 180 seconds and added Windows process-tree abort support.
+- [x] Bumped manifest/favicon/package to `1.0.5`, updated README, regenerated `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
 
 ## Verification
-- Last command: `gh release view v1.0.4 --json tagName,targetCommitish,name,body,assets,url,isDraft,isPrerelease`, `Get-FileHash -Algorithm SHA256 "dist\特效AI标签管理-cli.eagleplugin"`, and `git status --short --branch`
+- Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`; `node --check plugin.js`; `node --check cli-backends.js`; `Compress-Archive -Path cli-backends.js,index.html,logo.png,manifest.json,plugin.js,README.md,style.css -DestinationPath dist\特效AI标签管理-cli.eagleplugin -Force`; zip entry/manifest inspection; `Get-FileHash -Algorithm SHA256 dist\特效AI标签管理-cli.eagleplugin`; `git status --short --branch`
 - Result: pass
-- Evidence / notes: Fresh verification on `master` passed: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 47/47 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.4`, `main.devTools=false`; packaged `plugin.js` contains video loop playback, pending queue sync, and preview-side refresh. Local package SHA256 is `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`. GitHub Release `v1.0.4` title is `特效 AI 标签管理 v1.0.4`; the only release asset is `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin`, label `特效 AI 标签管理 CLI 安装包 1.0.4`, digest `sha256:1de29b3601a9541faccad209dce1362ee72157e60befa1652099b2da6479affd`, size `59341`, release URL `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`. Final remote `refs/heads/master` and `refs/tags/v1.0.4` must be verified after pushing this handoff commit and force-updating the tag. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: Fresh verification on `codex/v1.0.5-tag-workflow` passed: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 54/54 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.5`, `main.devTools=false`; local package SHA256 is `9F2E50AD557A9D2830677C7013F023571814D0D945FC3E4A2E439B03C6DAF0AF`. Unrelated untracked docs remain untouched.
 
 ## Blockers And Risks
-- Review P2: `renderResults()` early returns can leave an open media preview side panel stale when results are cleared or the active filter has no visible result.
-- Review P2: removing the currently previewed selected material does not close or advance the media preview, so a removed item can keep playing until the user closes/navigates.
-- Review P2: Windows `.cmd/.bat` CLI abort may kill only the shell wrapper, not the underlying Claude/Codex child process; process-tree termination or native exe resolution should be considered.
-- Review P2: CLI health checks currently validate command resolution/existence but do not actually execute `--version`/`--help`, so broken executables can pass the preflight.
+- Needs Eagle real-host smoke for new `1.0.5` UI paths: default-template manager, import edited template, preview-side manual tag adding, and real Claude/Codex health checks.
 - User confirmed Eagle real-host smoke is OK for local video playback/loop/no-reload tag edits and paused-append queue behavior.
 - Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.
 - Browser static verification for `file://` was blocked by Browser Use URL policy; do not claim browser layout smoke for the preview dialog.

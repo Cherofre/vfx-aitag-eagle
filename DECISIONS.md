@@ -40,10 +40,26 @@
 - 2026-06-04: Treat Eagle tag taxonomy changes as two-stage work: read-only export and user-approved operation plan before any global tag writes.
 - 2026-06-04: Apply Eagle taxonomy writes incrementally; the first approved write only creates `溶解消散` tag group with `消失` and `溶解`.
 - 2026-06-04: Applying "all" taxonomy changes means creating taxonomy tag groups, not merging/renaming tags or backfilling material tags.
+- 2026-06-04: Default template management and tag semantic rules are plugin-local only; the editable default template is not auto-derived from the current Eagle tag library and does not write to Eagle global tags.
+- 2026-06-04: CLI health checks should execute lightweight `--version`/`--help` probes without AI prompts; CLI analysis default timeout is 180 seconds.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - Plugin-local default template workflow
+- Status: active
+- Decision: Build the `1.0.5` default-template manager as a local editable template with search, add, rename, delete, reset, and import. Preserve the user's approved built-in template and semantic rules, but do not auto-update the template from current Eagle tags and do not create/merge/delete Eagle global tags.
+- Reason: The user explicitly wants to inspect and adjust the default pool manually; using the current Eagle library as the template source would entangle personal library state with the reusable default template.
+- Alternatives considered: Generate default-template changes from the user's current Eagle tag library; skipped because the user rejected that source. Create missing tags directly in Eagle; skipped because this branch is plugin-local template behavior. Always include every semantic rule in every prompt; skipped because it could confuse the model with labels that are not available in the current tag pool.
+- Consequences / follow-up: `管理模板` edits live in `localStorage` under `vfxAiTagger.defaultTemplateTags`; importing the edited template only adds tags to the current candidate pool. If the user wants default tags created in Eagle later, run a fresh backup/export and confirm exact write operations first.
+
+## 2026-06-04 - Lightweight CLI health and timeout defaults
+- Status: active
+- Decision: Health checks for Claude/Codex execute `--version` and fall back to `--help` with a short timeout, never sending analysis prompts or media frames. The CLI analysis timeout default is 180 seconds, while presets may override it for faster or deeper runs.
+- Reason: Command resolution alone can pass broken executables, but a real AI request would be costly and invasive during setup. The previous 120-second default can be tight for multi-frame or long-tag-pool runs.
+- Alternatives considered: Keep health checks as path-only checks; skipped because it misses broken CLI installs. Run a real “hello” AI prompt; skipped because health checks should not spend model quota or depend on account/model behavior. Raise the default to 300 seconds globally; skipped because it could make failed backends feel stuck.
+- Consequences / follow-up: Eagle smoke should verify that real local CLI settings show useful health status and that user-custom timeout values continue to persist.
 
 ## 2026-06-04 - Apply taxonomy groups without destructive writes
 - Status: active
