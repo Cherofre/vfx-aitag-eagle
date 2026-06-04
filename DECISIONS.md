@@ -31,22 +31,30 @@
 - 2026-06-03: Release `v1.0.3` should supersede `v1.0.2` by removing collector-entry auto-collection.
 - 2026-06-03: Merge the media-preview `1.0.3` work to `master`; keep the existing `v1.0.3` release asset because its digest matches the current package.
 - 2026-06-03: Collector placement uses draggable remembered plugin-window bounds, not Eagle main-window following.
-- 2026-06-04: Release `v1.0.4` from merged `master` with collector position memory and an English-named `.eagleplugin` asset.
+- 2026-06-04: Release `v1.0.4` from merged `master` with Chinese-facing release title/body and a pinyin-safe `.eagleplugin` asset filename because GitHub sanitizes pure Chinese asset names.
 - 2026-06-04: Media preview tag-only edits refresh only the preview side panel; the player node is rebuilt only when opening or navigating preview.
 - 2026-06-04: Appending materials into an existing analysis result set creates pending results immediately and before pending filtering.
 - 2026-06-04: Local video preview loops by default.
-- 2026-06-04: Overwrite GitHub Release `v1.0.4` with the merged media-preview/queue fixes at the user's explicit request.
+- 2026-06-04: Overwrite GitHub Release `v1.0.4` with the merged media-preview/queue fixes at the user's explicit request, then localize the release display after post-upload review.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
 
-## 2026-06-04 - Overwrite release 1.0.4 with merged fixes
+## 2026-06-04 - Chinese-facing v1.0.4 release presentation
 - Status: active
+- Decision: Keep tag `v1.0.4` on the reviewed merged `master` commit, change GitHub Release title/body to Chinese, replace the English asset with a single pinyin-safe asset filename `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin`, and set the asset label to `特效 AI 标签管理 CLI 安装包 1.0.4`.
+- Reason: The user asked to make the release Chinese rather than English. A pure Chinese filename upload was sanitized by GitHub into the broken-looking `AI.-cli-1.0.4.eagleplugin`, so a pinyin-safe filename avoids a confusing download while keeping the page title, notes, and label Chinese.
+- Alternatives considered: Keep the English asset; skipped because the user explicitly asked for Chinese or bilingual presentation. Keep both Chinese and English assets; skipped because duplicate assets with identical content can confuse users. Use the sanitized pure-Chinese upload name; skipped because it looked corrupted.
+- Consequences / follow-up: Release notes must mention the pinyin filename. Future release assets can use the same pinyin-safe naming pattern while keeping Chinese release copy and asset labels.
+
+## 2026-06-04 - Overwrite release 1.0.4 with merged fixes
+- Status: superseded
 - Decision: Fast-forward merge `codex/media-preview-video-stability` into `master`, keep manifest version `1.0.4`, regenerate the `.eagleplugin`, force-move tag `v1.0.4` to the merged release commit, and replace the GitHub Release `v1.0.4` asset with the same English filename.
 - Reason: The user explicitly requested “合并，然后传远端，覆盖release1.0.4”. Keeping the version and asset name stable lets the current public release include the preview playback and paused-queue fixes without creating a new release number.
 - Alternatives considered: Create `v1.0.5`; skipped because the user asked to overwrite `1.0.4`. Push only `master` without moving the tag or asset; skipped because the published download would remain stale.
 - Consequences / follow-up: Because this mutates a published release/tag, verify the remote asset digest after upload and record the final evidence in the ledger.
+- Superseded by: 2026-06-04 - Chinese-facing v1.0.4 release presentation.
 
 ## 2026-06-04 - Default loop playback for local preview
 - Status: active
@@ -70,11 +78,12 @@
 - Consequences / follow-up: Eagle smoke must verify the video starts automatically and keeps playing when preview-side tags are toggled or removed.
 
 ## 2026-06-04 - Release 1.0.4 publication
-- Status: active
+- Status: superseded
 - Decision: Merge `codex/collector-position-memory` into `master`, tag merge commit `3e3b71c` as `v1.0.4`, and publish GitHub Release `v1.0.4` with asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
 - Reason: The collector position memory package is versioned as `1.0.4`, tests and package inspection pass on `master`, and users need a downloadable release asset with a stable English filename.
 - Alternatives considered: Reuse `v1.0.3`; skipped because the manifest/package version changed to `1.0.4`. Publish only the branch without merging; skipped because the user explicitly asked to merge and release.
 - Consequences / follow-up: Eagle smoke still needs to verify native drag/restore behavior in the real host window.
+- Superseded by: 2026-06-04 - Chinese-facing v1.0.4 release presentation.
 
 ## 2026-06-03 - Collector position memory
 - Status: active

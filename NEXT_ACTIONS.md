@@ -1,20 +1,20 @@
 # Next Actions
 
 ## Now
-- [x] Fast-forward merged `codex/media-preview-video-stability` into `master`.
-- [x] Verified merged `master` with `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
-- [x] Regenerated and inspected `dist\特效AI标签管理-cli.eagleplugin`; manifest is `VFX_AI_TAGGER_CLI` version `1.0.4`, `devTools=false`.
-- [x] Pushed `master`, force-moved tag `v1.0.4`, and overwrote GitHub Release asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
+- [x] Completed three read-only review passes for media preview/tag review, analysis queue/CLI state, and release/package hygiene; no P0/P1 blockers found.
+- [x] Re-verified `master` with `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
+- [x] Changed GitHub Release `v1.0.4` to Chinese title/body and replaced the English asset with `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin` plus Chinese label.
 - [x] Verified remote release digest matches local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
 - [ ] Reopen/restart Eagle and smoke-test: video preview autoplays, loops, and survives tag edits without reload.
 - [ ] Smoke-test paused analysis append behavior: pause, append more selected materials, click `开始分析` or `继续`, and confirm all pending old+new items run in the same batch.
+- [ ] Follow up in the next patch on review P2s: stale preview when results/filter empty, preview of removed material, CLI wrapper process-tree abort, and health check command execution.
 
 ## Handoff Notes
-- Start here: install or reopen the overwritten package from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`.
-- Do not redo: feature implementation, branch merge, merged-master tests, syntax checks, package regeneration, package inspection, push, tag move, release upload, and remote digest verification are done.
+- Start here: install or reopen the reviewed package from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`; download `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin` (`特效 AI 标签管理 CLI 安装包 1.0.4`).
+- Do not redo: feature implementation, branch merge, merged-master tests, syntax checks, package regeneration, package inspection, push, tag move, release upload, three read-only review passes, and remote digest verification are done.
 - Verify next: Eagle real-host smoke for video loop/no-reload preview and pause -> append -> continue queue behavior.
 - Do not claim: Eagle real-host smoke has passed until tested in Eagle.
-- Watch out for: moving `v1.0.4` was intentional per user request; unrelated untracked `docs/vfx-tag-taxonomy-review.md` must remain untouched.
+- Watch out for: moving `v1.0.4` was intentional per user request; GitHub sanitized a pure Chinese asset filename, so the release uses a pinyin-safe filename with Chinese page copy and asset label; unrelated untracked `docs/vfx-tag-taxonomy-review.md` must remain untouched.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later
