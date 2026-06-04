@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 15:17
-- Phase: v1.0.4 release reviewed; Eagle tag library taxonomy plan partially applied
+- Last Updated: 2026-06-04 15:26
+- Phase: v1.0.4 release reviewed; Eagle tag library taxonomy groups applied
 - Superpowers Phase: systematic-debugging + TDD + project-ledger-loop
 - Branch: master
 - Goal: 补做发布前审查，并按用户要求把远端 GitHub Release `v1.0.4` 改为中文优先展示。
-- Current Focus: `v1.0.4` release is stable. Eagle tag taxonomy planning has one approved write applied to Eagle `4.0.0` library `I:\资源同步库\Cherofre特效素材库.library`: created tag group `溶解消散` with tags `消失` and `溶解`. This created the unused tag `溶解` (count 0) and increased totals from 135 tags / 1 tag group to 136 tags / 2 tag groups. No tag merge, rename, deletion, source-group move, or material tag backfill was executed.
+- Current Focus: `v1.0.4` release is stable. Eagle tag taxonomy group plan has been applied to Eagle `4.0.0` library `I:\资源同步库\Cherofre特效素材库.library`: created `溶解消散` plus 15 additional taxonomy tag groups. This created unused tags `溶解` and `枪口` (both count 0) and increased totals from 135 tags / 1 tag group to 137 tags / 17 tag groups. No tag merge, rename, deletion, source-group move, or material tag backfill was executed.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Continue reviewing the remaining tag taxonomy plan before any further Eagle tag library write operation.
+- Current Task: Review whether to perform any optional future operations such as material parent-tag backfill or the still-deferred `武器附魔 -> 附魔` merge.
 
 ## Resume Here
 - Start with: install or reopen the reviewed `v1.0.4` package from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`, downloading `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin`, and restarting Eagle if renderer cache remains stale.
-- Next verification: user should review `docs/vfx-tag-library-merge-plan-2026-06-04.md`; only after explicit approval should any additional tag group creation, parent-tag backfill, or `tag_merge` be run.
+- Next verification: user should review `docs/vfx-tag-library-merge-plan-2026-06-04.md`; only after explicit approval should any material parent-tag backfill or `tag_merge` be run.
 - Watch out for: this release intentionally overwrote an existing published tag/asset per the user's explicit request. GitHub sanitized a pure Chinese upload filename to a broken-looking ASCII name, so the final release uses a pinyin-safe filename with Chinese title/body/asset label.
 
 ## Progress Summary
@@ -147,6 +147,10 @@
 - [x] Backed up Eagle tag state before the approved `溶解消散` write to `docs/vfx-tag-library-before-dissolve-group-2026-06-04.json`.
 - [x] Created Eagle tag group `溶解消散` with `消失` and new tag `溶解`; verified `溶解` count is 0, `隐身` is not in the group, and totals are 136 tags / 2 groups.
 - [x] Saved post-write Eagle tag state to `docs/vfx-tag-library-after-dissolve-group-2026-06-04.json`.
+- [x] Backed up Eagle tag state before applying all remaining taxonomy groups to `docs/vfx-tag-library-before-all-taxonomy-groups-2026-06-04.json`.
+- [x] Created 15 additional Eagle tag groups: `斩击挥砍`, `枪械`, `地面特效`, `位移残影`, `突刺攻击`, `冰雪`, `风`, `流体`, `推进喷尾`, `破坏碎片`, `科幻赛博`, `暗`, `国风`, `屏幕特效`, `附魔`.
+- [x] Verified write result: 137 tags / 17 tag groups; new `枪口` tag has count 0; no tag merge, rename, deletion, source-group move, or material tag backfill was executed.
+- [x] Saved post-all-groups Eagle tag state to `docs/vfx-tag-library-after-all-taxonomy-groups-2026-06-04.json`.
 
 ## Verification
 - Last command: `gh release view v1.0.4 --json tagName,targetCommitish,name,body,assets,url,isDraft,isPrerelease`, `Get-FileHash -Algorithm SHA256 "dist\特效AI标签管理-cli.eagleplugin"`, and `git status --short --branch`

@@ -39,10 +39,18 @@
 - 2026-06-04: Public release notes should stay user-facing and omit local test commands, internal review findings, and handoff-only risks.
 - 2026-06-04: Treat Eagle tag taxonomy changes as two-stage work: read-only export and user-approved operation plan before any global tag writes.
 - 2026-06-04: Apply Eagle taxonomy writes incrementally; the first approved write only creates `溶解消散` tag group with `消失` and `溶解`.
+- 2026-06-04: Applying "all" taxonomy changes means creating taxonomy tag groups, not merging/renaming tags or backfilling material tags.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - Apply taxonomy groups without destructive writes
+- Status: active
+- Decision: Interpret the user's "都做" as applying the safe tag-group organization layer from the taxonomy plan. Create the remaining taxonomy tag groups in Eagle, but do not merge, rename, delete, move source groups, or bulk add parent tags to materials.
+- Reason: Tag groups improve navigation and AI/tagging structure without collapsing fine-grained retrieval tags. Merges and material backfills remain materially more invasive and need their own confirmation.
+- Alternatives considered: Also run `武器附魔 -> 附魔` merge; skipped because it is irreversible and was not separately confirmed. Bulk add parent tags to all matching materials; skipped because it changes many item records and should be planned separately.
+- Consequences / follow-up: Eagle now has 17 tag groups and 137 tags. `枪口` was created as a 0-use tag because the approved `枪械` group includes it.
 
 ## 2026-06-04 - First approved Eagle taxonomy write
 - Status: active
