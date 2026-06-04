@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 10:55
-- Phase: v1.0.4 release reviewed and Chinese-facing release updated
+- Last Updated: 2026-06-04 11:15
+- Phase: v1.0.4 release reviewed, Chinese-facing release cleaned, and user smoke confirmed
 - Superpowers Phase: systematic-debugging + TDD + project-ledger-loop
 - Branch: master
 - Goal: 补做发布前审查，并按用户要求把远端 GitHub Release `v1.0.4` 改为中文优先展示。
-- Current Focus: `v1.0.4` has been reviewed by three read-only subagents covering media preview/tag review, analysis queue/CLI state, and release/package hygiene. No P0/P1 blockers were found. GitHub Release `v1.0.4` now has Chinese title/body and a single pinyin-safe asset `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin` with Chinese label `特效 AI 标签管理 CLI 安装包 1.0.4`; digest matches local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
+- Current Focus: `v1.0.4` has been reviewed by three read-only subagents covering media preview/tag review, analysis queue/CLI state, and release/package hygiene. No P0/P1 blockers were found. GitHub Release `v1.0.4` now has Chinese title/body and a single pinyin-safe asset `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin` with Chinese label `特效 AI 标签管理 CLI 安装包 1.0.4`; digest matches local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`. Public release notes were cleaned to remove internal test/review details, and the user confirmed the two Eagle smoke items from the release notes are OK.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Run Eagle real-host smoke for looped local video preview, no player reload on tag edits, paused-append queue behavior, and follow up on the P2 review items in a later patch.
+- Current Task: Follow up on the remaining P2 review items and the collected preview add-tag UX request in a later patch.
 
 ## Resume Here
 - Start with: install or reopen the reviewed `v1.0.4` package from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`, downloading `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin`, and restarting Eagle if renderer cache remains stale.
-- Next verification: local video preview should autoplay, loop, and survive preview-side tag edits without reload; paused analysis should accept newly appended materials into the same pending batch.
+- Next verification: follow up on the remaining P2 review items and preview add-tag UX request if a new patch is started.
 - Watch out for: this release intentionally overwrote an existing published tag/asset per the user's explicit request. GitHub sanitized a pure Chinese upload filename to a broken-looking ASCII name, so the final release uses a pinyin-safe filename with Chinese title/body/asset label.
 
 ## Progress Summary
@@ -140,6 +140,8 @@
 - [x] Verified remote asset digest `sha256:1de29b3601a9541faccad209dce1362ee72157e60befa1652099b2da6479affd` matches local package SHA256.
 - [x] Ran three read-only subagent reviews after the upload; no P0/P1 blockers found.
 - [x] Updated GitHub Release `v1.0.4` to Chinese title/body and replaced the English asset with pinyin-safe asset `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin` plus Chinese asset label.
+- [x] Cleaned the public GitHub Release body so it only contains user-facing update/download notes, not internal local test commands or review findings.
+- [x] User confirmed the two Eagle smoke items previously listed in release notes are OK: video preview playback/loop/tag-edit behavior, and paused-append queue behavior.
 
 ## Verification
 - Last command: `gh release view v1.0.4 --json tagName,targetCommitish,name,body,assets,url,isDraft,isPrerelease`, `Get-FileHash -Algorithm SHA256 "dist\特效AI标签管理-cli.eagleplugin"`, and `git status --short --branch`
@@ -151,9 +153,7 @@
 - Review P2: removing the currently previewed selected material does not close or advance the media preview, so a removed item can keep playing until the user closes/navigates.
 - Review P2: Windows `.cmd/.bat` CLI abort may kill only the shell wrapper, not the underlying Claude/Codex child process; process-tree termination or native exe resolution should be considered.
 - Review P2: CLI health checks currently validate command resolution/existence but do not actually execute `--version`/`--help`, so broken executables can pass the preflight.
-- Needs Eagle real-host smoke for loop playback in the local media preview dialog.
-- Needs Eagle real-host smoke for paused analysis append behavior: pause, append more materials, start/continue, and confirm new items run in the same pending batch.
-- Needs Eagle real-host smoke for the new media preview behavior: local video autoplay, codec support, and no reload/spinner after preview-side tag edits.
+- User confirmed Eagle real-host smoke is OK for local video playback/loop/no-reload tag edits and paused-append queue behavior.
 - Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.
 - Browser static verification for `file://` was blocked by Browser Use URL policy; do not claim browser layout smoke for the preview dialog.
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.

@@ -5,19 +5,20 @@
 - [x] Re-verified `master` with `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
 - [x] Changed GitHub Release `v1.0.4` to Chinese title/body and replaced the English asset with `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin` plus Chinese label.
 - [x] Verified remote release digest matches local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
-- [ ] Reopen/restart Eagle and smoke-test: video preview autoplays, loops, and survives tag edits without reload.
-- [ ] Smoke-test paused analysis append behavior: pause, append more selected materials, click `开始分析` or `继续`, and confirm all pending old+new items run in the same batch.
+- [x] User confirmed Eagle smoke: video preview autoplays/loops and survives tag edits without reload.
+- [x] User confirmed Eagle smoke: paused analysis append behavior works for old+new pending items.
 - [ ] Follow up in the next patch on review P2s: stale preview when results/filter empty, preview of removed material, CLI wrapper process-tree abort, and health check command execution.
 
 ## Handoff Notes
 - Start here: install or reopen the reviewed package from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`; download `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin` (`特效 AI 标签管理 CLI 安装包 1.0.4`).
 - Do not redo: feature implementation, branch merge, merged-master tests, syntax checks, package regeneration, package inspection, push, tag move, release upload, three read-only review passes, and remote digest verification are done.
-- Verify next: Eagle real-host smoke for video loop/no-reload preview and pause -> append -> continue queue behavior.
-- Do not claim: Eagle real-host smoke has passed until tested in Eagle.
+- Verify next: the remaining P2 review items if starting a new patch.
+- Do not claim: the remaining P2 review items are fixed until implemented and verified.
 - Watch out for: moving `v1.0.4` was intentional per user request; GitHub sanitized a pure Chinese asset filename, so the release uses a pinyin-safe filename with Chinese page copy and asset label; unrelated untracked `docs/vfx-tag-taxonomy-review.md` must remain untouched.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later
+- [ ] Product suggestion: add an inline `添加标签` / search-add control inside the media preview review panel so users can add tags while previewing, without closing the preview and returning to the result card. It should reuse the current tag pool, allow manual new tags, and keep the video player node stable.
 - [ ] Reopen/restart Eagle and run real-host smoke for dragging collector, returning to workbench, and re-entering collector at the remembered position.
 - [ ] Compact this file if `Now` grows beyond 7 items.
 

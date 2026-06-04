@@ -36,10 +36,18 @@
 - 2026-06-04: Appending materials into an existing analysis result set creates pending results immediately and before pending filtering.
 - 2026-06-04: Local video preview loops by default.
 - 2026-06-04: Overwrite GitHub Release `v1.0.4` with the merged media-preview/queue fixes at the user's explicit request, then localize the release display after post-upload review.
+- 2026-06-04: Public release notes should stay user-facing and omit local test commands, internal review findings, and handoff-only risks.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - Keep public release notes user-facing
+- Status: active
+- Decision: GitHub Release notes should contain user-facing update, download, and install information only. Local verification commands, internal review conclusions, and handoff-only risks belong in `PROJECT_STATUS.md` / `NEXT_ACTIONS.md`, not in the public release body.
+- Reason: The user pointed out that local test commands and review notes made the public release look wrong and too internal.
+- Alternatives considered: Keep the verification block for transparency; skipped because the release page is for users downloading the plugin, while the project ledger already preserves verification evidence. Add a short "tested" note without details; skipped for `v1.0.4` because the user specifically wanted those sections removed.
+- Consequences / follow-up: Future releases should use concise Chinese user-facing copy and keep internal evidence in the ledger.
 
 ## 2026-06-04 - Chinese-facing v1.0.4 release presentation
 - Status: active
