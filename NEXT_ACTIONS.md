@@ -4,17 +4,17 @@
 - [x] Fast-forward merged `codex/media-preview-video-stability` into `master`.
 - [x] Verified merged `master` with `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
 - [x] Regenerated and inspected `dist\特效AI标签管理-cli.eagleplugin`; manifest is `VFX_AI_TAGGER_CLI` version `1.0.4`, `devTools=false`.
-- [x] Confirmed packaged `plugin.js` contains video loop playback, paused-append queue sync, and stable preview-side refresh.
-- [ ] Commit the regenerated package and ledger update.
-- [ ] Push `master`, force-move tag `v1.0.4`, and overwrite GitHub Release asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
-- [ ] Verify remote release digest matches local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
+- [x] Pushed `master`, force-moved tag `v1.0.4`, and overwrote GitHub Release asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
+- [x] Verified remote release digest matches local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
+- [ ] Reopen/restart Eagle and smoke-test: video preview autoplays, loops, and survives tag edits without reload.
+- [ ] Smoke-test paused analysis append behavior: pause, append more selected materials, click `开始分析` or `继续`, and confirm all pending old+new items run in the same batch.
 
 ## Handoff Notes
-- Start here: commit the regenerated `dist\特效AI标签管理-cli.eagleplugin` and ledger update, then push `master` and overwrite GitHub Release `v1.0.4`.
-- Do not redo: feature implementation, branch merge, merged-master tests, syntax checks, package regeneration, and package inspection are done.
-- Verify next: after `gh release upload --clobber`, run `gh release view v1.0.4 --json assets,url` and confirm the asset digest matches local SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
-- Do not claim: `v1.0.4` release is overwritten until the remote asset digest has been checked.
-- Watch out for: moving `v1.0.4` is intentional per user request; unrelated untracked `docs/vfx-tag-taxonomy-review.md` must remain untouched.
+- Start here: install or reopen the overwritten package from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`.
+- Do not redo: feature implementation, branch merge, merged-master tests, syntax checks, package regeneration, package inspection, push, tag move, release upload, and remote digest verification are done.
+- Verify next: Eagle real-host smoke for video loop/no-reload preview and pause -> append -> continue queue behavior.
+- Do not claim: Eagle real-host smoke has passed until tested in Eagle.
+- Watch out for: moving `v1.0.4` was intentional per user request; unrelated untracked `docs/vfx-tag-taxonomy-review.md` must remain untouched.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later

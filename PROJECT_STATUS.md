@@ -1,20 +1,20 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 10:10
-- Phase: media preview/queue fixes merged to master and 1.0.4 overwrite package prepared
+- Last Updated: 2026-06-04 10:14
+- Phase: media preview/queue fixes merged to master and GitHub Release v1.0.4 overwritten
 - Superpowers Phase: systematic-debugging + TDD + project-ledger-loop
 - Branch: master
 - Goal: 合并媒体预览/暂停追加队列修复，重新打包，并按用户要求覆盖远端 GitHub Release `v1.0.4`。
-- Current Focus: `codex/media-preview-video-stability` has been fast-forward merged into `master`. `dist\特效AI标签管理-cli.eagleplugin` has been regenerated with manifest version `1.0.4`; package SHA256 is `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`. Next step is pushing `master`, force-moving tag `v1.0.4`, and replacing the release asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
+- Current Focus: `codex/media-preview-video-stability` has been fast-forward merged into `master`, pushed to `origin/master`, and tag `v1.0.4` has been force-moved to the merged release commit. GitHub Release `v1.0.4` was overwritten with asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`; remote digest matches local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Push `master`, move `v1.0.4` to the new release commit, and overwrite GitHub Release `v1.0.4` with the regenerated package.
+- Current Task: Run Eagle real-host smoke for looped local video preview, no player reload on tag edits, and paused-append queue behavior.
 
 ## Resume Here
-- Start with: push `master`, force-push tag `v1.0.4` to the new release commit, upload `vfx-aitag-eagle-cli-1.0.4.eagleplugin` with `gh release upload --clobber`, then verify the remote asset digest.
-- Next verification: GitHub Release `v1.0.4` should point to the new tag commit and its asset digest should match local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`.
-- Watch out for: this intentionally overwrites an existing published tag/release asset per the user's explicit request.
+- Start with: install or reopen the overwritten `v1.0.4` package from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`, restarting Eagle if renderer cache remains stale.
+- Next verification: local video preview should autoplay, loop, and survive preview-side tag edits without reload; paused analysis should accept newly appended materials into the same pending batch.
+- Watch out for: this release intentionally overwrote an existing published tag/asset per the user's explicit request.
 
 ## Progress Summary
 - [x] Initialized Project Ledger Loop files.
@@ -135,12 +135,14 @@
 - [x] Fast-forward merged `codex/media-preview-video-stability` into `master`.
 - [x] Verified merged `master`: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
 - [x] Regenerated `dist\特效AI标签管理-cli.eagleplugin` for manifest version `1.0.4` and inspected package contents.
-- [ ] Push `master`, move remote tag `v1.0.4`, and overwrite release asset.
+- [x] Pushed `master` to origin and force-moved tag `v1.0.4` to the merged release commit.
+- [x] Overwrote GitHub Release `v1.0.4` asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
+- [x] Verified remote asset digest `sha256:1de29b3601a9541faccad209dce1362ee72157e60befa1652099b2da6479affd` matches local package SHA256.
 
 ## Verification
-- Last command: source/installed `plugin.js` SHA256 comparison
+- Last command: `gh release view v1.0.4 --json tagName,targetCommitish,name,assets,url,isDraft,isPrerelease` and `git ls-remote origin refs/heads/master refs/tags/v1.0.4`
 - Result: pass
-- Evidence / notes: On merged `master`, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 47/47 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.4`, `main.devTools=false`; packaged `plugin.js` contains video loop playback, pending queue sync, and preview-side refresh. Local package SHA256 is `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`. Release upload/remote digest verification is still pending. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: On merged `master`, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 47/47 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.4`, `main.devTools=false`; packaged `plugin.js` contains video loop playback, pending queue sync, and preview-side refresh. Local package SHA256 is `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`. GitHub Release `v1.0.4` asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin` now has digest `sha256:1de29b3601a9541faccad209dce1362ee72157e60befa1652099b2da6479affd`, size `59341`, and release URL `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`. At release verification time, `refs/tags/v1.0.4` pointed to package commit `c3c31a9697b5f62f458f1279cabac318a8645ada`; this final ledger commit records the evidence on `master`. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
 - Needs Eagle real-host smoke for loop playback in the local media preview dialog.
