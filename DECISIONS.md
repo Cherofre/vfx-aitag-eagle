@@ -37,10 +37,18 @@
 - 2026-06-04: Local video preview loops by default.
 - 2026-06-04: Overwrite GitHub Release `v1.0.4` with the merged media-preview/queue fixes at the user's explicit request, then localize the release display after post-upload review.
 - 2026-06-04: Public release notes should stay user-facing and omit local test commands, internal review findings, and handoff-only risks.
+- 2026-06-04: Treat Eagle tag taxonomy changes as two-stage work: read-only export and user-approved operation plan before any global tag writes.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - Eagle tag taxonomy edits require explicit approval
+- Status: active
+- Decision: Before modifying the Eagle tag library, first export the current tags/tag groups read-only, draft an operation plan, and get explicit user approval for the exact write operations.
+- Reason: Eagle tag merge/rename operations are global and hard to undo, while the user's VFX taxonomy relies on fine-grained tags for reference search. Read-only planning preserves safety and avoids collapsing useful subtypes.
+- Alternatives considered: Run `tag_merge` immediately for obvious candidates; skipped because even apparently obvious merges can erase retrieval nuance. Modify Eagle database files directly; skipped because official Eagle APIs are safer and auditable.
+- Consequences / follow-up: Use `docs/vfx-tag-library-merge-plan-2026-06-04.md` as the review surface. Any future write step should include a fresh export/backup and a concise list of exact API commands.
 
 ## 2026-06-04 - Keep public release notes user-facing
 - Status: active

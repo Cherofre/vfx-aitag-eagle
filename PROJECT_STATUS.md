@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 11:15
-- Phase: v1.0.4 release reviewed, Chinese-facing release cleaned, and user smoke confirmed
+- Last Updated: 2026-06-04 15:05
+- Phase: v1.0.4 release reviewed; Eagle tag library read-only export and 1.0.5 taxonomy plan drafted
 - Superpowers Phase: systematic-debugging + TDD + project-ledger-loop
 - Branch: master
 - Goal: 补做发布前审查，并按用户要求把远端 GitHub Release `v1.0.4` 改为中文优先展示。
-- Current Focus: `v1.0.4` has been reviewed by three read-only subagents covering media preview/tag review, analysis queue/CLI state, and release/package hygiene. No P0/P1 blockers were found. GitHub Release `v1.0.4` now has Chinese title/body and a single pinyin-safe asset `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin` with Chinese label `特效 AI 标签管理 CLI 安装包 1.0.4`; digest matches local package SHA256 `1DE29B3601A9541FACCAD209DCE1362EE72157E60BEFA1652099B2DA6479AFFD`. Public release notes were cleaned to remove internal test/review details, and the user confirmed the two Eagle smoke items from the release notes are OK.
+- Current Focus: `v1.0.4` release is stable. A read-only Eagle tag export has been created from Eagle `4.0.0` library `I:\资源同步库\Cherofre特效素材库.library`: 135 tags and 1 tag group. Draft files: `docs/vfx-tag-library-readonly-export-2026-06-04.json` and `docs/vfx-tag-library-merge-plan-2026-06-04.md`. No Eagle write operations were executed.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Follow up on the remaining P2 review items and the collected preview add-tag UX request in a later patch.
+- Current Task: Review the read-only tag taxonomy plan with the user before any Eagle tag library write operation.
 
 ## Resume Here
 - Start with: install or reopen the reviewed `v1.0.4` package from `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`, downloading `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin`, and restarting Eagle if renderer cache remains stale.
-- Next verification: follow up on the remaining P2 review items and preview add-tag UX request if a new patch is started.
+- Next verification: user should review `docs/vfx-tag-library-merge-plan-2026-06-04.md`; only after explicit approval should any tag group creation, parent-tag backfill, or `tag_merge` be run.
 - Watch out for: this release intentionally overwrote an existing published tag/asset per the user's explicit request. GitHub sanitized a pure Chinese upload filename to a broken-looking ASCII name, so the final release uses a pinyin-safe filename with Chinese title/body/asset label.
 
 ## Progress Summary
@@ -142,6 +142,8 @@
 - [x] Updated GitHub Release `v1.0.4` to Chinese title/body and replaced the English asset with pinyin-safe asset `texiao-ai-biaoqian-guanli-cli-1.0.4.eagleplugin` plus Chinese asset label.
 - [x] Cleaned the public GitHub Release body so it only contains user-facing update/download notes, not internal local test commands or review findings.
 - [x] User confirmed the two Eagle smoke items previously listed in release notes are OK: video preview playback/loop/tag-edit behavior, and paused-append queue behavior.
+- [x] Ran read-only Eagle API export for tag taxonomy planning: `tag_count`, `tag_get --coreFieldsOnly true`, `tag_group_get --fullDetails true`, and `get_app_info`.
+- [x] Created `docs/vfx-tag-library-readonly-export-2026-06-04.json` and `docs/vfx-tag-library-merge-plan-2026-06-04.md`; no Eagle write API was called.
 
 ## Verification
 - Last command: `gh release view v1.0.4 --json tagName,targetCommitish,name,body,assets,url,isDraft,isPrerelease`, `Get-FileHash -Algorithm SHA256 "dist\特效AI标签管理-cli.eagleplugin"`, and `git status --short --branch`
