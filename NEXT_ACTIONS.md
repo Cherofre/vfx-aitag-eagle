@@ -3,15 +3,16 @@
 ## Now
 - [x] Completed read-only Eagle tag export from library `I:\资源同步库\Cherofre特效素材库.library`: 135 tags and 1 tag group.
 - [x] Drafted tag taxonomy plan at `docs/vfx-tag-library-merge-plan-2026-06-04.md`; raw export at `docs/vfx-tag-library-readonly-export-2026-06-04.json`.
-- [x] Confirmed no Eagle write operations were executed: no tag merge, rename, tag group change, or material tag backfill.
-- [ ] User reviews and edits the taxonomy plan before any Eagle write operation.
+- [x] Applied approved Eagle write: created tag group `溶解消散` containing `消失` and `溶解`; `隐身` remains separate.
+- [x] Saved write safety snapshots: `docs/vfx-tag-library-before-dissolve-group-2026-06-04.json` and `docs/vfx-tag-library-after-dissolve-group-2026-06-04.json`.
+- [ ] User reviews and edits the remaining taxonomy plan before any further Eagle write operation.
 - [ ] Follow up in the next patch on review P2s: stale preview when results/filter empty, preview of removed material, CLI wrapper process-tree abort, and health check command execution.
 
 ## Handoff Notes
-- Start here: review `docs/vfx-tag-library-merge-plan-2026-06-04.md`.
-- Do not redo: Eagle read-only export and draft plan generation are done.
+- Start here: review `docs/vfx-tag-library-merge-plan-2026-06-04.md`; `溶解消散` has already been applied to Eagle.
+- Do not redo: Eagle read-only export, draft plan generation, and approved `溶解消散` group creation are done.
 - Verify next: before any real Eagle write, confirm the exact operations with the user and export a fresh backup.
-- Do not claim: Eagle tag library changes have been made; this step was read-only.
+- Do not claim: any tag merge/rename/material backfill has been done; only the `溶解消散` tag group write has been applied.
 - Watch out for: unrelated untracked docs may exist, including `docs/v1.0.5-tag-system-preview-plan.md` and `docs/vfx-tag-taxonomy-review.md`; do not include or delete them unless explicitly requested.
 
 ## Later

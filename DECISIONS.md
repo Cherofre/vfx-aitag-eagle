@@ -38,10 +38,18 @@
 - 2026-06-04: Overwrite GitHub Release `v1.0.4` with the merged media-preview/queue fixes at the user's explicit request, then localize the release display after post-upload review.
 - 2026-06-04: Public release notes should stay user-facing and omit local test commands, internal review findings, and handoff-only risks.
 - 2026-06-04: Treat Eagle tag taxonomy changes as two-stage work: read-only export and user-approved operation plan before any global tag writes.
+- 2026-06-04: Apply Eagle taxonomy writes incrementally; the first approved write only creates `溶解消散` tag group with `消失` and `溶解`.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - First approved Eagle taxonomy write
+- Status: active
+- Decision: Apply only the user-approved taxonomy change: create Eagle tag group `溶解消散` with tags `消失` and `溶解`, while keeping `隐身` separate and avoiding any tag merge, rename, deletion, material backfill, or source-group move.
+- Reason: The user explicitly corrected the taxonomy and asked to change Eagle. This write is small, inspectable, and does not collapse existing retrieval tags.
+- Alternatives considered: Batch-create all proposed parent groups; skipped because the remaining taxonomy plan still needs review. Add `隐身` to the group; skipped because the user clarified `隐身` is independent. Add `溶解` to materials automatically; skipped because no target assets were identified.
+- Consequences / follow-up: `溶解` now exists as a 0-use tag. Future analysis/tagging can use it, and future writes should continue to require exact user approval.
 
 ## 2026-06-04 - Eagle tag taxonomy edits require explicit approval
 - Status: active
