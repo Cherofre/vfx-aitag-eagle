@@ -1,23 +1,24 @@
 # Next Actions
 
 ## Now
-- [x] Created branch `codex/collector-position-memory`.
-- [x] Wrote and verified RED/GREEN tests for collector position memory.
-- [x] Implemented collector-only bounds persistence and screen clamping.
-- [x] Bumped and packaged version `1.0.4`, synchronized the local Eagle install, and verified 45/45 tests plus syntax/package checks.
-- [x] Committed branch changes as `a077c71` and handoff update as `8b00bf9`.
-- [x] Merged to `master`, pushed origin, and published GitHub Release `v1.0.4`.
-- [ ] Reopen/restart Eagle and run real-host smoke for dragging collector, returning to workbench, and re-entering collector at the remembered position.
+- [x] Created branch `codex/media-preview-video-stability`.
+- [x] Added and verified RED/GREEN UI regression coverage for video autoplay and tag-only preview refresh.
+- [x] Implemented split media preview rendering so tag updates refresh only the side panel and keep the existing video node alive.
+- [x] Verified `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
+- [x] Backed up and synchronized installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js`.
+- [ ] Reopen/restart Eagle and smoke-test: open a video preview, confirm autoplay, then toggle/delete preview-side tags and confirm playback is not interrupted.
+- [ ] After Eagle smoke, commit this branch and decide whether to package/release a small patch.
 
 ## Handoff Notes
-- Start here: close and reopen the plugin window or restart Eagle if it keeps the old renderer cached; the installed files at `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` are now synchronized to `1.0.4`.
-- Do not redo: collector position memory implementation, RED/GREEN static tests, version bump to `1.0.4`, package regeneration, archive inspection, local installed-file synchronization, merge to `master`, tag push, and GitHub Release upload are done.
-- Verify next: in Eagle, click `置顶采集`, drag the collector bar to a comfortable non-top position, click `工作台`, click `置顶采集` again, and confirm it restores the dragged position; also confirm it remains on-screen and still only imports selected assets after clicking `收集选中`.
-- Do not claim: Eagle real-host drag/restore smoke has passed; static tests only verify the code/storage contract.
-- Watch out for: Eagle may cache renderer files until the plugin window or Eagle itself is restarted. Collector position uses plugin window bounds and screen info only; it does not know the main Eagle window bounds.
+- Start here: close and reopen the plugin window or restart Eagle if it keeps the old renderer cached; installed `plugin.js` has been synchronized from `codex/media-preview-video-stability`.
+- Do not redo: root-cause investigation, RED/GREEN static test, split preview render implementation, source/installed hash comparison, and syntax/unit verification are done.
+- Verify next: open a real video material preview from the result list, confirm muted autoplay starts, then uncheck/check and delete tags in the preview side panel while the video is playing.
+- Do not claim: Eagle real-host video autoplay and no-reload behavior has passed until the above smoke is done in Eagle.
+- Watch out for: autoplay is intentionally muted to satisfy browser policy. If Eagle keeps old renderer code, restart Eagle before judging the behavior.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later
+- [ ] Reopen/restart Eagle and run real-host smoke for dragging collector, returning to workbench, and re-entering collector at the remembered position.
 - [ ] Compact this file if `Now` grows beyond 7 items.
 
 ## History

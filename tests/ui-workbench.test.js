@@ -544,7 +544,7 @@ test("media preview review dialog opens from materials and results with Eagle fa
   assert.match(js, /removeReviewTag\(button\.dataset\.previewResultId,\s*button\.dataset\.previewRemoveReviewTag\)/);
   assert.match(js, /item\.open\(\{\s*window:\s*true\s*\}\)/);
   assert.match(js, /eagle\.item\.open\(model\.itemId,\s*\{\s*window:\s*true\s*\}\)/);
-  assert.match(js, /<video controls preload="metadata"/);
+  assert.match(js, /<video controls autoplay muted playsinline preload="auto"/);
   assert.match(js, /<img src="\$\{escapeHtml\(model\.sourceUrl\)\}"/);
 
   assert.match(css, /\.media-preview-overlay/);
@@ -554,6 +554,23 @@ test("media preview review dialog opens from materials and results with Eagle fa
   assert.match(css, /\.media-preview-player\s*{[\s\S]*min-height:\s*0/);
   assert.match(css, /\.media-preview-player video,\s*\.media-preview-player img/);
   assert.match(css, /\.media-preview-tags/);
+});
+
+test("media preview video autoplay is not interrupted by tag-only updates", () => {
+  const js = read("plugin.js");
+
+  assert.match(js, /function renderMediaPreviewPlayer\(/);
+  assert.match(js, /function renderMediaPreviewDetails\(/);
+  assert.match(js, /function refreshMediaPreviewReview\(/);
+  assert.match(js, /<video controls autoplay muted playsinline preload="auto"/);
+  assert.match(js, /const playAttempt = video\.play\(\)/);
+  assert.match(js, /playAttempt\.catch\(\(\) => \{\}\)/);
+  assert.match(js, /if \(state\.mediaPreview\.open\) refreshMediaPreviewReview\(\)/);
+
+  const renderResultsStart = js.indexOf("function renderResults()");
+  const nextFunctionStart = js.indexOf("\n  function ", renderResultsStart + 1);
+  const renderResultsBody = js.slice(renderResultsStart, nextFunctionStart);
+  assert.doesNotMatch(renderResultsBody, /renderMediaPreview\(\)/);
 });
 
 test("collection workflow exposes append, replace, clear, context menus, and collector bar", () => {

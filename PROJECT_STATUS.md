@@ -1,20 +1,20 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 00:09
-- Phase: collector position memory merged to master and released as v1.0.4
-- Superpowers Phase: brainstorming + writing-plans + TDD + project-ledger-loop
-- Branch: master
-- Goal: 让“置顶采集”在 Eagle 非全屏时不再固定到尴尬的屏幕顶部，而是记住用户拖动后的采集条位置，并保持屏幕内保护。
-- Current Focus: Collector bar position memory has been merged into `master`, pushed to `origin/master`, tagged as `v1.0.4`, and published at `https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.4`. Package SHA256 is `cfd778c008201917b5a9954e3497b291c40a66dd21070aeeae7685675426b7a0`; local installed plugin has been synchronized to `1.0.4`.
+- Last Updated: 2026-06-04 09:43
+- Phase: media preview video stability fix implemented and locally synced
+- Superpowers Phase: systematic-debugging + TDD + project-ledger-loop
+- Branch: codex/media-preview-video-stability
+- Goal: 让素材预览中的视频打开后自动播放，并且勾选/删除预览侧栏标签时不重建播放器、不打断播放。
+- Current Focus: `plugin.js` now splits media preview rendering into player and details refresh paths. Opening/navigating preview rebuilds the player, while result/tag-only updates refresh only the preview side panel. Video preview uses muted autoplay/playsinline and calls `video.play()`. Local installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js` has been backed up and synchronized to this branch.
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-03-collector-position-memory.md`
-- Current Task: Run Eagle real-host smoke for collector drag/restore behavior from the installed `1.0.4` plugin.
+- Current Task: Reopen/restart the Eagle plugin renderer and smoke-test video preview autoplay plus tag-toggle playback preservation.
 
 ## Resume Here
-- Start with: close and reopen the plugin window or restart Eagle if the old renderer remains cached; enter `置顶采集`, drag the collector bar to a comfortable position, return to workbench, then enter `置顶采集` again.
-- Next verification: Eagle smoke should confirm the collector bar restores the dragged position, remains always-on-top, stays inside the visible screen after display/window changes, and still does not import selected assets until `收集选中` is clicked.
-- Watch out for: Eagle host may only persist plugin window bounds after native drag events; static tests verify code/storage paths, but real drag/restore behavior still needs Eagle smoke.
+- Start with: close and reopen the plugin window, or restart Eagle if the old renderer remains cached, then open a video asset preview from a result card.
+- Next verification: video should autoplay in the preview dialog; while it is playing, uncheck/check or delete a preview-side tag and confirm the video keeps playing without spinner/reload.
+- Watch out for: browser autoplay policies generally require muted playback, so the plugin sets `muted` for reliable autoplay; the user can unmute manually in the native video controls if the codec/audio path supports it.
 
 ## Progress Summary
 - [x] Initialized Project Ledger Loop files.
@@ -117,13 +117,21 @@
 - [x] Merged `codex/collector-position-memory` into `master` with merge commit `3e3b71c`.
 - [x] Pushed `master` and tag `v1.0.4` to origin.
 - [x] Published GitHub Release `v1.0.4` with asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`.
+- [x] Created branch `codex/media-preview-video-stability`.
+- [x] Added and verified a RED UI regression test for media preview autoplay and no player rebuild on tag-only updates.
+- [x] Split media preview rendering into full player render and side-panel refresh paths.
+- [x] Changed result-list refresh while preview is open to call `refreshMediaPreviewReview()` instead of `renderMediaPreview()`.
+- [x] Added muted autoplay/playsinline video markup and a guarded `video.play()` call.
+- [x] Verified 46/46 tests plus `node --check plugin.js` and `node --check cli-backends.js`.
+- [x] Backed up and synchronized the local installed plugin `plugin.js`; source and installed SHA256 both equal `5C76CD2AB36D3B0AAB1A5FC9D3CC82A15CAC4EA19F67954C018D9E16D16A5A3A`.
 
 ## Verification
-- Last command: GitHub Release `v1.0.4` inspection after upload
+- Last command: source/installed `plugin.js` SHA256 comparison
 - Result: pass
-- Evidence / notes: On `master`, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 45/45 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.4`, `main.devTools=false`, collector bounds key exists, old auto-collect string is absent, and manual collector append remains. GitHub Release `v1.0.4` is published with asset `vfx-aitag-eagle-cli-1.0.4.eagleplugin`; release digest is `sha256:cfd778c008201917b5a9954e3497b291c40a66dd21070aeeae7685675426b7a0`, matching the local package SHA256. Tag `v1.0.4` and `origin/master` both point at merge commit `3e3b71c3292ac5e5a130e2b2c468de4d7a4da2bc`. Local installed plugin `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI` was backed up to `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI.backup-codex-20260603-235840` and synchronized to `1.0.4`. Browser/static Eagle smoke has not been run for the new drag/restore behavior. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
+- Evidence / notes: On `codex/media-preview-video-stability`, `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 46/46 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. The new RED test first failed because `renderMediaPreviewPlayer()` was missing, then passed after the split render implementation. Source `plugin.js` and installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js` share SHA256 `5C76CD2AB36D3B0AAB1A5FC9D3CC82A15CAC4EA19F67954C018D9E16D16A5A3A`; installed backup is `plugin.js.backup-codex-20260604-094246`. Browser/Eagle real-host smoke has not yet confirmed autoplay and playback preservation. Unrelated untracked `docs/vfx-tag-taxonomy-review.md` remains untouched.
 
 ## Blockers And Risks
+- Needs Eagle real-host smoke for the new media preview behavior: local video autoplay, codec support, and no reload/spinner after preview-side tag edits.
 - Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.
 - Browser static verification for `file://` was blocked by Browser Use URL policy; do not claim browser layout smoke for the preview dialog.
 - Needs final manual smoke in Eagle with real selected assets and local CLI backends, especially collector bar top positioning, always-on-top state, and restore behavior.

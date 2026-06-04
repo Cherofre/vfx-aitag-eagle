@@ -889,15 +889,28 @@
   function renderMediaPreview() {
     if (!state.mediaPreview.open || !els.mediaPreviewDialog) return;
     const model = buildMediaPreviewModel(state.mediaPreview);
+    renderMediaPreviewDetails(model);
+    renderMediaPreviewPlayer(model);
+  }
+
+  function refreshMediaPreviewReview() {
+    if (!state.mediaPreview.open || !els.mediaPreviewDialog) return;
+    const model = buildMediaPreviewModel(state.mediaPreview);
+    renderMediaPreviewDetails(model, { updatePlaybackStatus: false });
+  }
+
+  function renderMediaPreviewDetails(model, { updatePlaybackStatus = true } = {}) {
     els.mediaPreviewTitle.textContent = model.name;
     els.mediaPreviewMeta.textContent = [model.status, model.backend, model.confidence, shortPath(model.originalPath || model.previewPath)]
       .filter(Boolean)
       .join(" · ");
-    els.mediaPreviewStatus.textContent = model.kind === "video"
-      ? "插件内尝试播放视频；如果编码不支持，可用 Eagle 打开。"
-      : model.kind === "image"
-        ? "插件内预览图片。"
-        : "没有可直接预览的本地媒体，可尝试用 Eagle 打开。";
+    if (updatePlaybackStatus) {
+      els.mediaPreviewStatus.textContent = model.kind === "video"
+        ? "插件内自动播放视频；如果编码不支持，可用 Eagle 打开。"
+        : model.kind === "image"
+          ? "插件内预览图片。"
+          : "没有可直接预览的本地媒体，可尝试用 Eagle 打开。";
+    }
     els.mediaPreviewTags.innerHTML = renderMediaPreviewTags(model);
     bindMediaPreviewTagEvents();
     els.mediaPreviewReason.innerHTML = model.reason ? `AI 说明：${escapeHtml(model.reason)}` : "";
@@ -905,10 +918,17 @@
     const orderCount = state.mediaPreview.order.length;
     els.mediaPreviewPrevBtn.disabled = orderCount < 2;
     els.mediaPreviewNextBtn.disabled = orderCount < 2;
+  }
+
+  function renderMediaPreviewPlayer(model) {
     if (model.kind === "video" && model.sourceUrl) {
-      els.mediaPreviewBody.innerHTML = `<video controls preload="metadata" src="${escapeHtml(model.sourceUrl)}"></video>`;
+      els.mediaPreviewBody.innerHTML = `<video controls autoplay muted playsinline preload="auto" src="${escapeHtml(model.sourceUrl)}"></video>`;
       const video = els.mediaPreviewBody.querySelector("video");
-      if (video) video.addEventListener("error", () => handleMediaPreviewVideoError(model), { once: true });
+      if (video) {
+        video.addEventListener("error", () => handleMediaPreviewVideoError(model), { once: true });
+        const playAttempt = video.play();
+        if (playAttempt && typeof playAttempt.catch === "function") playAttempt.catch(() => {});
+      }
     } else if (model.kind === "image" && model.sourceUrl) {
       els.mediaPreviewBody.innerHTML = `<img src="${escapeHtml(model.sourceUrl)}" alt="${escapeHtml(model.name)}">`;
     } else if (model.fallbackUrl) {
@@ -3055,7 +3075,7 @@
     els.results.querySelectorAll("[data-reanalyze-result]").forEach((button) => {
       button.addEventListener("click", () => reanalyzeResult(button.dataset.reanalyzeResult));
     });
-    if (state.mediaPreview.open) renderMediaPreview();
+    if (state.mediaPreview.open) refreshMediaPreviewReview();
   }
 
   function getFilteredResults() {

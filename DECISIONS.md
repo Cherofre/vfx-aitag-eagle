@@ -32,10 +32,18 @@
 - 2026-06-03: Merge the media-preview `1.0.3` work to `master`; keep the existing `v1.0.3` release asset because its digest matches the current package.
 - 2026-06-03: Collector placement uses draggable remembered plugin-window bounds, not Eagle main-window following.
 - 2026-06-04: Release `v1.0.4` from merged `master` with collector position memory and an English-named `.eagleplugin` asset.
+- 2026-06-04: Media preview tag-only edits refresh only the preview side panel; the player node is rebuilt only when opening or navigating preview.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - Stable video preview during tag review
+- Status: active
+- Decision: Split media preview rendering into player and details paths. Opening or navigating a preview may rebuild the media player; result-list refresh and preview-side tag edits must call a side-panel refresh only. Video previews use muted autoplay/playsinline plus a guarded `video.play()` call.
+- Reason: Re-rendering the whole preview dialog after tag checkbox/delete changes replaced the `<video>` element, causing spinner/reload and returning to an unplayed state. Muted autoplay is the most reliable way to start playback inside the Eagle webview.
+- Alternatives considered: Keep full preview re-render and try to restore playback time; skipped because it is more fragile and still causes visible reload. Use unmuted autoplay; skipped because browser/Electron autoplay policy can block it.
+- Consequences / follow-up: Eagle smoke must verify the video starts automatically and keeps playing when preview-side tags are toggled or removed.
 
 ## 2026-06-04 - Release 1.0.4 publication
 - Status: active
