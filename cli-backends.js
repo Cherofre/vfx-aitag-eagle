@@ -176,8 +176,7 @@
       if (imageDirs.length) {
         args.push("--add-dir", ...imageDirs, "--");
       }
-      args.push(prompt);
-      return { backend: normalized, command, args, cwd, timeoutMs, requiresImageRead: images.length > 0 };
+      return { backend: normalized, command, args, cwd, timeoutMs, stdin: prompt, requiresImageRead: images.length > 0 };
     }
     if (normalized === "codex") {
       const command = resolveCliCommand(stringOrDefault(settings && settings.codexCommand, "codex"), "codex", context);
@@ -300,10 +299,13 @@
     const fileExists = runtime && runtime.fileExists || makeFileExists(runtime && runtime.fs);
     const hasExplicitPath = hasPathSeparator(command);
     const exists = hasExplicitPath ? fileExists(command) : null;
-    const ok = hasExplicitPath ? Boolean(exists) : false;
-    const message = ok
-      ? "命令已解析，可用 --version 做轻量检查"
-      : (command ? "未找到可执行命令或无法确认 PATH 解析，请填写 CLI 的绝对路径" : "未找到可执行命令，请填写 CLI 的绝对路径");
+    const commandScript = isWindowsCommandScript(command);
+    const ok = hasExplicitPath ? Boolean(exists) && !commandScript : false;
+    const message = commandScript
+      ? "命令解析到 .cmd/.bat 脚本；分析请求需要原生 .exe 可执行文件路径，或使用可被插件自动解析到 .exe 的命令名"
+      : (ok
+        ? "命令已解析，可用 --version 做轻量检查"
+        : (command ? "未找到可执行命令或无法确认 PATH 解析，请填写 CLI 的绝对路径" : "未找到可执行命令，请填写 CLI 的绝对路径"));
     return {
       backend: normalized,
       ok,
@@ -325,6 +327,7 @@
       env: options.env
     });
     if (isSignalAborted(options.signal)) return Promise.reject(createAbortError(plan.backend));
+    assertAnalysisCommandSafe(plan);
     return new Promise((resolve, reject) => {
       let settled = false;
       let timeoutId = null;
@@ -385,6 +388,7 @@
       env: options.env
     });
     if (isSignalAborted(options.signal)) return Promise.reject(createAbortError(plan.backend));
+    assertAnalysisCommandSafe(plan);
     return new Promise((resolve, reject) => {
       let settled = false;
       let timeoutId = null;
@@ -584,6 +588,11 @@
     return platform === "win32" && /\.(cmd|bat)$/i.test(String(command || ""));
   }
 
+  function assertAnalysisCommandSafe(plan) {
+    if (!isWindowsCommandScript(plan && plan.command)) return;
+    throw new Error(`${formatBackendLabel(plan && plan.backend)} CLI 解析到 .cmd/.bat 脚本。为避免动态提示词和素材路径经过 Windows shell，请填写原生 .exe 可执行文件路径，或使用可被插件自动解析到 .exe 的命令名。`);
+  }
+
   function assertBackendReadImages(plan, object) {
     if (!plan || !plan.requiresImageRead) return;
     const reason = String(object && (object.reason || object.message || object.analysis || "") || "");
@@ -595,15 +604,32 @@
 
   function resolveCliCommand(command, backend, runtime) {
     const text = String(command || "").trim();
-    if (!text || hasPathSeparator(text)) return text;
+    if (!text) return text;
+    if (hasPathSeparator(text)) return resolveExplicitWindowsCommandScript(text, runtime);
     if (!isWindowsRuntime()) return text;
 
     const env = runtime && runtime.env || (typeof process !== "undefined" ? process.env : {});
     const fileExists = runtime && runtime.fileExists || makeFileExists(runtime && runtime.fs);
     const pathModule = runtime && runtime.path || getNodePath();
     const candidates = windowsCliCandidates(text, backend, env, pathModule);
-    const found = candidates.find(fileExists) || discoverWindowsCliExecutables(text, backend, env, pathModule, runtime && runtime.fs).find(fileExists);
+    const found = findPreferredCliExecutable(candidates, fileExists)
+      || findPreferredCliExecutable(discoverWindowsCliExecutables(text, backend, env, pathModule, runtime && runtime.fs), fileExists);
     return found || text;
+  }
+
+  function findPreferredCliExecutable(candidates, fileExists) {
+    const existing = (Array.isArray(candidates) ? candidates : []).filter(fileExists);
+    return existing.find((candidate) => /\.exe$/i.test(String(candidate || "")))
+      || existing.find((candidate) => !/\.(cmd|bat|ps1)$/i.test(String(candidate || "")))
+      || existing[0]
+      || "";
+  }
+
+  function resolveExplicitWindowsCommandScript(command, runtime) {
+    if (!isWindowsRuntime() || !/\.(cmd|bat)$/i.test(String(command || ""))) return command;
+    const fileExists = runtime && runtime.fileExists || makeFileExists(runtime && runtime.fs);
+    const nativeCommand = String(command).replace(/\.(cmd|bat)$/i, ".exe");
+    return fileExists(nativeCommand) ? nativeCommand : command;
   }
 
   function windowsCliCandidates(command, backend, env, pathModule) {
@@ -702,7 +728,7 @@
     const ext = match && match[3] ? match[3].toLowerCase() : "";
     if (ext === "exe") return [`${base}.exe`, `${base}.cmd`, `${base}.bat`, base];
     if (ext === "cmd" || ext === "bat" || ext === "ps1") return [`${base}.exe`, `${base}.${ext}`, `${base}.cmd`, `${base}.bat`, base];
-    return [`${base}.cmd`, `${base}.exe`, `${base}.bat`, base];
+    return [`${base}.exe`, `${base}.cmd`, `${base}.bat`, base];
   }
 
   function uniqueImageDirs(imagePaths) {

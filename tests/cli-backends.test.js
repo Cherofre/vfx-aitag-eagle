@@ -122,8 +122,9 @@ test("createCliPlan builds Claude and Codex non-interactive commands", () => {
   assert.ok(claude.args.includes("--add-dir"));
   assert.equal(claude.args[claude.args.indexOf("--add-dir") + 1], "C:\\tmp\\vfx-ai-tagger-123");
   assert.ok(claude.args.indexOf("--add-dir") < claude.args.indexOf("--"));
-  assert.ok(claude.args.indexOf("--") < claude.args.indexOf("PROMPT"));
-  assert.equal(claude.args.at(-1), "PROMPT");
+  assert.equal(claude.args.includes("PROMPT"), false);
+  assert.equal(claude.stdin, "PROMPT");
+  assert.equal(claude.args.at(-1), "--");
   assert.equal(claude.timeoutMs, 90000);
 
   const codex = backends.createCliPlan("codex", {
@@ -186,6 +187,16 @@ test("createCliPlan resolves common Windows CLI shim paths before spawning", () 
   assert.equal(codex.command, "C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe");
   assert.equal(codexCmd.command, "C:\\Users\\me\\AppData\\Local\\OpenAI\\Codex\\bin\\codex.exe");
   assert.equal(claude.command, "C:\\Users\\me\\.local\\bin\\claude.exe");
+});
+
+test("createCliPlan resolves explicit Windows command scripts to sibling native executables", () => {
+  const fileExists = (filePath) => filePath === "C:\\Tools\\codex.exe" || filePath === "C:\\Tools\\claude.exe";
+
+  const codex = backends.createCliPlan("codex", { codexCommand: "C:\\Tools\\codex.cmd" }, "PROMPT", [], { fileExists });
+  const claude = backends.createCliPlan("claude", { claudeCommand: "C:\\Tools\\claude.bat" }, "PROMPT", [], { fileExists });
+
+  assert.equal(codex.command, "C:\\Tools\\codex.exe");
+  assert.equal(claude.command, "C:\\Tools\\claude.exe");
 });
 
 test("createCliPlan discovers Codex under variable local install folders", () => {
@@ -274,6 +285,18 @@ test("createCliHealthChecks marks unresolved PATH commands as unavailable", () =
   assert.match(checks[1].message, /未找到|无法确认/);
 });
 
+test("createCliHealthChecks marks unresolved Windows command scripts as analysis-blocking", () => {
+  const checks = backends.createCliHealthChecks(["claude"], {
+    claudeCommand: "C:\\Tools\\claude.cmd"
+  }, {
+    fileExists: (filePath) => filePath === "C:\\Tools\\claude.cmd"
+  });
+
+  assert.equal(checks[0].ok, false);
+  assert.equal(checks[0].command, "C:\\Tools\\claude.cmd");
+  assert.match(checks[0].message, /\.cmd\/\.bat|原生 .*\.exe|可执行文件/);
+});
+
 test("runCliHealthCheck executes version and falls back to help without AI prompts", async () => {
   const calls = [];
   const check = {
@@ -332,15 +355,15 @@ test("runCliBackends falls back after a failed backend and parses the first succ
   const result = await backends.runCliBackends({
     backends: ["claude", "codex"],
     settings: {
-      claudeCommand: "C:\\Tools\\claude.cmd",
-      codexCommand: "C:\\Tools\\codex.cmd",
+      claudeCommand: "C:\\Tools\\claude.exe",
+      codexCommand: "C:\\Tools\\codex.exe",
       cliTimeoutSeconds: 30,
       cliWorkingDir: process.cwd()
     },
     prompt: "PROMPT",
     execFile: (command, args, options, callback) => {
       attempts.push(command);
-      if (command.endsWith("claude.cmd")) {
+      if (command.endsWith("claude.exe")) {
         callback(new Error("not logged in"), "", "auth failed");
         return { kill() {} };
       }
@@ -349,7 +372,7 @@ test("runCliBackends falls back after a failed backend and parses the first succ
     }
   });
 
-  assert.deepEqual(attempts, ["C:\\Tools\\claude.cmd", "C:\\Tools\\codex.cmd"]);
+  assert.deepEqual(attempts, ["C:\\Tools\\claude.exe", "C:\\Tools\\codex.exe"]);
   assert.equal(result.backend, "codex");
   assert.deepEqual(result.object.tags, [{ name: "能量", confidence: 0.88 }]);
   assert.equal(result.failures.length, 1);
@@ -360,8 +383,8 @@ test("runCliBackends falls back when a backend admits it could not read image fr
   const result = await backends.runCliBackends({
     backends: ["claude", "codex"],
     settings: {
-      claudeCommand: "C:\\Tools\\claude.cmd",
-      codexCommand: "C:\\Tools\\codex.cmd",
+      claudeCommand: "C:\\Tools\\claude.exe",
+      codexCommand: "C:\\Tools\\codex.exe",
       cliTimeoutSeconds: 30,
       cliWorkingDir: process.cwd()
     },
@@ -369,7 +392,7 @@ test("runCliBackends falls back when a backend admits it could not read image fr
     imagePaths: ["C:\\tmp\\frame-001.jpg"],
     execFile: (command, args, options, callback) => {
       attempts.push(command);
-      if (command.endsWith("claude.cmd")) {
+      if (command.endsWith("claude.exe")) {
         callback(null, '{"tags":[{"name":"爆炸","confidence":0.9}],"confidence":0.5,"reason":"未能读取实际图片帧，仅依据文件名推断"}', "");
         return { kill() {} };
       }
@@ -378,7 +401,7 @@ test("runCliBackends falls back when a backend admits it could not read image fr
     }
   });
 
-  assert.deepEqual(attempts, ["C:\\Tools\\claude.cmd", "C:\\Tools\\codex.cmd"]);
+  assert.deepEqual(attempts, ["C:\\Tools\\claude.exe", "C:\\Tools\\codex.exe"]);
   assert.equal(result.backend, "codex");
   assert.equal(result.failures.length, 1);
   assert.match(result.failures[0].message, /未能读取图片帧/);
@@ -390,7 +413,7 @@ test("runCliBackend pipes Codex prompt through stdin when using spawn", async ()
   const result = await backends.runCliBackend({
     backend: "codex",
     settings: {
-      codexCommand: "codex",
+      codexCommand: "C:\\Tools\\codex.exe",
       cliTimeoutSeconds: 30,
       cliWorkingDir: process.cwd()
     },
@@ -426,6 +449,28 @@ test("runCliBackend pipes Codex prompt through stdin when using spawn", async ()
   assert.equal(stdinText, "PROMPT");
 });
 
+test("runCliBackend rejects unresolved Windows command scripts for analysis", async () => {
+  let spawnCalled = false;
+  await assert.rejects(
+    async () => backends.runCliBackend({
+      backend: "claude",
+      settings: {
+        claudeCommand: "C:\\Tools\\claude.cmd",
+        cliTimeoutSeconds: 30,
+        cliWorkingDir: process.cwd()
+      },
+      prompt: "PROMPT & whoami",
+      imagePaths: ["C:\\tmp\\frame-001.jpg"],
+      spawn: () => {
+        spawnCalled = true;
+        throw new Error("should not spawn");
+      }
+    }),
+    /\.cmd\/\.bat|原生 .*\.exe|可执行文件/
+  );
+  assert.equal(spawnCalled, false);
+});
+
 test("runCliBackend kills the current spawn child when aborted", async () => {
   const controller = new AbortController();
   let killed = false;
@@ -433,7 +478,7 @@ test("runCliBackend kills the current spawn child when aborted", async () => {
   const resultPromise = backends.runCliBackend({
     backend: "codex",
     settings: {
-      codexCommand: "codex",
+      codexCommand: "C:\\Tools\\codex.exe",
       cliTimeoutSeconds: 30,
       cliWorkingDir: process.cwd()
     },
