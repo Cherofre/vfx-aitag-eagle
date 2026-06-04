@@ -5,6 +5,36 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   const DEFAULT_BACKENDS = ["claude", "codex", "eagle"];
   const MAX_CODEX_IMAGES = 16;
+  const DEFAULT_CLI_TIMEOUT_SECONDS = 180;
+  const DEFAULT_HEALTH_TIMEOUT_MS = 10000;
+  const TAG_SEMANTIC_RULES = [
+    ["预警", "技能生效前的范围提示、红圈、地面警示、AOE 提示，不等同于普通 UI。"],
+    ["环绕", "围绕角色、目标或中心点的轨道运动；普通原地旋转不一定选择。"],
+    ["范围圈", "地面圆圈、AOE 圆环、区域边界或法术范围提示；可与法阵共现。"],
+    ["弹幕", "多发、密集、成组的投射物；单个飞行物优先考虑弹道或飞行道具。"],
+    ["吐息", "从口部或生物头部喷出的锥形火、毒、冰、雾等，不等同于普通喷发。"],
+    ["瀑布", "垂直下落或连续落下的水流，不是普通水花。"],
+    ["螺旋", "明显螺旋、涡旋、双螺旋或钻头式运动；普通转圈不一定选择。"],
+    ["碎片", "飞散残骸、小块 debris；破碎偏过程，碎片偏飞散物体。"],
+    ["增益", "治疗、强化、护体、正面状态或能力提升。"],
+    ["减益", "中毒、诅咒、减速、沉默、虚弱等负面状态。"],
+    ["法阵", "魔法/技能图形阵、符号圈或召唤阵；统一使用法阵，不使用魔法阵。"],
+    ["刀光", "剑刃弧线、挥砍拖尾、斩击轨迹。"],
+    ["枪械", "枪炮、枪口、射击类上位标签；不要把普通弹道都归为枪械。"],
+    ["地刺", "从地面刺出的冰刺、岩刺、尖刺等。"],
+    ["地裂", "地面裂缝、裂开、裂纹扩散。"],
+    ["治疗", "回复、治愈、恢复类特效；不要只因绿色就选择。"],
+    ["召唤", "角色、物体、生物、法阵或能量体出现/生成。"],
+    ["附魔", "武器或物体表面附着能量、元素强化。"],
+    ["消失", "淡出、散去、分解、溶解式离场；不等同于隐身。"],
+    ["冲刺", "高速向前移动；不等同于闪身或刺击。"],
+    ["植物", "藤蔓、叶片、根须、自然有机生长。"],
+    ["血", "血液、血溅或红色液体；不要只因红色就选择。"],
+    ["破碎", "碎裂过程或破坏过程。"],
+    ["屏幕特效", "屏幕边缘、全屏扰动、受击遮罩、屏幕纹理，不等同于 UI特效。"],
+    ["国风", "中式题材、武侠、东方图案或传统文化风格。"],
+    ["水墨风", "整体水墨气质或国风水墨风格；水墨纹理不明显时不要强选。"]
+  ];
 
   function createAnalysisPrompt(options) {
     const itemName = options.itemName || "未命名素材";
@@ -36,6 +66,8 @@
       "JSON 格式：{\"tags\":[{\"name\":\"标签1\",\"confidence\":0.92},{\"name\":\"标签2\",\"confidence\":0.66}],\"confidence\":0.8,\"reason\":\"简短原因\"}",
       `标签池：${allowedTags.join("、")}`
     ];
+    const semanticGuidance = createTagGuidance(allowedTags);
+    if (semanticGuidance) parts.splice(7, 0, semanticGuidance);
     if (chunkInfo.chunkCount > 1) {
       const chunkParts = [`这是 AI 请求分块 ${chunkInfo.chunkIndex + 1}/${chunkInfo.chunkCount}`];
       if (chunkInfo.mediaChunkCount > 1) chunkParts.push(`图片组 ${chunkInfo.mediaChunkIndex + 1}/${chunkInfo.mediaChunkCount}`);
@@ -53,6 +85,19 @@
       parts.push("请读取这些本地图片路径后再判断标签。");
     }
     return parts.join("\n");
+  }
+
+  function createTagGuidance(allowedTags) {
+    const allowed = new Set((Array.isArray(allowedTags) ? allowedTags : []).map((tag) => String(tag || "").trim()).filter(Boolean));
+    const rules = TAG_SEMANTIC_RULES
+      .filter(([tag]) => allowed.has(tag))
+      .map(([tag, rule]) => `- ${tag}：${rule}`);
+    if (!rules.length) return "";
+    return [
+      "标签语义规则（只解释标签池中实际存在的标签；这些说明不能扩展可输出标签池）：",
+      "只根据视觉特效本体选择标签，忽略静态背景、场景、角色本体、武器本体和不会变化的物体。",
+      ...rules
+    ].join("\n");
   }
 
   function parseCliJson(output) {
@@ -161,6 +206,72 @@
     return requested.map((backend) => createCliHealthCheck(backend, settings || {}, runtime || {}));
   }
 
+  async function runCliHealthChecks(checks, options) {
+    const plans = Array.isArray(checks) ? checks : [];
+    const output = [];
+    for (const check of plans) {
+      output.push(await runCliHealthCheck(check, options || {}));
+    }
+    return output;
+  }
+
+  async function runCliHealthCheck(check, options) {
+    const plan = check || {};
+    const execFile = options && options.execFile;
+    if (!plan.ok || !plan.command) return { ...plan, ok: false };
+    if (typeof execFile !== "function") {
+      return { ...plan, ok: false, message: "当前环境无法执行 CLI 健康检查" };
+    }
+
+    const timeoutMs = normalizeHealthTimeout(options && options.timeoutMs);
+    const attempts = [
+      Array.isArray(plan.args) && plan.args.length ? plan.args : ["--version"],
+      Array.isArray(plan.fallbackArgs) && plan.fallbackArgs.length ? plan.fallbackArgs : null
+    ].filter(Boolean);
+    let lastError = "";
+    for (const args of attempts) {
+      try {
+        const result = await runCliHealthAttempt(plan, args, execFile, timeoutMs);
+        const versionOutput = firstNonEmptyLine(result.stdout || result.stderr);
+        return {
+          ...plan,
+          ok: true,
+          args,
+          versionOutput,
+          message: versionOutput ? `命令可执行：${versionOutput}` : "命令可执行"
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+      }
+    }
+    return {
+      ...plan,
+      ok: false,
+      message: lastError || "CLI 命令执行失败"
+    };
+  }
+
+  function runCliHealthAttempt(plan, args, execFile, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const child = execFile(plan.command, args, {
+        cwd: plan.cwd,
+        timeout: timeoutMs,
+        windowsHide: true,
+        maxBuffer: 1024 * 1024,
+        shell: isWindowsCommandScript(plan.command)
+      }, (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error([error.message, stderr && String(stderr).trim()].filter(Boolean).join("\n")));
+          return;
+        }
+        resolve({ stdout: String(stdout || ""), stderr: String(stderr || "") });
+      });
+      if (child && typeof child.on === "function") {
+        child.on("error", reject);
+      }
+    });
+  }
+
   function createCliHealthCheck(backend, settings, runtime) {
     const normalized = String(backend || "").toLowerCase();
     if (normalized === "eagle") {
@@ -251,7 +362,7 @@
         if (settled) return;
         settled = true;
         if (timeoutId) clearTimeout(timeoutId);
-        try { if (child && typeof child.kill === "function") child.kill(); } catch (error) {}
+        killChildProcess(child, plan, { execFile });
         reject(createAbortError(plan.backend));
       });
       writeChildStdin(child, plan.stdin);
@@ -260,7 +371,7 @@
           if (settled) return;
           settled = true;
           cleanupAbort();
-          try { child.kill(); } catch (error) {}
+          killChildProcess(child, plan, { execFile });
           reject(new Error(`${plan.backend} CLI 超时`));
         }, plan.timeoutMs + 1000);
       }
@@ -326,7 +437,7 @@
         if (settled) return;
         settled = true;
         if (timeoutId) clearTimeout(timeoutId);
-        try { if (child && typeof child.kill === "function") child.kill(); } catch (error) {}
+        killChildProcess(child, plan, { execFile: options.execFile });
         reject(createAbortError(plan.backend));
       });
       if (!settled && child && typeof child.kill === "function" && plan.timeoutMs > 0) {
@@ -334,7 +445,7 @@
           if (settled) return;
           settled = true;
           cleanupAbort();
-          try { child.kill(); } catch (error) {}
+          killChildProcess(child, plan, { execFile: options.execFile });
           reject(new Error(`${plan.backend} CLI 超时`));
         }, plan.timeoutMs + 1000);
       }
@@ -400,6 +511,21 @@
     } catch (error) {}
   }
 
+  function killChildProcess(child, plan, runtime) {
+    if (!child) return;
+    try {
+      if (typeof child.kill === "function") child.kill();
+    } catch (error) {}
+    const platform = runtime && runtime.platform || (typeof process !== "undefined" ? process.platform : "");
+    const execFile = runtime && runtime.execFile;
+    const pid = child.pid;
+    if (platform !== "win32" || !pid || typeof execFile !== "function") return;
+    if (!isWindowsCommandScriptForPlatform(plan && plan.command, platform)) return;
+    try {
+      execFile("taskkill.exe", ["/pid", String(pid), "/T", "/F"], { windowsHide: true }, () => {});
+    } catch (error) {}
+  }
+
   function isSignalAborted(signal) {
     return Boolean(signal && signal.aborted);
   }
@@ -437,14 +563,25 @@
 
   function clampTimeout(value) {
     const seconds = Number(value);
-    const safe = Number.isFinite(seconds) ? Math.min(Math.max(seconds, 10), 600) : 120;
+    const safe = Number.isFinite(seconds) ? Math.min(Math.max(seconds, 10), 600) : DEFAULT_CLI_TIMEOUT_SECONDS;
     return safe * 1000;
   }
 
+  function normalizeHealthTimeout(value) {
+    const timeout = Number(value);
+    return Number.isFinite(timeout) && timeout > 0 ? Math.min(Math.max(timeout, 1000), 30000) : DEFAULT_HEALTH_TIMEOUT_MS;
+  }
+
+  function firstNonEmptyLine(text) {
+    return String(text || "").split(/\r?\n/).map((line) => line.trim()).find(Boolean) || "";
+  }
+
   function isWindowsCommandScript(command) {
-    return typeof process !== "undefined"
-      && process.platform === "win32"
-      && /\.(cmd|bat)$/i.test(String(command || ""));
+    return isWindowsCommandScriptForPlatform(command, typeof process !== "undefined" ? process.platform : "");
+  }
+
+  function isWindowsCommandScriptForPlatform(command, platform) {
+    return platform === "win32" && /\.(cmd|bat)$/i.test(String(command || ""));
   }
 
   function assertBackendReadImages(plan, object) {
@@ -620,11 +757,15 @@
   return {
     DEFAULT_BACKENDS,
     createAnalysisPrompt,
+    createTagGuidance,
     parseCliJson,
     createCliPlan,
     createCliHealthChecks,
+    runCliHealthCheck,
+    runCliHealthChecks,
     runCliBackend,
     runCliBackends,
+    killChildProcess,
     splitExtraArgs
   };
 });

@@ -43,6 +43,26 @@ test("createAnalysisPrompt includes allowed tags, media paths, and JSON contract
   assert.match(prompt, /"tags"/);
 });
 
+test("createAnalysisPrompt explains VFX tag semantics without expanding the allowed pool", () => {
+  const prompt = backends.createAnalysisPrompt({
+    itemName: "spell_warning.mov",
+    includeTitleInPrompt: false,
+    mediaKind: "video",
+    frameCount: 4,
+    allowedTags: ["预警", "范围圈", "弹幕", "环绕", "魔法阵"],
+    maxTags: 5,
+    imagePaths: ["C:\\tmp\\frame-001.jpg"]
+  });
+
+  assert.match(prompt, /标签语义规则/);
+  assert.match(prompt, /预警：技能生效前的范围提示、红圈、地面警示/);
+  assert.match(prompt, /范围圈：地面圆圈、AOE 圆环、区域边界/);
+  assert.match(prompt, /弹幕：多发、密集、成组的投射物/);
+  assert.match(prompt, /环绕：围绕角色、目标或中心点的轨道运动/);
+  assert.doesNotMatch(prompt, /吐息：/);
+  assert.match(prompt, /标签池：预警、范围圈、弹幕、环绕、魔法阵/);
+});
+
 test("createAnalysisPrompt omits misleading titles unless explicitly enabled", () => {
   const withoutTitle = backends.createAnalysisPrompt({
     itemName: "皮肤教程标题可能误导.mov",
@@ -83,6 +103,11 @@ test("parseCliJson repairs common AI JSON variants", () => {
 });
 
 test("createCliPlan builds Claude and Codex non-interactive commands", () => {
+  const defaultTimeout = backends.createCliPlan("codex", {
+    codexCommand: "codex"
+  }, "PROMPT", []);
+  assert.equal(defaultTimeout.timeoutMs, 180000);
+
   const claude = backends.createCliPlan("claude", {
     claudeCommand: "C:\\Tools\\claude.cmd",
     cliTimeoutSeconds: 90,
@@ -249,6 +274,59 @@ test("createCliHealthChecks marks unresolved PATH commands as unavailable", () =
   assert.match(checks[1].message, /未找到|无法确认/);
 });
 
+test("runCliHealthCheck executes version and falls back to help without AI prompts", async () => {
+  const calls = [];
+  const check = {
+    backend: "claude",
+    ok: true,
+    command: "C:\\Tools\\claude.exe",
+    args: ["--version"],
+    fallbackArgs: ["--help"],
+    message: "命令已解析"
+  };
+
+  const result = await backends.runCliHealthCheck(check, {
+    timeoutMs: 9000,
+    execFile: (command, args, options, callback) => {
+      calls.push({ command, args, options });
+      if (args[0] === "--version") {
+        callback(new Error("version failed"), "", "unknown option");
+        return { kill() {} };
+      }
+      callback(null, "Claude Code 2.1.109", "");
+      return { kill() {} };
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.backend, "claude");
+  assert.equal(result.versionOutput, "Claude Code 2.1.109");
+  assert.deepEqual(calls.map((call) => call.args), [["--version"], ["--help"]]);
+  assert.equal(calls[0].options.timeout, 9000);
+  assert.equal(calls.some((call) => call.args.includes("PROMPT")), false);
+});
+
+test("runCliHealthCheck returns a blocking failure when command execution fails", async () => {
+  const result = await backends.runCliHealthCheck({
+    backend: "codex",
+    ok: true,
+    command: "C:\\Tools\\codex.exe",
+    args: ["--version"],
+    fallbackArgs: ["--help"],
+    message: "命令已解析"
+  }, {
+    timeoutMs: 8000,
+    execFile: (command, args, options, callback) => {
+      callback(new Error("not logged in"), "", "auth failed");
+      return { kill() {} };
+    }
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.backend, "codex");
+  assert.match(result.message, /auth failed|not logged in/);
+});
+
 test("runCliBackends falls back after a failed backend and parses the first success", async () => {
   const attempts = [];
   const result = await backends.runCliBackends({
@@ -391,4 +469,27 @@ test("runCliBackend kills the current spawn child when aborted", async () => {
   assert.equal(killed, true);
   assert.equal(outcome.status, "rejected");
   assert.match(outcome.message, /已停止|中止|abort/i);
+});
+
+test("killChildProcess terminates Windows command wrapper process trees", () => {
+  const calls = [];
+  let killed = false;
+  backends.killChildProcess({
+    pid: 4321,
+    kill() {
+      killed = true;
+    }
+  }, {
+    command: "C:\\Tools\\codex.cmd"
+  }, {
+    platform: "win32",
+    execFile: (command, args, options, callback) => {
+      calls.push({ command, args, options });
+      callback(null, "", "");
+    }
+  });
+
+  assert.equal(killed, true);
+  assert.deepEqual(calls[0].args, ["/pid", "4321", "/T", "/F"]);
+  assert.match(calls[0].command, /taskkill/i);
 });

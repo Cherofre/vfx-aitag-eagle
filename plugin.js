@@ -13,17 +13,49 @@
     settings: "vfxAiTagger.settings",
     results: "vfxAiTagger.results",
     undoStack: "vfxAiTagger.undoStack",
+    defaultTemplateTags: "vfxAiTagger.defaultTemplateTags",
     collectorWindowBounds: "vfxAiTagger.collectorWindowBounds",
     restoreWorkbenchBounds: "vfxAiTagger.restoreWorkbenchBounds"
   };
 
   const DEFAULT_VFX_TAGS = [
-    "爆炸", "火焰", "闪电", "冰冻", "烟雾", "冲击波", "光束", "魔法阵", "传送门", "能量球",
-    "护盾", "拖尾", "命中特效", "技能释放", "蓄力", "受击", "循环特效", "环境特效", "UI特效",
+    "爆炸", "火焰", "闪电", "冰冻", "烟雾", "冲击波", "光束", "法阵", "传送门", "能量球",
+    "护盾", "拖尾", "命中特效", "技能释放", "蓄力", "受击", "循环特效", "环境特效", "UI特效", "屏幕特效",
+    "预警", "环绕", "范围圈", "弹幕", "吐息", "瀑布", "螺旋", "碎片", "增益", "减益",
+    "刀光", "枪械", "地刺", "地裂", "治疗", "召唤", "附魔", "消失", "冲刺", "破碎",
     "火", "冰", "雷", "电", "风", "水", "毒", "暗", "光", "能量", "机械", "自然", "时间", "草地", "星空",
+    "植物", "血",
     "红色", "蓝色", "紫色", "金色", "绿色", "白色", "黑色", "黄色", "橙色", "青色",
     "攻击", "释放", "循环", "转场", "场景氛围",
-    "写实", "卡通", "二次元", "科幻", "魔幻", "低多边形"
+    "写实", "卡通", "二次元", "科幻", "魔幻", "低多边形", "国风", "水墨风"
+  ];
+  const TAG_SEMANTIC_RULES = [
+    ["预警", "技能生效前的范围提示、红圈、地面警示、AOE 提示，不等同于普通 UI。"],
+    ["环绕", "围绕角色、目标或中心点的轨道运动；普通原地旋转不一定选择。"],
+    ["范围圈", "地面圆圈、AOE 圆环、区域边界或法术范围提示；可与法阵共现。"],
+    ["弹幕", "多发、密集、成组的投射物；单个飞行物优先考虑弹道或飞行道具。"],
+    ["吐息", "从口部或生物头部喷出的锥形火、毒、冰、雾等，不等同于普通喷发。"],
+    ["瀑布", "垂直下落或连续落下的水流，不是普通水花。"],
+    ["螺旋", "明显螺旋、涡旋、双螺旋或钻头式运动；普通转圈不一定选择。"],
+    ["碎片", "飞散残骸、小块 debris；破碎偏过程，碎片偏飞散物体。"],
+    ["增益", "治疗、强化、护体、正面状态或能力提升。"],
+    ["减益", "中毒、诅咒、减速、沉默、虚弱等负面状态。"],
+    ["法阵", "魔法/技能图形阵、符号圈或召唤阵；统一使用法阵，不使用旧称。"],
+    ["刀光", "剑刃弧线、挥砍拖尾、斩击轨迹。"],
+    ["枪械", "枪炮、枪口、射击类上位标签；不要把普通弹道都归为枪械。"],
+    ["地刺", "从地面刺出的冰刺、岩刺、尖刺等。"],
+    ["地裂", "地面裂缝、裂开、裂纹扩散。"],
+    ["治疗", "回复、治愈、恢复类特效；不要只因绿色就选择。"],
+    ["召唤", "角色、物体、生物、法阵或能量体出现/生成。"],
+    ["附魔", "武器或物体表面附着能量、元素强化。"],
+    ["消失", "淡出、散去、分解、溶解式离场；不等同于隐身。"],
+    ["冲刺", "高速向前移动；不等同于闪身或刺击。"],
+    ["植物", "藤蔓、叶片、根须、自然有机生长。"],
+    ["血", "血液、血溅或红色液体；不要只因红色就选择。"],
+    ["破碎", "碎裂过程或破坏过程。"],
+    ["屏幕特效", "屏幕边缘、全屏扰动、受击遮罩、屏幕纹理，不等同于 UI特效。"],
+    ["国风", "中式题材、武侠、东方图案或传统文化风格。"],
+    ["水墨风", "整体水墨气质或国风水墨风格；水墨纹理不明显时不要强选。"]
   ];
 
   const STATIC_IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "bmp", "tif", "tiff", "heic", "avif"]);
@@ -41,6 +73,9 @@
   const REQUEST_SAFETY_TOKENS = 512;
   const MIN_TAG_BUDGET_TOKENS = 512;
   const ESTIMATED_IMAGE_TOKENS = 3072;
+  const HEALTH_CHECK_OPTIONS = {
+    healthCheckTimeoutMs: 10000
+  };
   const ANALYSIS_PRESETS = {
     "快速粗标": {
       maxTags: 6,
@@ -52,7 +87,8 @@
       frameRateValue: 1,
       frameRateUnit: "spf",
       maxVideoFrames: 18,
-      maxAnimatedFrames: 10
+      maxAnimatedFrames: 10,
+      cliTimeoutSeconds: 120
     },
     "精细分析": {
       maxTags: 12,
@@ -64,7 +100,8 @@
       frameRateValue: 1,
       frameRateUnit: "fps",
       maxVideoFrames: 72,
-      maxAnimatedFrames: 36
+      maxAnimatedFrames: 36,
+      cliTimeoutSeconds: 300
     },
     "长视频省钱": {
       maxTags: 8,
@@ -76,7 +113,8 @@
       frameRateValue: 2,
       frameRateUnit: "spf",
       maxVideoFrames: 20,
-      maxAnimatedFrames: 12
+      maxAnimatedFrames: 12,
+      cliTimeoutSeconds: 180
     },
     "只用 Claude": {
       enableClaudeCli: true,
@@ -118,6 +156,7 @@
     customAllowedTags: [],
     disabledTags: [],
     sessionRemovedTags: [],
+    defaultTemplateTags: [],
     undoStack: [],
     results: [],
     healthStatus: [],
@@ -143,7 +182,7 @@
     [
       "statusText", "openAiBtn", "appendSelectedBtn", "replaceSelectedBtn", "clearSelectedBtn", "miniCollectorBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn", "undoBtn", "closeWindowBtn", "selectedCount", "tagPoolCount",
       "readyCount", "failedCount", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
-      "importDefaultsBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "aiRetryCount", "requestChunkK", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
+      "importDefaultsBtn", "manageDefaultTemplateBtn", "defaultTemplateOverlay", "defaultTemplateDialog", "defaultTemplateSearch", "defaultTemplateInput", "addDefaultTemplateTagBtn", "defaultTemplateList", "resetDefaultTemplateBtn", "importEditedDefaultTemplateBtn", "closeDefaultTemplateBtn", "tagGroupSelect", "tagPool", "maxTags", "concurrency", "aiRetryCount", "requestChunkK", "autoConfidence", "hideConfidence", "frameRateValue", "frameRateUnit",
       "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd", "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence",
       "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn", "globalPrompt", "frameRateHint", "selectedSummary",
       "selectedItems", "showSelectedListBtn", "selectedListOverlay", "selectedListDialog", "selectedItemsFullList", "closeSelectedListBtn",
@@ -191,12 +230,15 @@
       if (event.key === "Escape") {
         closeSelectedListDialog();
         closeMediaPreview();
+        closeDefaultTemplateDialog();
         closeSettingsDrawer();
         closeManualTagMenus();
+        closePreviewManualTagMenus();
       }
     });
     document.addEventListener("click", (event) => {
       if (!event.target.closest(".result-editor")) closeManualTagMenus();
+      if (!event.target.closest(".media-preview-tag-editor")) closePreviewManualTagMenus();
     });
     window.addEventListener("resize", closeManualTagMenus);
     els.appendSelectedBtn.addEventListener("click", () => appendSelectedItems("追加当前选中"));
@@ -222,6 +264,27 @@
     els.results.addEventListener("contextmenu", (event) => openWorkbenchContextMenu(event, "results"));
     els.refreshTagsBtn.addEventListener("click", refreshTags);
     els.importDefaultsBtn.addEventListener("click", importDefaultTags);
+    els.manageDefaultTemplateBtn.addEventListener("click", openDefaultTemplateDialog);
+    els.defaultTemplateOverlay.addEventListener("click", closeDefaultTemplateDialog);
+    els.closeDefaultTemplateBtn.addEventListener("click", closeDefaultTemplateDialog);
+    els.defaultTemplateSearch.addEventListener("input", renderDefaultTemplateList);
+    els.addDefaultTemplateTagBtn.addEventListener("click", addDefaultTemplateTag);
+    els.defaultTemplateInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") addDefaultTemplateTag();
+    });
+    els.defaultTemplateList.addEventListener("change", (event) => {
+      const input = event.target.closest("[data-default-template-rename]");
+      if (input) renameDefaultTemplateTag(input.dataset.defaultTemplateRename, input.value);
+    });
+    els.defaultTemplateList.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") event.target.blur();
+    });
+    els.defaultTemplateList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-remove-default-template-tag]");
+      if (button) removeDefaultTemplateTag(button.dataset.removeDefaultTemplateTag);
+    });
+    els.resetDefaultTemplateBtn.addEventListener("click", resetDefaultTemplateTags);
+    els.importEditedDefaultTemplateBtn.addEventListener("click", importEditedDefaultTemplateTags);
     els.addTagBtn.addEventListener("click", addCustomTag);
     els.tagInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") addCustomTag();
@@ -672,6 +735,7 @@
   function removeSelectedItem(itemId) {
     state.selectedItems = state.selectedItems.filter((item) => getItemId(item) !== itemId);
     state.results = state.results.filter((result) => result.id !== itemId);
+    syncMediaPreviewAfterSelectedItemsChange();
     saveResultsState();
     renderAll();
     setStatus("已从待分析列表移除 1 个素材。");
@@ -940,15 +1004,27 @@
 
   function renderMediaPreviewTags(model) {
     const tags = Array.isArray(model.tags) ? model.tags : [];
-    if (!tags.length) return `<div class="media-preview-empty">还没有待确认标签。</div>`;
-    return tags.map((tag) => `
+    const tagHtml = tags.length ? tags.map((tag) => `
       <span class="review-tag ${tag.source === "manual" ? "manual" : ""}">
         <input type="checkbox" data-preview-result-id="${escapeHtml(model.resultId)}" data-preview-review-tag="${escapeHtml(tag.name)}" ${tag.selected ? "checked" : ""}>
         <span>${escapeHtml(tag.name)}</span>
         <strong>${tag.source === "manual" ? "人工" : formatConfidence(tag.confidence)}</strong>
         <button class="review-tag-remove" type="button" data-preview-result-id="${escapeHtml(model.resultId)}" data-preview-remove-review-tag="${escapeHtml(tag.name)}" title="删除标签">×</button>
       </span>
-    `).join("");
+    `).join("") : `<div class="media-preview-empty">还没有待确认标签。</div>`;
+    return `${tagHtml}${renderMediaPreviewTagEditor(model)}`;
+  }
+
+  function renderMediaPreviewTagEditor(model) {
+    if (!model.resultId) return "";
+    const menuId = `preview-manual-tag-menu-${safeDomId(model.resultId)}`;
+    return `
+      <div class="media-preview-tag-editor">
+        <input type="search" data-preview-manual-tag-input="${escapeHtml(model.resultId)}" aria-controls="${escapeHtml(menuId)}" aria-expanded="false" autocomplete="off" placeholder="搜索或输入标签">
+        <button type="button" data-preview-add-manual-tag="${escapeHtml(model.resultId)}">添加标签</button>
+        <div id="${escapeHtml(menuId)}" class="manual-tag-menu" data-preview-manual-tag-menu="${escapeHtml(model.resultId)}" hidden></div>
+      </div>
+    `;
   }
 
   function bindMediaPreviewTagEvents() {
@@ -960,6 +1036,28 @@
         event.preventDefault();
         event.stopPropagation();
         removeReviewTag(button.dataset.previewResultId, button.dataset.previewRemoveReviewTag);
+      });
+    });
+    els.mediaPreviewTags.querySelectorAll("[data-preview-add-manual-tag]").forEach((button) => {
+      button.addEventListener("click", () => addPreviewManualTagToResult(button.dataset.previewAddManualTag));
+    });
+    els.mediaPreviewTags.querySelectorAll("[data-preview-manual-tag-input]").forEach((input) => {
+      input.addEventListener("focus", () => updatePreviewManualTagMenu(input.dataset.previewManualTagInput));
+      input.addEventListener("input", () => updatePreviewManualTagMenu(input.dataset.previewManualTagInput));
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addPreviewManualTagToResult(input.dataset.previewManualTagInput);
+        }
+        if (event.key === "Escape") closePreviewManualTagMenus();
+      });
+    });
+    els.mediaPreviewTags.querySelectorAll("[data-preview-manual-tag-menu]").forEach((menu) => {
+      menu.addEventListener("mousedown", (event) => {
+        const option = event.target.closest("[data-manual-tag-option]");
+        if (!option) return;
+        event.preventDefault();
+        addPreviewManualTagToResult(menu.dataset.previewManualTagMenu, option.dataset.manualTagOption);
       });
     });
   }
@@ -1185,6 +1283,7 @@
     closeSelectedListDialog();
     state.selectedItems = [];
     state.results = [];
+    syncMediaPreviewAfterSelectedItemsChange();
     resetAnalysisProgress();
     resetWriteProgress();
     saveResultsState();
@@ -1282,12 +1381,102 @@
   }
 
   function importDefaultTags() {
-    state.customAllowedTags = normalizeTagList([...state.customAllowedTags, ...DEFAULT_VFX_TAGS]);
-    state.disabledTags = state.disabledTags.filter((tag) => !DEFAULT_VFX_TAGS.includes(tag));
-    state.sessionRemovedTags = state.sessionRemovedTags.filter((tag) => !DEFAULT_VFX_TAGS.includes(tag));
+    state.customAllowedTags = normalizeTagList([...state.customAllowedTags, ...getDefaultTemplateTags()]);
+    state.disabledTags = state.disabledTags.filter((tag) => !getDefaultTemplateTags().includes(tag));
+    state.sessionRemovedTags = state.sessionRemovedTags.filter((tag) => !getDefaultTemplateTags().includes(tag));
     saveStoredTagState();
     renderAll();
-    setStatus("已导入默认特效标签模板。");
+    setStatus("已导入当前默认特效标签模板。");
+  }
+
+  function importEditedDefaultTemplateTags() {
+    importDefaultTags();
+    closeDefaultTemplateDialog();
+  }
+
+  function openDefaultTemplateDialog() {
+    renderDefaultTemplateList();
+    els.defaultTemplateOverlay.hidden = false;
+    els.defaultTemplateDialog.hidden = false;
+    window.setTimeout(() => {
+      els.defaultTemplateOverlay.classList.add("is-open");
+      els.defaultTemplateDialog.classList.add("is-open");
+      els.defaultTemplateDialog.setAttribute("aria-hidden", "false");
+      els.defaultTemplateSearch.focus();
+    }, 0);
+  }
+
+  function closeDefaultTemplateDialog() {
+    if (!els.defaultTemplateDialog || els.defaultTemplateDialog.hidden) return;
+    els.defaultTemplateOverlay.classList.remove("is-open");
+    els.defaultTemplateDialog.classList.remove("is-open");
+    els.defaultTemplateDialog.setAttribute("aria-hidden", "true");
+    window.setTimeout(() => {
+      if (!els.defaultTemplateDialog.classList.contains("is-open")) {
+        els.defaultTemplateOverlay.hidden = true;
+        els.defaultTemplateDialog.hidden = true;
+      }
+    }, 160);
+  }
+
+  function renderDefaultTemplateList() {
+    if (!els.defaultTemplateList) return;
+    const query = cleanTag(els.defaultTemplateSearch.value).toLowerCase();
+    const tags = getDefaultTemplateTags().filter((tag) => !query || tag.toLowerCase().includes(query));
+    els.defaultTemplateList.innerHTML = "";
+    if (!tags.length) {
+      els.defaultTemplateList.innerHTML = `<div class="empty">模板里没有匹配标签。</div>`;
+      return;
+    }
+    tags.forEach((tag) => {
+      const row = document.createElement("div");
+      row.className = "default-template-row";
+      row.innerHTML = `
+        <input type="text" value="${escapeHtml(tag)}" data-default-template-rename="${escapeHtml(tag)}" aria-label="编辑模板标签 ${escapeHtml(tag)}">
+        <button type="button" data-remove-default-template-tag="${escapeHtml(tag)}">删除</button>
+      `;
+      els.defaultTemplateList.appendChild(row);
+    });
+  }
+
+  function addDefaultTemplateTag() {
+    const tag = cleanTag(els.defaultTemplateInput.value);
+    if (!tag) return;
+    state.defaultTemplateTags = normalizeTagList([...state.defaultTemplateTags, tag]);
+    els.defaultTemplateInput.value = "";
+    saveDefaultTemplateTags();
+    renderDefaultTemplateList();
+    setStatus(`已加入默认模板：${tag}`);
+  }
+
+  function renameDefaultTemplateTag(oldTag, nextValue) {
+    const oldName = cleanTag(oldTag);
+    const nextName = cleanTag(nextValue);
+    if (!oldName || !nextName || oldName === nextName) {
+      renderDefaultTemplateList();
+      return;
+    }
+    state.defaultTemplateTags = normalizeTagList(state.defaultTemplateTags.map((tag) => tag === oldName ? nextName : tag));
+    saveDefaultTemplateTags();
+    renderDefaultTemplateList();
+    setStatus(`已更新默认模板标签：${oldName} -> ${nextName}`);
+  }
+
+  function removeDefaultTemplateTag(tagName) {
+    const tag = cleanTag(tagName);
+    if (!tag) return;
+    state.defaultTemplateTags = state.defaultTemplateTags.filter((item) => item !== tag);
+    saveDefaultTemplateTags();
+    renderDefaultTemplateList();
+    setStatus(`已从默认模板删除：${tag}`);
+  }
+
+  function resetDefaultTemplateTags() {
+    if (typeof window.confirm === "function" && !window.confirm("重置默认模板为内置版本？")) return;
+    state.defaultTemplateTags = normalizeTagList(DEFAULT_VFX_TAGS);
+    saveDefaultTemplateTags();
+    renderDefaultTemplateList();
+    setStatus("默认模板已重置为内置版本。");
   }
 
   function addCustomTag() {
@@ -1690,6 +1879,7 @@
   }
 
   function buildSystemPrompt(allowedTags, maxTags, globalPrompt, chunkInfo = {}) {
+    const semanticGuidance = buildTagSemanticGuidance(allowedTags);
     const promptParts = [
       "你是游戏视觉特效素材标签管理员。",
       "只能从给定标签池中选择标签，禁止创造新标签，禁止输出不在标签池里的同义词。",
@@ -1701,6 +1891,7 @@
       "JSON 格式：{\"tags\":[{\"name\":\"标签1\",\"confidence\":0.92},{\"name\":\"标签2\",\"confidence\":0.66}],\"confidence\":0.8,\"reason\":\"简短原因\"}",
       `标签池：${allowedTags.join("、")}`
     ];
+    if (semanticGuidance) promptParts.splice(5, 0, semanticGuidance);
     if (chunkInfo.chunkCount > 1) {
       const parts = [`这是 AI 请求分块 ${chunkInfo.chunkIndex + 1}/${chunkInfo.chunkCount}`];
       if (chunkInfo.mediaChunkCount > 1) parts.push(`图片组 ${chunkInfo.mediaChunkIndex + 1}/${chunkInfo.mediaChunkCount}`);
@@ -1712,6 +1903,22 @@
       promptParts.splice(5, 0, `用户全局分析偏好：\n${customPrompt}`, "用户全局分析偏好不能覆盖标签池、JSON 格式和置信度要求。");
     }
     return promptParts.join("\n");
+  }
+
+  function buildTagSemanticGuidance(allowedTags) {
+    if (cliBackends && typeof cliBackends.createTagGuidance === "function") {
+      return cliBackends.createTagGuidance(allowedTags);
+    }
+    const allowed = new Set((Array.isArray(allowedTags) ? allowedTags : []).map((tag) => String(tag || "").trim()).filter(Boolean));
+    const rules = TAG_SEMANTIC_RULES
+      .filter(([tag]) => allowed.has(tag))
+      .map(([tag, rule]) => `- ${tag}：${rule}`);
+    if (!rules.length) return "";
+    return [
+      "标签语义规则（只解释标签池中实际存在的标签；这些说明不能扩展可输出标签池）：",
+      "只根据视觉特效本体选择标签，忽略静态背景、场景、角色本体、武器本体和不会变化的物体。",
+      ...rules
+    ].join("\n");
   }
 
   function buildUserPrompt(item, kind, frameCount, settings = {}, chunkInfo = {}) {
@@ -2273,7 +2480,7 @@
       codexCommand: String(els.codexCommand.value || "codex").trim() || "codex",
       codexModel: String(els.codexModel.value || "").trim(),
       codexExtraArgs: String(els.codexExtraArgs.value || "").trim(),
-      cliTimeoutSeconds: readInt(els.cliTimeoutSeconds.value, 120, 10, 600),
+      cliTimeoutSeconds: readInt(els.cliTimeoutSeconds.value, 180, 10, 600),
       cliWorkingDir: String(els.cliWorkingDir.value || "").trim(),
       analysisPresetName: state.activePresetName
     };
@@ -2424,7 +2631,7 @@
     });
 
     if (enabledCliBackends.length) {
-      if (!cliBackends || typeof cliBackends.createCliHealthChecks !== "function") {
+      if (!cliBackends || typeof cliBackends.createCliHealthChecks !== "function" || typeof cliBackends.runCliHealthChecks !== "function") {
         enabledCliBackends.forEach((backend) => {
           checks.push({
             id: `cli-${backend}`,
@@ -2435,11 +2642,8 @@
           });
         });
       } else {
-        cliBackends.createCliHealthChecks(enabledCliBackends, settings, {
-          fs,
-          path,
-          env: typeof process !== "undefined" ? process.env : undefined
-        }).forEach((plan) => {
+        const cliChecks = await runExecutableCliHealthChecks(enabledCliBackends, settings);
+        cliChecks.forEach((plan) => {
           checks.push({
             id: `cli-${plan.backend}`,
             label: formatBackendLabel(plan.backend),
@@ -2474,6 +2678,18 @@
     checks.push(checkDiagnosticHealth(settings));
     checks.push(checkSelectedPathHealth());
     return checks.map(normalizeHealthCheck);
+  }
+
+  async function runExecutableCliHealthChecks(enabledCliBackends, settings) {
+    const plans = cliBackends.createCliHealthChecks(enabledCliBackends, settings, {
+      fs,
+      path,
+      env: typeof process !== "undefined" ? process.env : undefined
+    });
+    return cliBackends.runCliHealthChecks(plans, {
+      execFile: cp && cp.execFile,
+      timeoutMs: HEALTH_CHECK_OPTIONS.healthCheckTimeoutMs
+    });
   }
 
   function normalizeHealthCheck(check) {
@@ -2693,6 +2909,7 @@
   function loadStoredState() {
     state.customAllowedTags = readJsonArray(STORAGE_KEYS.customAllowedTags);
     state.disabledTags = readJsonArray(STORAGE_KEYS.disabledTags);
+    state.defaultTemplateTags = loadDefaultTemplateTags();
     state.undoStack = readStoredUndoStack();
     state.results = readStoredResults();
     state.paused = state.results.some((result) => result.status === "pending");
@@ -2725,6 +2942,26 @@
   function saveStoredTagState() {
     localStorage.setItem(STORAGE_KEYS.customAllowedTags, JSON.stringify(state.customAllowedTags));
     localStorage.setItem(STORAGE_KEYS.disabledTags, JSON.stringify(state.disabledTags));
+  }
+
+  function loadDefaultTemplateTags() {
+    const raw = localStorage.getItem(STORAGE_KEYS.defaultTemplateTags);
+    if (raw === null) return normalizeTagList(DEFAULT_VFX_TAGS);
+    try {
+      const parsed = JSON.parse(raw);
+      return normalizeTagList(Array.isArray(parsed) ? parsed : DEFAULT_VFX_TAGS);
+    } catch (error) {
+      return normalizeTagList(DEFAULT_VFX_TAGS);
+    }
+  }
+
+  function getDefaultTemplateTags() {
+    return normalizeTagList(state.defaultTemplateTags);
+  }
+
+  function saveDefaultTemplateTags() {
+    state.defaultTemplateTags = normalizeTagList(state.defaultTemplateTags);
+    localStorage.setItem(STORAGE_KEYS.defaultTemplateTags, JSON.stringify(state.defaultTemplateTags));
   }
 
   function saveResultsState() {
@@ -3015,6 +3252,7 @@
     if (els.retryFailedBtn) els.retryFailedBtn.disabled = state.running || state.writing || !state.results.some((result) => result.status === "failed");
     updateResultFilterButtons();
     updateAnalysisControls();
+    syncMediaPreviewAfterResultsChange();
     els.results.innerHTML = "";
     if (!state.results.length) {
       els.results.innerHTML = `<div class="empty">追加当前选中素材后点击“开始分析”，这里会显示待确认标签、置信度和写入状态。</div>`;
@@ -3097,6 +3335,22 @@
       button.addEventListener("click", () => reanalyzeResult(button.dataset.reanalyzeResult));
     });
     if (state.mediaPreview.open) refreshMediaPreviewReview();
+  }
+
+  function syncMediaPreviewAfterResultsChange() {
+    if (!state.mediaPreview.open || !state.mediaPreview.resultId) return;
+    const resultId = state.mediaPreview.resultId;
+    const exists = state.results.some((result) => result.id === resultId);
+    const visible = getFilteredResults().some((result) => result.id === resultId);
+    if (!exists || !visible) closeMediaPreview();
+  }
+
+  function syncMediaPreviewAfterSelectedItemsChange() {
+    if (!state.mediaPreview.open) return;
+    const activeId = state.mediaPreview.itemId || state.mediaPreview.resultId;
+    if (!activeId) return;
+    const exists = state.selectedItems.some((item) => getItemId(item) === activeId);
+    if (!exists) closeMediaPreview();
   }
 
   function getFilteredResults() {
@@ -3259,6 +3513,73 @@
     });
   }
 
+  function getPreviewManualTagInput(resultId) {
+    return Array.from(els.mediaPreviewTags.querySelectorAll("[data-preview-manual-tag-input]"))
+      .find((candidate) => candidate.dataset.previewManualTagInput === resultId);
+  }
+
+  function getPreviewManualTagMenu(resultId) {
+    return Array.from(els.mediaPreviewTags.querySelectorAll("[data-preview-manual-tag-menu]"))
+      .find((candidate) => candidate.dataset.previewManualTagMenu === resultId);
+  }
+
+  function updatePreviewManualTagMenu(resultId) {
+    const input = getPreviewManualTagInput(resultId);
+    const menu = getPreviewManualTagMenu(resultId);
+    const result = state.results.find((item) => item.id === resultId);
+    if (!input || !menu || !result) return;
+    const query = cleanTag(input.value);
+    const selected = new Set((Array.isArray(result.reviewTags) ? result.reviewTags : []).map((tag) => tag.name));
+    const matches = getAllowedTags()
+      .filter((tag) => !selected.has(tag))
+      .filter((tag) => !query || tag.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 12);
+    const canCreate = query && !selected.has(query) && !matches.some((tag) => tag === query);
+    const createOption = canCreate
+      ? `<button type="button" class="manual-tag-option create" data-manual-tag-option="${escapeHtml(query)}"><span>新增“${escapeHtml(query)}”</span><small>加入本次标签池</small></button>`
+      : "";
+    const matchOptions = matches.map((tag) => `
+      <button type="button" class="manual-tag-option" data-manual-tag-option="${escapeHtml(tag)}">
+        <span>${escapeHtml(tag)}</span>
+        <small>${state.eagleTags.includes(tag) ? "Eagle 标签" : "本次标签"}</small>
+      </button>
+    `).join("");
+    if (!createOption && !matchOptions) {
+      closePreviewManualTagMenu(resultId);
+      return;
+    }
+    menu.innerHTML = `${createOption}${matchOptions}`;
+    menu.hidden = false;
+    menu.classList.add("is-open");
+    input.setAttribute("aria-expanded", "true");
+    positionManualTagMenu(input, menu);
+  }
+
+  function closePreviewManualTagMenu(resultId) {
+    const menu = getPreviewManualTagMenu(resultId);
+    const input = getPreviewManualTagInput(resultId);
+    if (menu) {
+      menu.hidden = true;
+      menu.classList.remove("is-open");
+      menu.innerHTML = "";
+    }
+    if (input) input.setAttribute("aria-expanded", "false");
+  }
+
+  function closePreviewManualTagMenus() {
+    if (!els.mediaPreviewTags) return;
+    els.mediaPreviewTags.querySelectorAll("[data-preview-manual-tag-menu]").forEach((menu) => {
+      closePreviewManualTagMenu(menu.dataset.previewManualTagMenu);
+    });
+  }
+
+  function addPreviewManualTagToResult(resultId, tagName) {
+    const input = getPreviewManualTagInput(resultId);
+    tagName = cleanTag(tagName || (input && input.value));
+    addManualTagToResult(resultId, tagName);
+    closePreviewManualTagMenu(resultId);
+  }
+
   async function retryFailedResults() {
     if (state.running) return;
     const failedIds = state.results.filter((result) => result.status === "failed").map((result) => result.id);
@@ -3364,24 +3685,24 @@
     renderResults();
   }
 
-  function addManualTagToResult(resultId) {
+  function addManualTagToResult(resultId, tagName) {
     const result = state.results.find((item) => item.id === resultId);
     if (!result) return;
     const input = Array.from(els.results.querySelectorAll("[data-manual-tag-input]"))
       .find((candidate) => candidate.dataset.manualTagInput === resultId);
-    const tagName = cleanTag(input && input.value);
-    if (!tagName) return;
+    const resolvedTag = cleanTag(tagName || (input && input.value));
+    if (!resolvedTag) return;
     const existing = new Set((Array.isArray(result.reviewTags) ? result.reviewTags : []).map((tag) => tag.name));
-    if (!existing.has(tagName)) {
+    if (!existing.has(resolvedTag)) {
       result.reviewTags = [
         ...(Array.isArray(result.reviewTags) ? result.reviewTags : []),
-        { name: tagName, confidence: 1, selected: true, source: "manual" }
+        { name: resolvedTag, confidence: 1, selected: true, source: "manual" }
       ];
     } else {
-      result.reviewTags = result.reviewTags.map((tag) => tag.name === tagName ? { ...tag, selected: true } : tag);
+      result.reviewTags = result.reviewTags.map((tag) => tag.name === resolvedTag ? { ...tag, selected: true } : tag);
     }
-    if (!getAllowedTags().includes(tagName)) {
-      state.customAllowedTags = normalizeTagList([...state.customAllowedTags, tagName]);
+    if (!getAllowedTags().includes(resolvedTag)) {
+      state.customAllowedTags = normalizeTagList([...state.customAllowedTags, resolvedTag]);
       saveStoredTagState();
     }
     if (["failed", "skipped", "applied"].includes(result.status)) {

@@ -142,8 +142,8 @@ test("page favicon uses the same logo as the plugin manifest", () => {
   const html = read("index.html");
 
   assert.equal(manifest.logo, "/logo.png");
-  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.0\.4">/);
-  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.0\.4">/);
+  assert.match(html, /<link rel="icon" type="image\/png" href="logo\.png\?v=1\.0\.5">/);
+  assert.match(html, /<link rel="shortcut icon" type="image\/png" href="logo\.png\?v=1\.0\.5">/);
 });
 
 test("logo bright mark fills the plugin icon canvas", () => {
@@ -231,6 +231,63 @@ test("settings drawer groups controls into tabs without changing field ids", () 
   assert.match(js, /settingsTabs/);
   assert.match(js, /function activateSettingsTab\(/);
   assert.match(js, /settingsPanel/);
+});
+
+test("default VFX template includes requested tags and semantic prompt rules", () => {
+  const js = read("plugin.js");
+  const match = js.match(/const DEFAULT_VFX_TAGS = \[([\s\S]*?)\];/);
+  assert.ok(match, "DEFAULT_VFX_TAGS should exist");
+  const defaultTags = Array.from(match[1].matchAll(/"([^"]+)"/g), (item) => item[1]);
+
+  [
+    "预警", "环绕", "范围圈", "弹幕", "吐息", "瀑布", "螺旋", "碎片", "增益", "减益",
+    "法阵", "刀光", "枪械", "地刺", "地裂", "治疗", "召唤", "附魔", "消失", "冲刺",
+    "植物", "血", "破碎", "屏幕特效", "国风", "水墨风"
+  ].forEach((tag) => assert.ok(defaultTags.includes(tag), `${tag} should be in DEFAULT_VFX_TAGS`));
+
+  assert.equal(defaultTags.includes("魔法阵"), false);
+  assert.match(js, /标签语义规则/);
+  assert.match(js, /\["预警", "技能生效前的范围提示、红圈、地面警示/);
+  assert.match(js, /\["吐息", "从口部或生物头部喷出的锥形火、毒、冰、雾/);
+  assert.match(js, /\["水墨风", "整体水墨气质或国风水墨风格/);
+  assert.match(js, /function buildTagSemanticGuidance\(/);
+});
+
+test("default template manager exposes local editable tags without mutating Eagle tags", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(html, /id="manageDefaultTemplateBtn"/);
+  assert.match(html, /id="defaultTemplateOverlay"/);
+  assert.match(html, /id="defaultTemplateDialog"/);
+  assert.match(html, /id="defaultTemplateSearch"/);
+  assert.match(html, /id="defaultTemplateInput"/);
+  assert.match(html, /id="addDefaultTemplateTagBtn"/);
+  assert.match(html, /id="defaultTemplateList"/);
+  assert.match(html, /id="resetDefaultTemplateBtn"/);
+  assert.match(html, /id="importEditedDefaultTemplateBtn"/);
+  assert.match(html, /id="closeDefaultTemplateBtn"/);
+
+  assert.match(js, /defaultTemplateTags:\s*"vfxAiTagger\.defaultTemplateTags"/);
+  assert.match(js, /defaultTemplateTags:\s*\[\]/);
+  assert.match(js, /function loadDefaultTemplateTags\(/);
+  assert.match(js, /function getDefaultTemplateTags\(/);
+  assert.match(js, /function saveDefaultTemplateTags\(/);
+  assert.match(js, /function openDefaultTemplateDialog\(/);
+  assert.match(js, /function closeDefaultTemplateDialog\(/);
+  assert.match(js, /function renderDefaultTemplateList\(/);
+  assert.match(js, /function addDefaultTemplateTag\(/);
+  assert.match(js, /function renameDefaultTemplateTag\(/);
+  assert.match(js, /function removeDefaultTemplateTag\(/);
+  assert.match(js, /function resetDefaultTemplateTags\(/);
+  assert.match(js, /function importEditedDefaultTemplateTags\(/);
+  assert.match(js, /state\.customAllowedTags\s*=\s*normalizeTagList\(\[\.\.\.state\.customAllowedTags,\s*\.\.\.getDefaultTemplateTags\(\)\]\)/);
+  assert.doesNotMatch(js, /tag_create|tag_merge|tagGroup\.create/);
+
+  assert.match(css, /\.default-template-overlay/);
+  assert.match(css, /\.default-template-dialog\[hidden\]\s*{[\s\S]*display:\s*none/);
+  assert.match(css, /\.default-template-list/);
 });
 
 test("result cards expose diagnostics and actionable failure details", () => {
@@ -330,13 +387,15 @@ test("settings, release metadata, and long text are production-ready", () => {
   const js = read("plugin.js");
   const css = read("style.css");
 
-  assert.equal(manifest.version, "1.0.4");
+  assert.equal(manifest.version, "1.0.5");
   assert.equal(manifest.main.devTools, false);
+  assert.match(read("index.html"), /id="cliTimeoutSeconds" type="number" min="10" max="600" value="180"/);
   assert.match(readme, /dist\\特效AI标签管理-cli\.eagleplugin/);
   assert.match(readme, /VFX_AI_TAGGER_CLI/);
   assert.match(readme, /旧插件设置不会自动迁移/);
   assert.match(js, /function coerceStoredBoolean\(/);
   assert.match(js, /coerceStoredBoolean\(settings\[key\], els\[key\]\.checked\)/);
+  assert.match(js, /cliTimeoutSeconds:\s*readInt\(els\.cliTimeoutSeconds\.value,\s*180,\s*10,\s*600\)/);
   assert.match(css, /\.settings-drawer-head\s*{[\s\S]*-webkit-app-region:\s*drag/);
   assert.match(css, /\.result-message,\s*\.diagnostic-saved,\s*\.result-reason,\s*\.review-tag span\s*{[\s\S]*overflow-wrap:\s*anywhere/);
 });
@@ -406,6 +465,8 @@ test("productivity workbench exposes health checks, presets, retry filters, and 
   assert.match(js, /activePresetName:\s*state\.activePresetName/);
   assert.match(js, /analysisPresetName:\s*state\.activePresetName/);
   assert.match(js, /runHealthCheckBtn\.addEventListener\("click", \(\) => runHealthCheck\(/);
+  assert.match(js, /runExecutableCliHealthChecks\(/);
+  assert.match(js, /healthCheckTimeoutMs:\s*10000/);
   assert.match(js, /retryFailedBtn\.addEventListener\("click", retryFailedResults\)/);
   assert.match(js, /data-remove-review-tag/);
   assert.match(js, /data-add-manual-tag/);
@@ -587,6 +648,29 @@ test("media preview video autoplay is not interrupted by tag-only updates", () =
   const nextFunctionStart = js.indexOf("\n  function ", renderResultsStart + 1);
   const renderResultsBody = js.slice(renderResultsStart, nextFunctionStart);
   assert.doesNotMatch(renderResultsBody, /renderMediaPreview\(\)/);
+});
+
+test("media preview supports manual tag adding and closes stale preview state", () => {
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(js, /data-preview-manual-tag-input/);
+  assert.match(js, /data-preview-add-manual-tag/);
+  assert.match(js, /data-preview-manual-tag-menu/);
+  assert.match(js, /function addPreviewManualTagToResult\(/);
+  assert.match(js, /function updatePreviewManualTagMenu\(/);
+  assert.match(js, /addManualTagToResult\(resultId,\s*tagName\)/);
+  assert.match(js, /if \(state\.mediaPreview\.open\) refreshMediaPreviewReview\(\)/);
+  assert.match(js, /function syncMediaPreviewAfterResultsChange\(/);
+  assert.match(js, /function syncMediaPreviewAfterSelectedItemsChange\(/);
+  assert.match(js, /closeMediaPreview\(\)/);
+
+  const refreshStart = js.indexOf("function refreshMediaPreviewReview()");
+  const refreshEnd = js.indexOf("\n  function ", refreshStart + 1);
+  const refreshBody = js.slice(refreshStart, refreshEnd);
+  assert.doesNotMatch(refreshBody, /renderMediaPreviewPlayer\(/);
+
+  assert.match(css, /\.media-preview-tag-editor/);
 });
 
 test("collection workflow exposes append, replace, clear, context menus, and collector bar", () => {

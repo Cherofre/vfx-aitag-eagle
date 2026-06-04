@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>特效 AI 标签管理</title>
-  <link rel="icon" type="image/png" href="logo.png?v=1.0.4">
-  <link rel="shortcut icon" type="image/png" href="logo.png?v=1.0.4">
+  <link rel="icon" type="image/png" href="logo.png?v=1.0.5">
+  <link rel="shortcut icon" type="image/png" href="logo.png?v=1.0.5">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -52,7 +52,10 @@
       <aside class="panel tag-panel">
         <div class="panel-header">
           <h2>标签池</h2>
-          <button id="importDefaultsBtn" type="button">导入默认模板</button>
+          <div class="tag-template-actions">
+            <button id="importDefaultsBtn" type="button">导入默认模板</button>
+            <button id="manageDefaultTemplateBtn" type="button">管理模板</button>
+          </div>
         </div>
         <label class="tag-source-field">
           Eagle 标签来源
@@ -172,6 +175,29 @@
       </div>
     </section>
 
+    <div id="defaultTemplateOverlay" class="default-template-overlay" hidden></div>
+    <section id="defaultTemplateDialog" class="panel default-template-dialog" role="dialog" aria-modal="true" aria-labelledby="defaultTemplateTitle" aria-hidden="true" hidden>
+      <div class="default-template-head">
+        <div>
+          <h2 id="defaultTemplateTitle">默认模板</h2>
+          <p class="hint">这里只维护本地模板，不会创建或删除 Eagle 全局标签。</p>
+        </div>
+        <button id="closeDefaultTemplateBtn" type="button">关闭</button>
+      </div>
+      <div class="default-template-tools">
+        <input id="defaultTemplateSearch" type="search" placeholder="搜索模板标签">
+        <div class="inline-form">
+          <input id="defaultTemplateInput" type="text" placeholder="新增模板标签">
+          <button id="addDefaultTemplateTagBtn" type="button">添加</button>
+        </div>
+      </div>
+      <div id="defaultTemplateList" class="default-template-list"></div>
+      <div class="default-template-footer">
+        <button id="resetDefaultTemplateBtn" type="button">重置内置模板</button>
+        <button id="importEditedDefaultTemplateBtn" type="button" class="primary">导入当前模板</button>
+      </div>
+    </section>
+
     <div id="settingsOverlay" class="settings-overlay" hidden></div>
     <section id="settingsDrawer" class="panel settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" aria-hidden="true">
       <div class="settings-drawer-head">
@@ -240,7 +266,7 @@
               </label>
               <label>
                 CLI 超时(秒)
-                <input id="cliTimeoutSeconds" type="number" min="10" max="600" value="120">
+                <input id="cliTimeoutSeconds" type="number" min="10" max="600" value="180">
               </label>
               <label class="wide-field">
                 CLI 工作目录

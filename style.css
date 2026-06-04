@@ -443,7 +443,8 @@ h2 {
 }
 
 .material-actions,
-.result-batch-actions {
+.result-batch-actions,
+.tag-template-actions {
   display: inline-flex;
   flex-wrap: nowrap;
   gap: 6px;
@@ -451,7 +452,8 @@ h2 {
 }
 
 .material-actions button,
-.result-batch-actions button {
+.result-batch-actions button,
+.tag-template-actions button {
   min-height: 30px;
   padding: 5px 8px;
   font-size: 12px;
@@ -941,6 +943,100 @@ h2 {
 
 .media-preview-tags .review-tag {
   margin: 0;
+}
+
+.media-preview-tag-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.media-preview-tag-editor input,
+.media-preview-tag-editor button {
+  min-height: 30px;
+  font-size: 12px;
+}
+
+.default-template-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 54;
+  background: rgba(0, 0, 0, .5);
+  opacity: 0;
+  transition: opacity .16s ease;
+}
+
+.default-template-overlay.is-open {
+  opacity: 1;
+}
+
+.default-template-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 55;
+  display: flex;
+  width: min(520px, 90vw);
+  max-height: 84vh;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transform: translate(-50%, calc(-50% + 8px));
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+.default-template-dialog.is-open {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
+.default-template-dialog[hidden] {
+  display: none;
+}
+
+.default-template-head,
+.default-template-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.default-template-head {
+  margin-bottom: 12px;
+}
+
+.default-template-head h2 {
+  margin: 0;
+}
+
+.default-template-tools {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.default-template-list {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 140px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.default-template-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.default-template-footer {
+  margin-top: 12px;
 }
 
 .result-toolbar {
