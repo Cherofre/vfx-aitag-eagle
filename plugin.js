@@ -922,7 +922,7 @@
 
   function renderMediaPreviewPlayer(model) {
     if (model.kind === "video" && model.sourceUrl) {
-      els.mediaPreviewBody.innerHTML = `<video controls autoplay muted playsinline preload="auto" src="${escapeHtml(model.sourceUrl)}"></video>`;
+      els.mediaPreviewBody.innerHTML = `<video controls autoplay muted playsinline loop preload="auto" src="${escapeHtml(model.sourceUrl)}"></video>`;
       const video = els.mediaPreviewBody.querySelector("video");
       if (video) {
         video.addEventListener("error", () => handleMediaPreviewVideoError(model), { once: true });

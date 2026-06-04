@@ -1,20 +1,20 @@
 # Next Actions
 
 ## Now
-- [x] Added and verified RED/GREEN UI regression coverage for paused analysis appending new materials into the next run.
-- [x] Implemented missing-result queue synchronization after append into an existing result set and before pending filtering in `analyzeSelected()`.
+- [x] Added and verified RED/GREEN UI regression coverage for default loop playback in local video preview.
+- [x] Added `loop` to the preview `<video>` markup while preserving autoplay/muted/playsinline and no-player-rebuild behavior.
 - [x] Verified `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`, `node --check plugin.js`, and `node --check cli-backends.js`.
 - [x] Backed up and synchronized installed `C:\Users\mumengfei\AppData\Roaming\Eagle\Plugins\VFX_AI_TAGGER_CLI\plugin.js`.
-- [ ] Reopen/restart Eagle and smoke-test: analyze several materials, pause, append more selected materials, click `开始分析` or `继续`, and confirm all pending old+new items run in the same batch.
-- [ ] Also smoke-test the previous preview fix: video preview autoplay and tag-toggle playback preservation.
+- [ ] Reopen/restart Eagle and smoke-test: open a short video preview, confirm autoplay, confirm it loops after reaching the end, then toggle/delete preview-side tags and confirm playback is not interrupted.
+- [ ] Also smoke-test paused analysis append behavior: pause, append more selected materials, click `开始分析` or `继续`, and confirm all pending old+new items run in the same batch.
 - [ ] After Eagle smoke, decide whether to package/release a small patch containing both fixes.
 
 ## Handoff Notes
 - Start here: close and reopen the plugin window or restart Eagle if it keeps the old renderer cached; installed `plugin.js` has been synchronized from `codex/media-preview-video-stability`.
 - Do not redo: root-cause investigation, RED/GREEN static tests, queue-sync implementation, preview-stability implementation, source/installed hash comparisons, and syntax/unit verification are done.
-- Verify next: start a real analysis batch, pause after pending items remain, append additional selected materials, then click `开始分析` or `继续` and confirm the newly appended materials become pending and run immediately with the old pending batch.
-- Do not claim: Eagle real-host paused-append queue behavior has passed until the above smoke is done in Eagle.
-- Watch out for: append controls are disabled while `state.running` is true, so wait for the pause state to finish before appending. If Eagle keeps old renderer code, restart Eagle before judging the behavior.
+- Verify next: open a short video in the local preview dialog and confirm it autoplay-loops; then toggle/delete preview-side tags while playing to confirm playback is still not rebuilt.
+- Do not claim: Eagle real-host loop playback has passed until the above smoke is done in Eagle.
+- Watch out for: autoplay remains intentionally muted for browser policy. If Eagle keeps old renderer code, restart Eagle before judging the behavior.
 - Dirty tree note: unrelated untracked `docs/vfx-tag-taxonomy-review.md` may exist; leave it alone unless the user asks.
 
 ## Later
