@@ -1,20 +1,20 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 21:03
-- Phase: v1.0.5 packaged on feature branch; pending Eagle real-host smoke and merge/release decision
-- Superpowers Phase: executing-plans + TDD + verification-before-completion + project-ledger-loop
-- Branch: codex/v1.0.5-tag-workflow
+- Last Updated: 2026-06-04 21:32
+- Phase: v1.0.5 merged to master, pushed, tagged, and published on GitHub Release
+- Superpowers Phase: requesting-code-review + receiving-code-review + TDD + verification-before-completion + project-ledger-loop
+- Branch: master
 - Goal: 构建 `1.0.5` 标签工作流增强：默认模板可查看/编辑/增删/重置，默认模板可作为分析兜底候选，缺口标签以内联绿色 `+` 标识，语义规则进入提示词，预览侧可新增标签，CLI 健康检查实际执行 `--version`/`--help`，默认分析超时调到 180 秒，并修复长文件名预览头部挤压按钮的问题。
-- Current Focus: `dist\特效AI标签管理-cli.eagleplugin` 已按 manifest `1.0.5` 重新打包并检查，包内只有核心 7 个文件，manifest ID 为 `VFX_AI_TAGGER_CLI`，`main.devTools=false`，本地 SHA256 为 `6D39F51044DCD72C3F81D8F1C4A6D92ACA9DB5D17791269967571D7E488D2FAE`。绿色 `+` 现在由 CSS 伪元素绘制以保证居中，预览标题/路径会截断并保留 hover 完整值，右侧按钮区不再被长文件名挤走。本轮没有修改 Eagle 全局标签，也没有 push 或发布 release。
+- Current Focus: `v1.0.5` 已发布：https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.5 。Release 资产 `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin` 远端 digest 为 `sha256:79c9ed576af2911a61d73d03575ff1e669c6e5454210f334081f43a0d8406a89`，与本地 `dist\特效AI标签管理-cli.eagleplugin` SHA256 `79C9ED576AF2911A61D73D03575FF1E669C6E5454210F334081F43A0D8406A89` 一致。包内只有核心 7 个文件，manifest ID 为 `VFX_AI_TAGGER_CLI`，version `1.0.5`，`main.devTools=false`。发布前用三个只读子代理审查，后端审查发现的 `.cmd/.bat + shell:true + 动态 prompt/路径` P1 已用 TDD 修复：Claude prompt 改走 stdin，分析路径拒绝未解析的 Windows command script，健康检查会把 `.cmd/.bat` 标为阻断。
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-04-v1.0.5-tag-workflow.md`
-- Current Task: Commit the packaged 1.0.5 handoff; next user-visible step is installing the package in Eagle and smoke-testing template management, preview-side tag editing, and CLI health checks.
+- Current Task: 1.0.5 release is complete; next user-visible step is installing the GitHub Release package in Eagle and smoke-testing template management, preview-side tag editing, CLI health checks, and real Claude stdin analysis.
 
 ## Resume Here
-- Start with: install `dist\特效AI标签管理-cli.eagleplugin` from this branch if the user wants to try 1.0.5 before merge/release.
-- Next verification: Eagle real-host smoke for “管理模板” local edits/import/reset, 未导入默认模板时分析仍可命中模板兜底标签且绿色 `+` 视觉居中, 长文件名素材预览头部不挤压“上一个/下一个/用 Eagle 打开/关闭”按钮, preview窗口内新增/勾选/删除标签且视频不断播, Claude/Codex 环境检查, and 180 秒默认 CLI timeout display/persistence.
-- Watch out for: unrelated untracked docs may exist (`docs/v1.0.5-tag-system-preview-plan.md`, `docs/vfx-tag-taxonomy-review.md`); do not include/delete them unless explicitly requested. Do not push or publish `1.0.5` unless the user asks.
+- Start with: install the GitHub Release package `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin`, or use local `dist\特效AI标签管理-cli.eagleplugin` if testing the workspace copy.
+- Next verification: Eagle real-host smoke for “管理模板” local edits/import/reset, 未导入默认模板时分析仍可命中模板兜底标签且绿色 `+` 视觉居中, 长文件名素材预览头部不挤压“上一个/下一个/用 Eagle 打开/关闭”按钮, preview窗口内新增/勾选/删除标签且视频不断播, Claude/Codex 环境检查, Claude stdin analysis, and 180 秒默认 CLI timeout display/persistence.
+- Watch out for: unrelated untracked docs still exist (`docs/v1.0.5-tag-system-preview-plan.md`, `docs/vfx-tag-taxonomy-review.md`); do not include/delete them unless explicitly requested. Users with only `.cmd/.bat` CLI wrappers must use a native `.exe` path or a command name that the plugin can resolve to `.exe`.
 
 ## Progress Summary
 - [x] Initialized Project Ledger Loop files.

@@ -44,10 +44,26 @@
 - 2026-06-04: Default-template fallback candidates may appear in analysis results as confirmable gap tags with an inline green `+`, but they are not auto-written.
 - 2026-06-04: Dynamic review content such as long filenames, paths, and source markers must not move action buttons; truncate text and draw compact markers with CSS primitives.
 - 2026-06-04: CLI health checks should execute lightweight `--version`/`--help` probes without AI prompts; CLI analysis default timeout is 180 seconds.
+- 2026-06-04: CLI analysis must use native executables; unresolved Windows `.cmd/.bat` scripts are blocked for analysis and marked blocking in health checks.
+- 2026-06-04: Publish `v1.0.5` from merged `master` after subagent review, with Chinese release notes and pinyin-safe asset filename.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-04 - v1.0.5 release publication
+- Status: active
+- Decision: Merge `codex/v1.0.5-tag-workflow` into `master`, run subagent review plus fresh verification, tag `v1.0.5`, and publish GitHub Release `v1.0.5` with pinyin-safe asset `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin` and Chinese user-facing notes only.
+- Reason: The user explicitly asked for comprehensive subagent review, merge, package, and Release `1.0.5`. The pinyin-safe asset pattern avoids GitHub's problematic sanitization of pure-Chinese filenames while keeping the release page Chinese-facing.
+- Alternatives considered: Release directly from the feature branch; skipped because the requested final state was merged. Use pure Chinese asset filename; skipped because prior release showed GitHub can sanitize it into a confusing name. Include local verification details in release notes; skipped because public releases should stay user-facing.
+- Consequences / follow-up: Release asset digest matches the local package SHA256. Eagle real-host smoke remains the next manual validation step for the new template manager, preview-side editing, and real Claude/Codex CLI paths.
+
+## 2026-06-04 - Native CLI executables for analysis
+- Status: active
+- Decision: For Claude/Codex analysis requests, prefer native `.exe` executables, automatically resolve explicit sibling `.exe` paths when possible, move Claude prompts from argv to stdin, and reject unresolved Windows `.cmd/.bat` scripts before analysis. Health checks also mark `.cmd/.bat` as blocking instead of executing them.
+- Reason: Subagent review found that `.cmd/.bat` combined with shell execution and dynamic prompts/paths created avoidable Windows shell parsing and injection risk. Health checks must not say a script path is usable when real analysis would reject it.
+- Alternatives considered: Implement a custom Windows `cmd.exe` escaping layer; skipped because it is easy to get wrong and still leaves shell parsing in the path. Keep `.cmd/.bat` allowed after moving prompts to stdin; skipped because image paths, user extra args, and future dynamic arguments could still cross shell boundaries. Require absolute paths only; skipped because bare `claude`/`codex` can be safely auto-resolved to native executables on common installs.
+- Consequences / follow-up: Users with only npm command wrappers need to leave the command name for auto-resolution or provide a native `.exe` path. Real Eagle smoke should confirm Claude `--print` reads the stdin prompt correctly.
 
 ## 2026-06-04 - Plugin-local default template workflow
 - Status: active
