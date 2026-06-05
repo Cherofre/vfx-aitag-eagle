@@ -6,14 +6,14 @@
 - [x] Added hover titles for non-obvious settings, workbench actions, result filters, default-template controls, media-preview actions, and collector controls; static audit found 84 identifiable static controls with no missing `title`/`aria-label`.
 - [x] Verified 69/69 tests plus `node --check plugin.js` and `node --check cli-backends.js`; local Codex health checks for bare `codex` and explicit `%APPDATA%\npm\codex.cmd` resolve `%LOCALAPPDATA%\OpenAI\Codex\bin\716dda49c14d31a0\codex.exe` and return `codex-cli 0.136.0-alpha.2`.
 - [x] Rebuilt local `dist\特效AI标签管理-cli.eagleplugin` with manifest version `1.0.5` and package SHA256 `24F6E71DBF34FF53FFC9C93CF51F25364522207AB762DEF328E32B2BD3414803`; synchronized installed Eagle plugin directory with backup `VFX_AI_TAGGER_CLI.backup-codex-20260605-174128`.
+- [x] Pushed `master`, force-updated `v1.0.5`, replaced Release asset `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin`, and verified remote digest `sha256:24f6e71dbf34ff53ffc9c93cf51f25364522207ab762def328e32b2bd3414803`.
 - [ ] Reopen/reload the installed Eagle plugin and smoke-test result-card plus preview-window tag suggestions, starred/recent ordering, hover titles, existing Eagle tag selection, and typed new-tag creation without video reload.
-- [ ] If Eagle smoke is OK and the user wants this public, push `master`, force-update `v1.0.5`, and replace the GitHub Release asset.
 
 ## Handoff Notes
-- Start here: reopen/reload Eagle plugin `VFX_AI_TAGGER_CLI`; installed files have already been synchronized from this worktree.
+- Start here: install/download refreshed Release asset `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin` or reopen/reload Eagle plugin `VFX_AI_TAGGER_CLI`; installed files have already been synchronized from this worktree.
 - Do not redo: test-first implementation, local package rebuild, installed directory sync, syntax checks, local Codex health check, hover-title static audit, and package inspection for this slice are done.
 - Verify next: Eagle real-host smoke for starred/recent manual tag suggestions, hover titles, and the plugin UI's Codex health check/analysis path. It should no longer stop at `C:\Users\mumengfei\AppData\Roaming\npm\codex.cmd` or WindowsApps.
-- Do not claim: this new local slice has been pushed, tagged, uploaded to GitHub Release, or smoke-tested inside Eagle; none of those have happened yet.
+- Do not claim: Eagle real-host smoke for this refreshed Release package has been completed; it has not been run in this slice.
 - Watch out for: unrelated untracked docs may exist, including `docs/v1.0.5-tag-system-preview-plan.md` and `docs/vfx-tag-taxonomy-review.md`; do not include or delete them unless explicitly requested.
 
 ## Later
