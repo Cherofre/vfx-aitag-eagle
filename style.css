@@ -1436,6 +1436,10 @@ h2 {
   padding: 6px;
 }
 
+.preview-manual-tag-menu {
+  z-index: 86;
+}
+
 .manual-tag-menu[hidden] {
   display: none;
 }

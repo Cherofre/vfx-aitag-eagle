@@ -1,19 +1,19 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-04 21:32
-- Phase: v1.0.5 merged to master, pushed, tagged, and published on GitHub Release
-- Superpowers Phase: requesting-code-review + receiving-code-review + TDD + verification-before-completion + project-ledger-loop
-- Branch: master
-- Goal: 构建 `1.0.5` 标签工作流增强：默认模板可查看/编辑/增删/重置，默认模板可作为分析兜底候选，缺口标签以内联绿色 `+` 标识，语义规则进入提示词，预览侧可新增标签，CLI 健康检查实际执行 `--version`/`--help`，默认分析超时调到 180 秒，并修复长文件名预览头部挤压按钮的问题。
-- Current Focus: `v1.0.5` 已发布：https://github.com/Cherofre/vfx-aitag-eagle/releases/tag/v1.0.5 。Release 资产 `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin` 远端 digest 为 `sha256:79c9ed576af2911a61d73d03575ff1e669c6e5454210f334081f43a0d8406a89`，与本地 `dist\特效AI标签管理-cli.eagleplugin` SHA256 `79C9ED576AF2911A61D73D03575FF1E669C6E5454210F334081F43A0D8406A89` 一致。包内只有核心 7 个文件，manifest ID 为 `VFX_AI_TAGGER_CLI`，version `1.0.5`，`main.devTools=false`。发布前用三个只读子代理审查，后端审查发现的 `.cmd/.bat + shell:true + 动态 prompt/路径` P1 已用 TDD 修复：Claude prompt 改走 stdin，分析路径拒绝未解析的 Windows command script，健康检查会把 `.cmd/.bat` 标为阻断。
+- Last Updated: 2026-06-05 14:35
+- Phase: v1.0.5 preview-side tag suggestion fix implemented and repackaged from the master line
+- Superpowers Phase: using-git-worktrees + TDD + verification-before-completion + project-ledger-loop
+- Branch: master, using clean worktree initially created as `codex/v1.0.5-preview-tag-suggest` from commit `75746dd`
+- Goal: 修复 `1.0.5` 预览窗内“添加标签”输入显示不正常的问题：候选/新增菜单应像结果卡片和 Eagle 输入联想一样弹出，不被预览弹窗裁切，且标签侧刷新不重建视频播放器。
+- Current Focus: 修复已在干净 master 派生 worktree 完成：预览窗手动标签菜单改为 `previewManualTagMenuLayer` 全局层，输入框仍复用原候选/新增逻辑，添加后只刷新预览右侧标签区。已重新生成 `dist\特效AI标签管理-cli.eagleplugin`，包内只有核心 7 个文件，manifest ID `VFX_AI_TAGGER_CLI`，version `1.0.5`，`main.devTools=false`，本地包 SHA256 `3C033FD867DECA068CB98096747E314958BCFF0498671A14AFFFC785E6877DDD`。
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-04-v1.0.5-tag-workflow.md`
-- Current Task: 1.0.5 release is complete; next user-visible step is installing the GitHub Release package in Eagle and smoke-testing template management, preview-side tag editing, CLI health checks, and real Claude stdin analysis.
+- Current Task: Install the refreshed local `1.0.5` package in Eagle and smoke-test preview-side tag search/add suggestions inside the media preview dialog.
 
 ## Resume Here
-- Start with: install the GitHub Release package `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin`, or use local `dist\特效AI标签管理-cli.eagleplugin` if testing the workspace copy.
-- Next verification: Eagle real-host smoke for “管理模板” local edits/import/reset, 未导入默认模板时分析仍可命中模板兜底标签且绿色 `+` 视觉居中, 长文件名素材预览头部不挤压“上一个/下一个/用 Eagle 打开/关闭”按钮, preview窗口内新增/勾选/删除标签且视频不断播, Claude/Codex 环境检查, Claude stdin analysis, and 180 秒默认 CLI timeout display/persistence.
+- Start with: install local `dist\特效AI标签管理-cli.eagleplugin` from the current 1.0.5 fix branch/worktree.
+- Next verification: Eagle real-host smoke for preview-window manual tag search/add suggestions, choosing an existing Eagle tag from the menu, creating a new manual tag from typed text, and confirming video preview continues without player reload after tag-only edits. Broader 1.0.5 smoke for template manager, CLI health checks, Claude stdin analysis, and 180 秒 timeout still remains useful before replacing a public Release asset.
 - Watch out for: unrelated untracked docs still exist (`docs/v1.0.5-tag-system-preview-plan.md`, `docs/vfx-tag-taxonomy-review.md`); do not include/delete them unless explicitly requested. Users with only `.cmd/.bat` CLI wrappers must use a native `.exe` path or a command name that the plugin can resolve to `.exe`.
 
 ## Progress Summary
@@ -160,13 +160,19 @@
 - [x] Added preview-side manual tag adding while keeping tag-only preview edits from rebuilding the video player.
 - [x] Executed CLI health checks through `--version`, falling back to `--help`, with no AI requests; tuned default analysis timeout to 180 seconds and added Windows process-tree abort support.
 - [x] Bumped manifest/favicon/package to `1.0.5`, updated README, regenerated `dist\特效AI标签管理-cli.eagleplugin`, and inspected package contents.
+- [x] Created clean master-derived branch `codex/v1.0.5-preview-tag-suggest` because the main checkout had unrelated TGA/1.0.6 scratch changes.
+- [x] Added RED/GREEN UI coverage requiring media-preview manual tag suggestions to render in an unclipped global overlay layer.
+- [x] Moved preview manual tag suggestions from inside the transformed/overflow-hidden preview dialog to `previewManualTagMenuLayer`, preserving existing Eagle-tag/manual-new-tag option rendering and tag-only side-panel refresh.
+- [x] Repackaged `dist\特效AI标签管理-cli.eagleplugin` at manifest version `1.0.5` and inspected package contents.
 
 ## Verification
-- Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`; `node --check plugin.js`; `node --check cli-backends.js`; `Compress-Archive -Path cli-backends.js,index.html,logo.png,manifest.json,plugin.js,README.md,style.css -DestinationPath dist\特效AI标签管理-cli.eagleplugin -Force`; zip entry/manifest inspection; `Get-FileHash -Algorithm SHA256 dist\特效AI标签管理-cli.eagleplugin`; `git status --short --branch`
-- Result: pass
-- Evidence / notes: Fresh verification on `codex/v1.0.5-tag-workflow` passed: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js` passed 55/55 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.5`, `main.devTools=false`; local package SHA256 is `6D39F51044DCD72C3F81D8F1C4A6D92ACA9DB5D17791269967571D7E488D2FAE`. Unrelated untracked docs remain untouched.
+- Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`; `node --check plugin.js`; `node --check cli-backends.js`; `Compress-Archive -Path cli-backends.js,index.html,logo.png,manifest.json,plugin.js,README.md,style.css -DestinationPath dist\特效AI标签管理-cli.eagleplugin -Force`; zip entry/manifest inspection; `Get-FileHash -Algorithm SHA256 dist\特效AI标签管理-cli.eagleplugin`; Browser in-app `file://` open attempt.
+- Result: pass for automated tests, syntax checks, and package inspection; Browser visual smoke blocked by Browser Use file URL policy.
+- Evidence / notes: Fresh verification on `codex/v1.0.5-preview-tag-suggest` passed 59/59 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.5`, `main.devTools=false`; local package SHA256 is `3C033FD867DECA068CB98096747E314958BCFF0498671A14AFFFC785E6877DDD`. The original checkout's unrelated TGA/1.0.6 scratch changes were not touched.
 
 ## Blockers And Risks
+- Needs Eagle real-host smoke for the refreshed `1.0.5` package, especially preview-window manual tag search/add suggestions rendered from the global overlay layer.
+- Browser visual smoke for local `index.html` was blocked by Browser Use URL policy for `file://`; do not claim browser visual verification for this fix.
 - Needs Eagle real-host smoke for new `1.0.5` UI paths: default-template manager, import edited template, preview-side manual tag adding, and real Claude/Codex health checks.
 - User confirmed Eagle real-host smoke is OK for local video playback/loop/no-reload tag edits and paused-append queue behavior.
 - Needs Eagle real-host smoke for media preview, especially native `item.open({ window: true })`, codec-dependent `<video>` playback, fallback thumbnail/diagnostic-frame display, and tag edits inside the preview dialog.

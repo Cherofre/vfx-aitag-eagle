@@ -46,10 +46,18 @@
 - 2026-06-04: CLI health checks should execute lightweight `--version`/`--help` probes without AI prompts; CLI analysis default timeout is 180 seconds.
 - 2026-06-04: CLI analysis must use native executables; unresolved Windows `.cmd/.bat` scripts are blocked for analysis and marked blocking in health checks.
 - 2026-06-04: Publish `v1.0.5` from merged `master` after subagent review, with Chinese release notes and pinyin-safe asset filename.
+- 2026-06-05: Media-preview manual tag suggestions render from a global menu layer outside the transformed preview dialog.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-05 - Preview tag suggestions use global layer
+- Status: active
+- Decision: Render the media-preview manual tag suggestion menu from `previewManualTagMenuLayer`, outside `mediaPreviewDialog`, while keeping the same Eagle-tag/manual-new-tag option rendering and tag-only side-panel refresh path.
+- Reason: The preview dialog is fixed, transformed, and `overflow: hidden`; a fixed-position menu nested inside it can be clipped or visually offset in Eagle. Moving only the suggestion layer avoids disturbing the media player clipping, dialog animation, and existing result-card editor.
+- Alternatives considered: Set `.media-preview-dialog` to `overflow: visible`; skipped because the player and dialog content rely on clipping. Duplicate the result-card editor structure inside the preview dialog; skipped because it preserves the clipping root. Use a native `datalist`; skipped because earlier Eagle smoke showed native datalist styling/placement is inconsistent.
+- Consequences / follow-up: Automated tests cover the global layer and video-stable tag-only refresh. Eagle real-host smoke is still needed because the in-app Browser blocked local `file://` visual verification.
 
 ## 2026-06-04 - v1.0.5 release publication
 - Status: active

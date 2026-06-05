@@ -1,19 +1,18 @@
 # Next Actions
 
 ## Now
-- [x] Implemented 1.0.5 editable local default-template workflow, default-template fallback analysis candidates with inline green `+` gap markers, prompt semantic guidance, preview-side tag adding, executable CLI health checks, 180-second default timeout, and Windows wrapper process-tree abort support.
-- [x] Polished reported UI issues: green `+` is now CSS-centered, and media preview long filenames/paths truncate without moving the right-side action buttons.
-- [x] Ran three read-only subagent reviews; fixed the backend P1 by moving Claude prompts to stdin, rejecting unresolved `.cmd/.bat` scripts for analysis, and marking them blocking in health checks.
-- [x] Verified 58/58 tests plus `node --check plugin.js` and `node --check cli-backends.js` on merged `master`.
+- [x] Fixed the `1.0.5` media-preview manual tag input on a clean master-derived branch: suggestions now render from `previewManualTagMenuLayer` outside the transformed preview dialog, so the menu is not clipped or visually offset.
+- [x] Verified 59/59 tests plus `node --check plugin.js` and `node --check cli-backends.js`; rebuilt `dist\特效AI标签管理-cli.eagleplugin` with manifest version `1.0.5` and package SHA256 `3C033FD867DECA068CB98096747E314958BCFF0498671A14AFFFC785E6877DDD`.
 - [x] Published GitHub Release `v1.0.5` with asset `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin`; remote digest matches local package SHA256 `79C9ED576AF2911A61D73D03575FF1E669C6E5454210F334081F43A0D8406A89`.
-- [ ] Install the Release `1.0.5` package in Eagle and smoke-test template manager, edited-template import, default-template gap tags showing centered green `+`, long media-preview filenames not pushing buttons, preview-side tag add/delete/toggle without video reload, real Claude/Codex health checks, and Claude stdin analysis.
+- [ ] Install the refreshed local `dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test preview-window tag search/add suggestions, including existing Eagle tag selection and typed new-tag creation without video reload.
+- [ ] If Eagle smoke passes, decide whether to replace the public GitHub Release `v1.0.5` asset or keep this as a local 1.0.5 hotfix package.
 - [ ] Optional future Eagle tag-library operations remain deferred: material parent-tag backfill or `武器附魔 -> 附魔` merge require a fresh backup and explicit approval.
 
 ## Handoff Notes
-- Start here: install `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin` from GitHub Release `v1.0.5`, or local `dist\特效AI标签管理-cli.eagleplugin`.
+- Start here: install local `dist\特效AI标签管理-cli.eagleplugin` from this master-line `1.0.5` worktree.
 - Do not redo: 1.0.5 source implementation, subagent review, `.cmd/.bat` CLI analysis hardening, merge to `master`, push, tag, release creation, package inspection, and digest verification are done.
-- Verify next: Eagle real-host smoke with actual media and local CLI backend settings, especially Claude stdin analysis after the command-script hardening.
-- Do not claim: Eagle real-host smoke for the new 1.0.5 template/CLI paths has been completed; it remains a manual host check.
+- Verify next: Eagle real-host smoke for preview-side tag suggestion popup inside the media preview dialog; Browser visual smoke was blocked by the in-app Browser `file://` URL policy.
+- Do not claim: Eagle real-host smoke for the refreshed 1.0.5 preview-tag fix has been completed; it remains a manual host check.
 - Watch out for: unrelated untracked docs may exist, including `docs/v1.0.5-tag-system-preview-plan.md` and `docs/vfx-tag-taxonomy-review.md`; do not include or delete them unless explicitly requested.
 
 ## Later

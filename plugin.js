@@ -190,7 +190,7 @@
       "results", "clearResultsBtn", "analysisProgressPanel", "analysisProgressText", "analysisProgressPercent", "analysisProgressBar", "analysisProgressMeta",
       "writeProgressPanel", "writeProgressText", "writeProgressPercent", "writeProgressBar", "writeProgressMeta",
       "mediaPreviewOverlay", "mediaPreviewDialog", "mediaPreviewTitle", "mediaPreviewMeta", "mediaPreviewBody", "mediaPreviewStatus", "mediaPreviewTags", "mediaPreviewReason",
-      "mediaPreviewPrevBtn", "mediaPreviewNextBtn", "mediaPreviewOpenEagleBtn", "closeMediaPreviewBtn",
+      "mediaPreviewPrevBtn", "mediaPreviewNextBtn", "mediaPreviewOpenEagleBtn", "closeMediaPreviewBtn", "previewManualTagMenuLayer",
       "backendStatus", "refreshBackendStatusBtn", "enableClaudeCli", "enableCodexCli", "enableEagleAi",
       "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
       "healthCheckPanel", "healthSummary", "healthStatusList", "runHealthCheckBtn",
@@ -238,9 +238,20 @@
     });
     document.addEventListener("click", (event) => {
       if (!event.target.closest(".result-editor")) closeManualTagMenus();
-      if (!event.target.closest(".media-preview-tag-editor")) closePreviewManualTagMenus();
+      if (!event.target.closest(".media-preview-tag-editor") && !event.target.closest(".preview-manual-tag-menu")) closePreviewManualTagMenus();
     });
     window.addEventListener("resize", closeManualTagMenus);
+    window.addEventListener("resize", closePreviewManualTagMenus);
+    if (els.previewManualTagMenuLayer) {
+      els.previewManualTagMenuLayer.addEventListener("mousedown", (event) => {
+        const option = event.target.closest("[data-manual-tag-option]");
+        if (!option) return;
+        const resultId = els.previewManualTagMenuLayer.dataset.previewManualTagMenu;
+        if (!resultId) return;
+        event.preventDefault();
+        addPreviewManualTagToResult(resultId, option.dataset.manualTagOption);
+      });
+    }
     els.appendSelectedBtn.addEventListener("click", () => appendSelectedItems("追加当前选中"));
     els.replaceSelectedBtn.addEventListener("click", () => replaceSelectedItems("替换为当前选中"));
     els.clearSelectedBtn.addEventListener("click", () => clearSelectedQueue());
@@ -884,6 +895,7 @@
     els.mediaPreviewDialog.classList.remove("is-open");
     els.mediaPreviewDialog.setAttribute("aria-hidden", "true");
     state.mediaPreview.open = false;
+    closePreviewManualTagMenus();
     if (els.mediaPreviewBody) els.mediaPreviewBody.innerHTML = "";
     window.setTimeout(() => {
       if (!els.mediaPreviewOverlay.classList.contains("is-open")) {
@@ -980,6 +992,7 @@
           ? "插件内预览图片。"
           : "没有可直接预览的本地媒体，可尝试用 Eagle 打开。";
     }
+    closePreviewManualTagMenus();
     els.mediaPreviewTags.innerHTML = renderMediaPreviewTags(model);
     bindMediaPreviewTagEvents();
     els.mediaPreviewReason.innerHTML = model.reason ? `AI 说明：${escapeHtml(model.reason)}` : "";
@@ -1023,12 +1036,11 @@
 
   function renderMediaPreviewTagEditor(model) {
     if (!model.resultId) return "";
-    const menuId = `preview-manual-tag-menu-${safeDomId(model.resultId)}`;
+    const menuId = "previewManualTagMenuLayer";
     return `
       <div class="media-preview-tag-editor">
         <input type="search" data-preview-manual-tag-input="${escapeHtml(model.resultId)}" aria-controls="${escapeHtml(menuId)}" aria-expanded="false" autocomplete="off" placeholder="搜索或输入标签">
         <button type="button" data-preview-add-manual-tag="${escapeHtml(model.resultId)}">添加标签</button>
-        <div id="${escapeHtml(menuId)}" class="manual-tag-menu" data-preview-manual-tag-menu="${escapeHtml(model.resultId)}" hidden></div>
       </div>
     `;
   }
@@ -1056,14 +1068,6 @@
           addPreviewManualTagToResult(input.dataset.previewManualTagInput);
         }
         if (event.key === "Escape") closePreviewManualTagMenus();
-      });
-    });
-    els.mediaPreviewTags.querySelectorAll("[data-preview-manual-tag-menu]").forEach((menu) => {
-      menu.addEventListener("mousedown", (event) => {
-        const option = event.target.closest("[data-manual-tag-option]");
-        if (!option) return;
-        event.preventDefault();
-        addPreviewManualTagToResult(menu.dataset.previewManualTagMenu, option.dataset.manualTagOption);
       });
     });
   }
@@ -3546,8 +3550,7 @@
   }
 
   function getPreviewManualTagMenu(resultId) {
-    return Array.from(els.mediaPreviewTags.querySelectorAll("[data-preview-manual-tag-menu]"))
-      .find((candidate) => candidate.dataset.previewManualTagMenu === resultId);
+    return els.previewManualTagMenuLayer;
   }
 
   function updatePreviewManualTagMenu(resultId) {
@@ -3575,6 +3578,7 @@
       closePreviewManualTagMenu(resultId);
       return;
     }
+    menu.dataset.previewManualTagMenu = resultId;
     menu.innerHTML = `${createOption}${matchOptions}`;
     menu.hidden = false;
     menu.classList.add("is-open");
@@ -3589,15 +3593,14 @@
       menu.hidden = true;
       menu.classList.remove("is-open");
       menu.innerHTML = "";
+      menu.dataset.previewManualTagMenu = "";
     }
     if (input) input.setAttribute("aria-expanded", "false");
   }
 
   function closePreviewManualTagMenus() {
-    if (!els.mediaPreviewTags) return;
-    els.mediaPreviewTags.querySelectorAll("[data-preview-manual-tag-menu]").forEach((menu) => {
-      closePreviewManualTagMenu(menu.dataset.previewManualTagMenu);
-    });
+    if (!els.previewManualTagMenuLayer) return;
+    closePreviewManualTagMenu(els.previewManualTagMenuLayer.dataset.previewManualTagMenu);
   }
 
   function addPreviewManualTagToResult(resultId, tagName) {

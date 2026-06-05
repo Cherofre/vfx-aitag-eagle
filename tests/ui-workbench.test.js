@@ -682,7 +682,7 @@ test("media preview supports manual tag adding and closes stale preview state", 
 
   assert.match(js, /data-preview-manual-tag-input/);
   assert.match(js, /data-preview-add-manual-tag/);
-  assert.match(js, /data-preview-manual-tag-menu/);
+  assert.match(js, /previewManualTagMenuLayer/);
   assert.match(js, /function addPreviewManualTagToResult\(/);
   assert.match(js, /function updatePreviewManualTagMenu\(/);
   assert.match(js, /addManualTagToResult\(resultId,\s*tagName\)/);
@@ -697,6 +697,29 @@ test("media preview supports manual tag adding and closes stale preview state", 
   assert.doesNotMatch(refreshBody, /renderMediaPreviewPlayer\(/);
 
   assert.match(css, /\.media-preview-tag-editor/);
+});
+
+test("media preview manual tag suggestions render in an unclipped overlay layer", () => {
+  const html = read("index.html");
+  const js = read("plugin.js");
+  const css = read("style.css");
+
+  assert.match(html, /id="previewManualTagMenuLayer"[^>]*class="manual-tag-menu preview-manual-tag-menu"/);
+  const dialogIndex = html.indexOf('id="mediaPreviewDialog"');
+  const dialogEnd = html.indexOf("</section>", dialogIndex);
+  const menuLayerIndex = html.indexOf('id="previewManualTagMenuLayer"');
+  assert.ok(menuLayerIndex > dialogEnd, "preview suggestion menu layer must live outside the transformed preview dialog");
+
+  const editorStart = js.indexOf("function renderMediaPreviewTagEditor");
+  const editorEnd = js.indexOf("\n  function ", editorStart + 1);
+  const editorBody = js.slice(editorStart, editorEnd);
+  assert.doesNotMatch(editorBody, /data-preview-manual-tag-menu/);
+
+  assert.match(js, /"previewManualTagMenuLayer"/);
+  assert.match(js, /function getPreviewManualTagMenu\(resultId\)\s*{[\s\S]*return els\.previewManualTagMenuLayer/);
+  assert.match(js, /menu\.dataset\.previewManualTagMenu = resultId/);
+  assert.match(js, /closePreviewManualTagMenus\(\);\s*els\.mediaPreviewTags\.innerHTML = renderMediaPreviewTags\(model\)/);
+  assert.match(css, /\.preview-manual-tag-menu\s*{[\s\S]*z-index:\s*8[5-9]/);
 });
 
 test("collection workflow exposes append, replace, clear, context menus, and collector bar", () => {
