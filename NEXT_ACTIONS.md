@@ -3,13 +3,12 @@
 ## Now
 - [x] Fixed the `1.0.5` media-preview manual tag input on a clean master-derived branch: suggestions now render from `previewManualTagMenuLayer` outside the transformed preview dialog, so the menu is not clipped or visually offset.
 - [x] Verified 59/59 tests plus `node --check plugin.js` and `node --check cli-backends.js`; rebuilt `dist\特效AI标签管理-cli.eagleplugin` with manifest version `1.0.5` and package SHA256 `3C033FD867DECA068CB98096747E314958BCFF0498671A14AFFFC785E6877DDD`.
-- [x] Published GitHub Release `v1.0.5` with asset `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin`; remote digest matches local package SHA256 `79C9ED576AF2911A61D73D03575FF1E669C6E5454210F334081F43A0D8406A89`.
-- [ ] Install the refreshed local `dist\特效AI标签管理-cli.eagleplugin` in Eagle and smoke-test preview-window tag search/add suggestions, including existing Eagle tag selection and typed new-tag creation without video reload.
-- [ ] If Eagle smoke passes, decide whether to replace the public GitHub Release `v1.0.5` asset or keep this as a local 1.0.5 hotfix package.
+- [x] Pushed `master`, updated annotated tag `v1.0.5`, replaced GitHub Release asset `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin`, and verified remote digest matches local package SHA256 `3C033FD867DECA068CB98096747E314958BCFF0498671A14AFFFC785E6877DDD`.
+- [ ] Install the refreshed GitHub Release `1.0.5` package in Eagle and smoke-test preview-window tag search/add suggestions, including existing Eagle tag selection and typed new-tag creation without video reload.
 - [ ] Optional future Eagle tag-library operations remain deferred: material parent-tag backfill or `武器附魔 -> 附魔` merge require a fresh backup and explicit approval.
 
 ## Handoff Notes
-- Start here: install local `dist\特效AI标签管理-cli.eagleplugin` from this master-line `1.0.5` worktree.
+- Start here: install `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin` from GitHub Release `v1.0.5`, or local `dist\特效AI标签管理-cli.eagleplugin` from this master-line worktree.
 - Do not redo: 1.0.5 source implementation, subagent review, `.cmd/.bat` CLI analysis hardening, merge to `master`, push, tag, release creation, package inspection, and digest verification are done.
 - Verify next: Eagle real-host smoke for preview-side tag suggestion popup inside the media preview dialog; Browser visual smoke was blocked by the in-app Browser `file://` URL policy.
 - Do not claim: Eagle real-host smoke for the refreshed 1.0.5 preview-tag fix has been completed; it remains a manual host check.

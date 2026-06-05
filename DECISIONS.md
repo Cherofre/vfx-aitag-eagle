@@ -47,10 +47,18 @@
 - 2026-06-04: CLI analysis must use native executables; unresolved Windows `.cmd/.bat` scripts are blocked for analysis and marked blocking in health checks.
 - 2026-06-04: Publish `v1.0.5` from merged `master` after subagent review, with Chinese release notes and pinyin-safe asset filename.
 - 2026-06-05: Media-preview manual tag suggestions render from a global menu layer outside the transformed preview dialog.
+- 2026-06-05: Update the existing GitHub Release `v1.0.5` in place with the preview-tag hotfix.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-05 - Update existing v1.0.5 release
+- Status: active
+- Decision: Keep version `1.0.5`, push the preview-tag hotfix to `master`, force-update annotated tag `v1.0.5`, replace the existing GitHub Release asset with the same pinyin-safe filename, and update the Chinese Release notes to mention the preview-window suggestion-menu fix.
+- Reason: The user explicitly asked to keep this as a `1.0.5`/master-line adjustment and update the existing `1.0.5` Release rather than starting `1.0.6`.
+- Alternatives considered: Publish `v1.0.6`; skipped because the user explicitly said to ignore 1.0.6. Keep only a local hotfix package; skipped because the user asked to update the Release. Change the asset filename; skipped because existing download instructions and prior releases use the pinyin-safe filename.
+- Consequences / follow-up: Public `v1.0.5` now points at the hotfix package. Eagle real-host smoke should install the refreshed Release package and verify preview-window tag suggestions.
 
 ## 2026-06-05 - Preview tag suggestions use global layer
 - Status: active

@@ -1,18 +1,18 @@
 # Project Status
 
 ## Current Snapshot
-- Last Updated: 2026-06-05 14:35
-- Phase: v1.0.5 preview-side tag suggestion fix implemented and repackaged from the master line
+- Last Updated: 2026-06-05 14:48
+- Phase: v1.0.5 preview-side tag suggestion fix merged to master and GitHub Release updated
 - Superpowers Phase: using-git-worktrees + TDD + verification-before-completion + project-ledger-loop
 - Branch: master, using clean worktree initially created as `codex/v1.0.5-preview-tag-suggest` from commit `75746dd`
 - Goal: 修复 `1.0.5` 预览窗内“添加标签”输入显示不正常的问题：候选/新增菜单应像结果卡片和 Eagle 输入联想一样弹出，不被预览弹窗裁切，且标签侧刷新不重建视频播放器。
-- Current Focus: 修复已在干净 master 派生 worktree 完成：预览窗手动标签菜单改为 `previewManualTagMenuLayer` 全局层，输入框仍复用原候选/新增逻辑，添加后只刷新预览右侧标签区。已重新生成 `dist\特效AI标签管理-cli.eagleplugin`，包内只有核心 7 个文件，manifest ID `VFX_AI_TAGGER_CLI`，version `1.0.5`，`main.devTools=false`，本地包 SHA256 `3C033FD867DECA068CB98096747E314958BCFF0498671A14AFFFC785E6877DDD`。
+- Current Focus: `master` 已推到远端，`v1.0.5` tag 已更新到预览标签修复提交，GitHub Release `v1.0.5` 已替换资产 `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin` 并更新中文说明。Release 远端 asset digest 为 `sha256:3c033fd867deca068cb98096747e314958bcff0498671a14afffc785e6877ddd`，与本地 `dist\特效AI标签管理-cli.eagleplugin` SHA256 `3C033FD867DECA068CB98096747E314958BCFF0498671A14AFFFC785E6877DDD` 一致。包内只有核心 7 个文件，manifest ID `VFX_AI_TAGGER_CLI`，version `1.0.5`，`main.devTools=false`。
 - Superpowers Spec: `docs/superpowers/specs/2026-06-03-collector-position-memory-design.md`
 - Superpowers Plan: `docs/superpowers/plans/2026-06-04-v1.0.5-tag-workflow.md`
-- Current Task: Install the refreshed local `1.0.5` package in Eagle and smoke-test preview-side tag search/add suggestions inside the media preview dialog.
+- Current Task: Install the refreshed GitHub Release `1.0.5` package in Eagle and smoke-test preview-side tag search/add suggestions inside the media preview dialog.
 
 ## Resume Here
-- Start with: install local `dist\特效AI标签管理-cli.eagleplugin` from the current 1.0.5 fix branch/worktree.
+- Start with: install `texiao-ai-biaoqian-guanli-cli-1.0.5.eagleplugin` from GitHub Release `v1.0.5`, or use local `dist\特效AI标签管理-cli.eagleplugin` if testing the workspace copy.
 - Next verification: Eagle real-host smoke for preview-window manual tag search/add suggestions, choosing an existing Eagle tag from the menu, creating a new manual tag from typed text, and confirming video preview continues without player reload after tag-only edits. Broader 1.0.5 smoke for template manager, CLI health checks, Claude stdin analysis, and 180 秒 timeout still remains useful before replacing a public Release asset.
 - Watch out for: unrelated untracked docs still exist (`docs/v1.0.5-tag-system-preview-plan.md`, `docs/vfx-tag-taxonomy-review.md`); do not include/delete them unless explicitly requested. Users with only `.cmd/.bat` CLI wrappers must use a native `.exe` path or a command name that the plugin can resolve to `.exe`.
 
@@ -164,11 +164,12 @@
 - [x] Added RED/GREEN UI coverage requiring media-preview manual tag suggestions to render in an unclipped global overlay layer.
 - [x] Moved preview manual tag suggestions from inside the transformed/overflow-hidden preview dialog to `previewManualTagMenuLayer`, preserving existing Eagle-tag/manual-new-tag option rendering and tag-only side-panel refresh.
 - [x] Repackaged `dist\特效AI标签管理-cli.eagleplugin` at manifest version `1.0.5` and inspected package contents.
+- [x] Pushed `master`, force-updated annotated tag `v1.0.5`, replaced the GitHub Release `v1.0.5` asset, and verified remote asset digest matches the local package.
 
 ## Verification
-- Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`; `node --check plugin.js`; `node --check cli-backends.js`; `Compress-Archive -Path cli-backends.js,index.html,logo.png,manifest.json,plugin.js,README.md,style.css -DestinationPath dist\特效AI标签管理-cli.eagleplugin -Force`; zip entry/manifest inspection; `Get-FileHash -Algorithm SHA256 dist\特效AI标签管理-cli.eagleplugin`; Browser in-app `file://` open attempt.
+- Last command: `node --test tests/cli-backends.test.js tests/ui-workbench.test.js`; `node --check plugin.js`; `node --check cli-backends.js`; zip entry/manifest inspection; `Get-FileHash -Algorithm SHA256 dist\特效AI标签管理-cli.eagleplugin`; `git push origin master`; `git tag -fa v1.0.5 -m "v1.0.5" HEAD`; `git push origin refs/tags/v1.0.5 --force`; `gh release edit v1.0.5`; `gh release upload v1.0.5 ... --clobber`; `gh release view v1.0.5 --json ...`; `git ls-remote origin refs/heads/master refs/tags/v1.0.5 refs/tags/v1.0.5^{}`
 - Result: pass for automated tests, syntax checks, and package inspection; Browser visual smoke blocked by Browser Use file URL policy.
-- Evidence / notes: Fresh verification on `codex/v1.0.5-preview-tag-suggest` passed 59/59 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.5`, `main.devTools=false`; local package SHA256 is `3C033FD867DECA068CB98096747E314958BCFF0498671A14AFFFC785E6877DDD`. The original checkout's unrelated TGA/1.0.6 scratch changes were not touched.
+- Evidence / notes: Fresh verification on master passed 59/59 tests; `node --check plugin.js` and `node --check cli-backends.js` passed. Package inspection shows only `cli-backends.js`, `index.html`, `logo.png`, `manifest.json`, `plugin.js`, `README.md`, and `style.css`; manifest ID is `VFX_AI_TAGGER_CLI`, version `1.0.5`, `main.devTools=false`; local package SHA256 is `3C033FD867DECA068CB98096747E314958BCFF0498671A14AFFFC785E6877DDD`. Remote `master` and peeled `v1.0.5` tag both pointed to `52265003871d998051642c0e190dcdb2d0ea433c` after the release update; Release asset digest matched the local package. The original checkout's unrelated TGA/1.0.6 scratch changes were not touched.
 
 ## Blockers And Risks
 - Needs Eagle real-host smoke for the refreshed `1.0.5` package, especially preview-window manual tag search/add suggestions rendered from the global overlay layer.
