@@ -152,6 +152,8 @@
     eagleTagRecords: [],
     eagleTags: [],
     eagleTagGroups: [],
+    starredTags: [],
+    recentTags: [],
     selectedTagGroupName: "__all",
     customAllowedTags: [],
     disabledTags: [],
@@ -1122,12 +1124,17 @@
       state.eagleTagRecords = [];
       state.eagleTags = [];
       state.eagleTagGroups = [];
+      state.starredTags = [];
+      state.recentTags = [];
       setStatus("未检测到 Eagle 标签 API，请在 Eagle 插件窗口中运行。");
       return;
     }
     try {
       const tags = await eagle.tag.get();
       state.eagleTagRecords = Array.isArray(tags) ? tags : [];
+      const priorityTags = await readEaglePriorityTags();
+      state.starredTags = priorityTags.starred;
+      state.recentTags = priorityTags.recent;
       state.eagleTagGroups = await readEagleTagGroups();
       applyTagGroupFilter();
       state.customAllowedTags = [];
@@ -1139,6 +1146,25 @@
       setStatus(`读取 Eagle 标签失败：${formatError(error)}`);
     }
     renderAll();
+  }
+
+  async function readEaglePriorityTags() {
+    const [starred, recent] = await Promise.all([
+      readOptionalEagleTagList("getStarredTags"),
+      readOptionalEagleTagList("getRecentTags")
+    ]);
+    return { starred, recent };
+  }
+
+  async function readOptionalEagleTagList(methodName) {
+    const api = window.eagle && eagle.tag;
+    if (!api || typeof api[methodName] !== "function") return [];
+    try {
+      const tags = await api[methodName]();
+      return Array.isArray(tags) ? normalizeTagList(tags.map(extractTagName)) : [];
+    } catch (error) {
+      return [];
+    }
   }
 
   async function readEagleTagGroups() {
@@ -3478,30 +3504,84 @@
     const result = state.results.find((item) => item.id === resultId);
     if (!input || !menu || !result) return;
     const query = cleanTag(input.value);
-    const selected = new Set((Array.isArray(result.reviewTags) ? result.reviewTags : []).map((tag) => tag.name));
-    const matches = getAllowedTags()
-      .filter((tag) => !selected.has(tag))
-      .filter((tag) => !query || tag.toLowerCase().includes(query.toLowerCase()))
-      .slice(0, 12);
-    const canCreate = query && !selected.has(query) && !matches.some((tag) => tag === query);
-    const createOption = canCreate
-      ? `<button type="button" class="manual-tag-option create" data-manual-tag-option="${escapeHtml(query)}"><span>新增“${escapeHtml(query)}”</span><small>加入本次标签池</small></button>`
-      : "";
-    const matchOptions = matches.map((tag) => `
-      <button type="button" class="manual-tag-option" data-manual-tag-option="${escapeHtml(tag)}">
-        <span>${escapeHtml(tag)}</span>
-        <small>${state.eagleTags.includes(tag) ? "Eagle 标签" : "本次标签"}</small>
-      </button>
-    `).join("");
-    if (!createOption && !matchOptions) {
+    const options = renderManualTagSuggestionOptions(result, query);
+    if (!options) {
       closeManualTagMenu(resultId);
       return;
     }
-    menu.innerHTML = `${createOption}${matchOptions}`;
+    menu.innerHTML = options;
     menu.hidden = false;
     menu.classList.add("is-open");
     input.setAttribute("aria-expanded", "true");
     positionManualTagMenu(input, menu);
+  }
+
+  function renderManualTagSuggestionOptions(result, query) {
+    const entries = getManualTagSuggestionEntries(result, query);
+    const selected = getResultReviewTagNameSet(result);
+    const canCreate = query && !selected.has(query) && !entries.some((entry) => entry.tag === query);
+    const createOption = canCreate
+      ? `<button type="button" class="manual-tag-option create" data-manual-tag-option="${escapeHtml(query)}"><span>新增“${escapeHtml(query)}”</span><small>加入本次标签池</small></button>`
+      : "";
+    const matchOptions = entries.map((entry) => `
+      <button type="button" class="manual-tag-option" data-manual-tag-option="${escapeHtml(entry.tag)}">
+        <span>${escapeHtml(entry.tag)}</span>
+        <small>${escapeHtml(getManualTagSuggestionLabel(entry))}</small>
+      </button>
+    `).join("");
+    return `${createOption}${matchOptions}`;
+  }
+
+  function getManualTagSuggestionEntries(result, query) {
+    const normalizedQuery = cleanTag(query).toLowerCase();
+    const selected = getResultReviewTagNameSet(result);
+    const seen = new Set();
+    const sources = [
+      { source: "starred", tags: state.starredTags },
+      { source: "recent", tags: state.recentTags },
+      { source: "allowed", tags: sortTagsByEagleUseCount(getAllowedTags()) }
+    ];
+    const entries = [];
+    sources.forEach(({ source, tags }) => {
+      normalizeTagList(tags || []).forEach((tag) => {
+        const key = tag.toLowerCase();
+        if (selected.has(tag) || seen.has(key)) return;
+        if (normalizedQuery && !key.includes(normalizedQuery)) return;
+        seen.add(key);
+        entries.push({ tag, source });
+      });
+    });
+    return entries.slice(0, 12);
+  }
+
+  function getResultReviewTagNameSet(result) {
+    return new Set(normalizeTagList((Array.isArray(result.reviewTags) ? result.reviewTags : []).map((tag) => tag && tag.name ? tag.name : tag)));
+  }
+
+  function sortTagsByEagleUseCount(tags) {
+    const indexes = new Map((Array.isArray(tags) ? tags : []).map((tag, index) => [tag, index]));
+    return [...(Array.isArray(tags) ? tags : [])].sort((left, right) => {
+      const countDelta = getEagleTagUseCount(right) - getEagleTagUseCount(left);
+      return countDelta || ((indexes.get(left) || 0) - (indexes.get(right) || 0));
+    });
+  }
+
+  function getEagleTagUseCount(tagName) {
+    const tag = cleanTag(tagName);
+    const record = state.eagleTagRecords.find((candidate) => extractTagName(candidate) === tag);
+    const count = Number(record && (record.count ?? record.itemCount ?? record.itemsCount ?? record.total));
+    return Number.isFinite(count) ? count : 0;
+  }
+
+  function getManualTagSuggestionLabel(entry) {
+    if (entry && entry.source === "starred") return "收藏标签";
+    if (entry && entry.source === "recent") return "最近使用";
+    return isKnownEagleTag(entry && entry.tag) ? "Eagle 标签" : "本次标签";
+  }
+
+  function isKnownEagleTag(tagName) {
+    const tag = cleanTag(tagName);
+    return Boolean(tag) && normalizeTagList(state.eagleTagRecords.map(extractTagName)).includes(tag);
   }
 
   function positionManualTagMenu(input, menu) {
@@ -3559,27 +3639,13 @@
     const result = state.results.find((item) => item.id === resultId);
     if (!input || !menu || !result) return;
     const query = cleanTag(input.value);
-    const selected = new Set((Array.isArray(result.reviewTags) ? result.reviewTags : []).map((tag) => tag.name));
-    const matches = getAllowedTags()
-      .filter((tag) => !selected.has(tag))
-      .filter((tag) => !query || tag.toLowerCase().includes(query.toLowerCase()))
-      .slice(0, 12);
-    const canCreate = query && !selected.has(query) && !matches.some((tag) => tag === query);
-    const createOption = canCreate
-      ? `<button type="button" class="manual-tag-option create" data-manual-tag-option="${escapeHtml(query)}"><span>新增“${escapeHtml(query)}”</span><small>加入本次标签池</small></button>`
-      : "";
-    const matchOptions = matches.map((tag) => `
-      <button type="button" class="manual-tag-option" data-manual-tag-option="${escapeHtml(tag)}">
-        <span>${escapeHtml(tag)}</span>
-        <small>${state.eagleTags.includes(tag) ? "Eagle 标签" : "本次标签"}</small>
-      </button>
-    `).join("");
-    if (!createOption && !matchOptions) {
+    const options = renderManualTagSuggestionOptions(result, query);
+    if (!options) {
       closePreviewManualTagMenu(resultId);
       return;
     }
     menu.dataset.previewManualTagMenu = resultId;
-    menu.innerHTML = `${createOption}${matchOptions}`;
+    menu.innerHTML = options;
     menu.hidden = false;
     menu.classList.add("is-open");
     input.setAttribute("aria-expanded", "true");

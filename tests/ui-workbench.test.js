@@ -453,6 +453,72 @@ test("0601 reliability features are selectively exposed in the CLI workbench", (
   assert.match(css, /\.write-progress\.has-failures\s+\.write-progress-bar/);
 });
 
+test("settings controls explain non-obvious parameters with hover titles", () => {
+  const html = read("index.html");
+  const helpIds = [
+    "closeSettingsBtn", "refreshBackendStatusBtn", "eagleAiSettingsBtn", "runHealthCheckBtn",
+    "enableClaudeCli", "enableCodexCli", "enableEagleAi",
+    "claudeCommand", "claudeExtraArgs", "codexCommand", "codexModel", "codexExtraArgs", "cliTimeoutSeconds", "cliWorkingDir",
+    "analysisPresetSelect", "applyPresetBtn", "maxTags", "concurrency", "aiRetryCount", "requestChunkK", "autoConfidence", "hideConfidence", "globalPrompt",
+    "frameRateValue", "frameRateUnit", "maxVideoFrames", "maxAnimatedFrames", "skipStart", "skipEnd",
+    "skipTagged", "previewBeforeWrite", "autoApplyHighConfidence", "writeAnnotation", "includeTitleInPrompt", "diagnosticEnabled", "diagnosticDir", "chooseDiagnosticDirBtn"
+  ];
+  const tabIds = ["backend", "analysis", "frames", "write"];
+
+  helpIds.forEach((id) => {
+    assert.match(
+      html,
+      new RegExp(`<(?:input|select|textarea|button)[^>]*id="${id}"[^>]*title="[^"]{10,}"`),
+      `${id} should have a hover title explaining how to set it`
+    );
+  });
+  tabIds.forEach((tab) => {
+    assert.match(
+      html,
+      new RegExp(`data-settings-tab="${tab}"[^>]*title="[^"]{10,}"`),
+      `${tab} settings tab should explain what lives in that group`
+    );
+  });
+  assert.match(html, /id="requestChunkK"[^>]*title="[^"]*K tokens[^"]*标签池/);
+  assert.match(html, /id="autoConfidence"[^>]*title="[^"]*自动写入/);
+  assert.match(html, /id="hideConfidence"[^>]*title="[^"]*隐藏/);
+  assert.match(html, /id="codexCommand"[^>]*title="[^"]*codex\.cmd[^"]*原生 codex\.exe/);
+});
+
+test("workbench actions explain risky or non-obvious effects with hover titles", () => {
+  const html = read("index.html");
+  const actionIds = [
+    "openAiBtn", "analyzeBtn", "pauseBtn", "continueBtn", "restartBtn", "applyBtn",
+    "importDefaultsBtn", "manageDefaultTemplateBtn", "tagGroupSelect", "tagInput", "addTagBtn", "tagSearch", "refreshTagsBtn",
+    "miniCollectorBtn", "appendSelectedBtn", "replaceSelectedBtn", "clearSelectedBtn", "showSelectedListBtn",
+    "retryFailedBtn", "undoBtn", "clearResultsBtn", "closeSelectedListBtn",
+    "mediaPreviewPrevBtn", "mediaPreviewNextBtn", "mediaPreviewOpenEagleBtn", "closeMediaPreviewBtn",
+    "closeDefaultTemplateBtn", "defaultTemplateSearch", "defaultTemplateInput", "addDefaultTemplateTagBtn",
+    "resetDefaultTemplateBtn", "importEditedDefaultTemplateBtn",
+    "collectorAppendBtn", "collectorAnalyzeBtn", "collectorClearBtn", "collectorExpandBtn"
+  ];
+  const filters = ["all", "ready", "failed", "applied", "skipped"];
+
+  actionIds.forEach((id) => {
+    assert.match(
+      html,
+      new RegExp(`<(?:input|select|textarea|button)[^>]*id="${id}"[^>]*title="[^"]{10,}"`),
+      `${id} should explain what the action changes`
+    );
+  });
+  filters.forEach((filter) => {
+    assert.match(
+      html,
+      new RegExp(`<button(?=[^>]*data-result-filter="${filter}")(?=[^>]*title="[^"]{10,}")[^>]*>`),
+      `${filter} result filter should explain what it shows`
+    );
+  });
+  assert.match(html, /id="applyBtn"[^>]*title="[^"]*保存回 Eagle/);
+  assert.match(html, /id="undoBtn"[^>]*title="[^"]*撤销上一批写入 Eagle/);
+  assert.match(html, /id="mediaPreviewOpenEagleBtn"[^>]*title="[^"]*Eagle 原生窗口/);
+  assert.match(html, /id="importEditedDefaultTemplateBtn"[^>]*title="[^"]*不会创建 Eagle 全局标签/);
+});
+
 test("productivity workbench exposes health checks, presets, retry filters, and result editing", () => {
   const html = read("index.html");
   const js = read("plugin.js");
@@ -874,6 +940,38 @@ test("manual result tag editor uses a styled constrained suggestion menu and com
   assert.match(css, /\.manual-tag-menu\s*{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*80/);
   assert.match(css, /\.manual-tag-menu\[hidden\]\s*{[\s\S]*display:\s*none/);
   assert.match(css, /\.manual-tag-option\s*{/);
+});
+
+test("manual tag suggestions prioritize Eagle starred and recent tags from a shared helper", () => {
+  const js = read("plugin.js");
+
+  assert.match(js, /starredTags:\s*\[\]/);
+  assert.match(js, /recentTags:\s*\[\]/);
+  assert.match(js, /getStarredTags/);
+  assert.match(js, /getRecentTags/);
+  assert.match(js, /state\.starredTags\s*=\s*priorityTags\.starred/);
+  assert.match(js, /state\.recentTags\s*=\s*priorityTags\.recent/);
+  assert.match(js, /function getManualTagSuggestionEntries\(result,\s*query\)/);
+  assert.match(js, /const sources = \[[\s\S]*state\.starredTags[\s\S]*state\.recentTags[\s\S]*getAllowedTags\(\)[\s\S]*\]/);
+  assert.match(js, /source:\s*"starred"/);
+  assert.match(js, /source:\s*"recent"/);
+  assert.match(js, /source:\s*"allowed"/);
+  assert.match(js, /function getManualTagSuggestionLabel\(entry\)/);
+  assert.match(js, /收藏标签/);
+  assert.match(js, /最近使用/);
+  assert.match(js, /Eagle 标签/);
+  assert.match(js, /本次标签/);
+  assert.match(js, /function renderManualTagSuggestionOptions\(result,\s*query\)/);
+
+  const resultMenuStart = js.indexOf("function renderManualTagSuggestions(resultId)");
+  const resultMenuEnd = js.indexOf("\n  function ", resultMenuStart + 1);
+  const resultMenuBody = js.slice(resultMenuStart, resultMenuEnd);
+  assert.match(resultMenuBody, /renderManualTagSuggestionOptions\(result,\s*query\)/);
+
+  const previewMenuStart = js.indexOf("function updatePreviewManualTagMenu(resultId)");
+  const previewMenuEnd = js.indexOf("\n  function ", previewMenuStart + 1);
+  const previewMenuBody = js.slice(previewMenuStart, previewMenuEnd);
+  assert.match(previewMenuBody, /renderManualTagSuggestionOptions\(result,\s*query\)/);
 });
 
 test("collector entry is a primary local action before secondary material actions", () => {

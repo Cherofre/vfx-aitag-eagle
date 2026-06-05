@@ -224,6 +224,159 @@ test("createCliPlan discovers Codex under variable local install folders", () =>
   }
 });
 
+test("createCliPlan keeps searching when npm cmd shims appear before native Codex exe", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "vfx-codex-npm-shim-"));
+  try {
+    const appData = path.join(root, "Roaming");
+    const localAppData = path.join(root, "Local");
+    const npmDir = path.join(appData, "npm");
+    const codexDir = path.join(localAppData, "OpenAI", "Codex", "bin", "716dda49c14d31a0");
+    const codexCmd = path.join(npmDir, "codex.cmd");
+    const codexExe = path.join(codexDir, "codex.exe");
+    fs.mkdirSync(npmDir, { recursive: true });
+    fs.mkdirSync(codexDir, { recursive: true });
+    fs.writeFileSync(codexCmd, "");
+    fs.writeFileSync(codexExe, "");
+
+    const codex = backends.createCliPlan("codex", { codexCommand: "codex" }, "PROMPT", [], {
+      env: {
+        APPDATA: appData,
+        LOCALAPPDATA: localAppData,
+        USERPROFILE: path.join(root, "User"),
+        PATH: npmDir
+      },
+      fs,
+      path
+    });
+
+    assert.equal(codex.command, codexExe);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("createCliPlan prefers local Codex native exe over WindowsApps package paths", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "vfx-codex-windowsapps-"));
+  try {
+    const appData = path.join(root, "Roaming");
+    const localAppData = path.join(root, "Local");
+    const windowsAppsDir = path.join(root, "Program Files", "WindowsApps", "OpenAI.Codex_1.0.0_x64__test", "app", "resources");
+    const codexDir = path.join(localAppData, "OpenAI", "Codex", "bin", "716dda49c14d31a0");
+    const windowsAppsExe = path.join(windowsAppsDir, "codex.exe");
+    const codexExe = path.join(codexDir, "codex.exe");
+    fs.mkdirSync(windowsAppsDir, { recursive: true });
+    fs.mkdirSync(codexDir, { recursive: true });
+    fs.writeFileSync(windowsAppsExe, "");
+    fs.writeFileSync(codexExe, "");
+
+    const codex = backends.createCliPlan("codex", { codexCommand: "codex" }, "PROMPT", [], {
+      env: {
+        APPDATA: appData,
+        LOCALAPPDATA: localAppData,
+        USERPROFILE: path.join(root, "User"),
+        PATH: windowsAppsDir
+      },
+      fs,
+      path
+    });
+
+    assert.equal(codex.command, codexExe);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("createCliHealthChecks does not mark WindowsApps Codex package paths as usable", () => {
+  const windowsAppsExe = "C:\\Program Files\\WindowsApps\\OpenAI.Codex_1.0.0_x64__test\\app\\resources\\codex.exe";
+  const checks = backends.createCliHealthChecks(["codex"], {
+    codexCommand: "codex"
+  }, {
+    env: {
+      APPDATA: "C:\\Users\\me\\AppData\\Roaming",
+      LOCALAPPDATA: "C:\\Missing",
+      USERPROFILE: "C:\\Users\\me",
+      PATH: "C:\\Program Files\\WindowsApps\\OpenAI.Codex_1.0.0_x64__test\\app\\resources"
+    },
+    fileExists: (filePath) => filePath === windowsAppsExe,
+    fs: {
+      readdirSync() {
+        throw new Error("no local native Codex install");
+      }
+    },
+    path
+  });
+
+  assert.equal(checks[0].ok, false);
+  assert.notEqual(checks[0].command, windowsAppsExe);
+  assert.match(checks[0].message, /未找到|无法确认|绝对路径/);
+});
+
+test("createCliPlan resolves explicit npm Codex command shims to discovered native exe", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "vfx-codex-explicit-shim-"));
+  try {
+    const appData = path.join(root, "Roaming");
+    const localAppData = path.join(root, "Local");
+    const npmDir = path.join(appData, "npm");
+    const codexDir = path.join(localAppData, "OpenAI", "Codex", "bin", "716dda49c14d31a0");
+    const codexShim = path.join(npmDir, "codex.cmd");
+    const codexExe = path.join(codexDir, "codex.exe");
+    fs.mkdirSync(npmDir, { recursive: true });
+    fs.mkdirSync(codexDir, { recursive: true });
+    fs.writeFileSync(codexShim, "");
+    fs.writeFileSync(codexExe, "");
+
+    const codex = backends.createCliPlan("codex", { codexCommand: codexShim }, "PROMPT", [], {
+      env: {
+        APPDATA: appData,
+        LOCALAPPDATA: localAppData,
+        USERPROFILE: path.join(root, "User"),
+        PATH: npmDir
+      },
+      fs,
+      path
+    });
+
+    assert.equal(codex.command, codexExe);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCliBackend rejects explicit WindowsApps Codex package paths before spawning", async () => {
+  let spawnCalled = false;
+  await assert.rejects(
+    async () => backends.runCliBackend({
+      backend: "codex",
+      settings: {
+        codexCommand: "C:\\Program Files\\WindowsApps\\OpenAI.Codex_1.0.0_x64__test\\app\\resources\\codex.exe",
+        cliTimeoutSeconds: 30,
+        cliWorkingDir: process.cwd()
+      },
+      prompt: "{\"tags\":[]}",
+      imagePaths: [],
+      env: {
+        APPDATA: "C:\\Users\\me\\AppData\\Roaming",
+        LOCALAPPDATA: "C:\\Missing",
+        USERPROFILE: "C:\\Users\\me",
+        PATH: "C:\\Program Files\\WindowsApps\\OpenAI.Codex_1.0.0_x64__test\\app\\resources"
+      },
+      fs: {
+        readdirSync() {
+          throw new Error("no local native Codex install");
+        }
+      },
+      path,
+      spawn: () => {
+        spawnCalled = true;
+        throw new Error("should not spawn");
+      }
+    }),
+    /WindowsApps|原生 .*\.exe|可执行文件/
+  );
+
+  assert.equal(spawnCalled, false);
+});
+
 test("createCliHealthChecks builds lightweight command plans without AI prompts", () => {
   const env = {
     APPDATA: "C:\\Users\\me\\AppData\\Roaming",
@@ -294,6 +447,36 @@ test("createCliHealthChecks marks unresolved Windows command scripts as analysis
 
   assert.equal(checks[0].ok, false);
   assert.equal(checks[0].command, "C:\\Tools\\claude.cmd");
+  assert.match(checks[0].message, /\.cmd\/\.bat|原生 .*\.exe|可执行文件/);
+});
+
+test("createCliHealthChecks does not accept extensionless npm Codex shims", () => {
+  const env = {
+    APPDATA: "C:\\Users\\me\\AppData\\Roaming",
+    LOCALAPPDATA: "C:\\Users\\me\\AppData\\Local",
+    USERPROFILE: "C:\\Users\\me",
+    PATH: "C:\\Users\\me\\AppData\\Roaming\\npm"
+  };
+  const extensionlessShim = "C:\\Users\\me\\AppData\\Roaming\\npm\\codex";
+  const commandShim = "C:\\Users\\me\\AppData\\Roaming\\npm\\codex.cmd";
+  const existing = new Set([extensionlessShim, commandShim]);
+
+  const checks = backends.createCliHealthChecks(["codex"], {
+    codexCommand: "codex"
+  }, {
+    env,
+    fileExists: (filePath) => existing.has(filePath),
+    fs: {
+      readdirSync() {
+        throw new Error("no native Codex install");
+      }
+    },
+    path
+  });
+
+  assert.equal(checks[0].command, commandShim);
+  assert.notEqual(checks[0].command, extensionlessShim);
+  assert.equal(checks[0].ok, false);
   assert.match(checks[0].message, /\.cmd\/\.bat|原生 .*\.exe|可执行文件/);
 });
 
@@ -468,6 +651,41 @@ test("runCliBackend rejects unresolved Windows command scripts for analysis", as
     }),
     /\.cmd\/\.bat|原生 .*\.exe|可执行文件/
   );
+  assert.equal(spawnCalled, false);
+});
+
+test("runCliBackend rejects extensionless Windows npm shims before spawning", async () => {
+  let spawnCalled = false;
+  await assert.rejects(
+    async () => backends.runCliBackend({
+      backend: "codex",
+      settings: {
+        codexCommand: "C:\\Users\\me\\AppData\\Roaming\\npm\\codex",
+        cliTimeoutSeconds: 30,
+        cliWorkingDir: process.cwd()
+      },
+      prompt: "{\"tags\":[]}",
+      imagePaths: [],
+      env: {
+        APPDATA: "C:\\Users\\me\\AppData\\Roaming",
+        LOCALAPPDATA: "C:\\Missing",
+        USERPROFILE: "C:\\Users\\me",
+        PATH: "C:\\Users\\me\\AppData\\Roaming\\npm"
+      },
+      fs: {
+        readdirSync() {
+          throw new Error("no native Codex install");
+        }
+      },
+      path,
+      spawn: () => {
+        spawnCalled = true;
+        throw new Error("should not spawn");
+      }
+    }),
+    /无扩展|原生 .*\.exe|可执行文件/
+  );
+
   assert.equal(spawnCalled, false);
 });
 

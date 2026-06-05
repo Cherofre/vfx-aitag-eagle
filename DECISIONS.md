@@ -48,10 +48,34 @@
 - 2026-06-04: Publish `v1.0.5` from merged `master` after subagent review, with Chinese release notes and pinyin-safe asset filename.
 - 2026-06-05: Media-preview manual tag suggestions render from a global menu layer outside the transformed preview dialog.
 - 2026-06-05: Update the existing GitHub Release `v1.0.5` in place with the preview-tag hotfix.
+- 2026-06-05: Manual tag suggestions may read Eagle starred and recent tags when available, with graceful fallback when the host API is missing.
+- 2026-06-05: Treat Windows extensionless npm CLI shims and WindowsApps package paths as unsafe for direct analysis spawn paths; continue searching for native `%LOCALAPPDATA%\OpenAI\Codex\bin\...\codex.exe`.
+- 2026-06-05: Use native hover titles for non-obvious settings and risky workbench actions so the compact production UI stays dense while still explainable.
 - 2026-06-03: Media acceptance preview should use a local plugin dialog first and Eagle native open as a codec/API fallback; branch package version is `1.0.2`.
 - 2026-06-03: Use one compact activity progress slot and a three-slot selected-material thumbnail tray with explicit expansion.
 
 ## Decision Log
+
+## 2026-06-05 - Hover titles for compact controls
+- Status: active
+- Decision: Add concise native `title` help to non-obvious settings parameters, backend checks, result filters, default-template actions, preview actions, collector actions, and other operations with hidden consequences. Keep visible layout compact and avoid adding always-visible explanatory text to the workbench.
+- Reason: The user pointed out that labels such as `AI 请求分块(K)` are not understandable without context. This plugin is a dense Eagle-side production tool, so hover help explains parameters on demand without making the main workflow taller or noisier.
+- Alternatives considered: Add inline help text under every control; skipped because it would bloat the settings drawer and workbench. Only document `AI 请求分块(K)`; skipped because the same confusion applies to CLI commands, write behavior, template imports, and result/collector actions.
+- Consequences / follow-up: Static tests now require hover titles for these controls and a static audit found no identifiable static control without `title` or `aria-label`. Eagle smoke should still confirm native title tooltips appear as expected in the host Chromium window.
+
+## 2026-06-05 - Starred and recent tag suggestions
+- Status: active
+- Decision: During `refreshTags()`, optionally read `eagle.tag.getStarredTags()` and `eagle.tag.getRecentTags()`. Manual tag suggestions use one shared helper for result cards and media preview, ordering candidates as starred tags, recent tags, then the current tag pool sorted by Eagle use count when available.
+- Reason: The user wants common/favorite tags to appear first in the add-tag input, and Eagle exposes these lists in newer host builds. Sharing the helper keeps preview and card menus consistent.
+- Alternatives considered: Keep using only the current tag pool; skipped because favorite/recent tags are the requested shortcut. Require the APIs to exist; skipped because older Eagle hosts should still work. Build separate preview/card implementations; skipped because it would repeat the earlier drift.
+- Consequences / follow-up: Eagle real-host smoke should confirm the APIs return the expected personal favorites/recent tags and that missing APIs silently degrade to normal suggestions.
+
+## 2026-06-05 - Prefer local native Codex executable
+- Status: active
+- Decision: On Windows, prefer directly executable native `.exe` CLI binaries. If npm `codex.cmd`, explicit `%APPDATA%\npm\codex.cmd`, or extensionless `%APPDATA%\npm\codex` appears before a native executable, keep searching. Avoid WindowsApps package paths because Node/Eagle direct `execFile` can hit `spawn EPERM`; prefer `%LOCALAPPDATA%\OpenAI\Codex\bin\...\codex.exe` when present. Unresolved ordinary `.cmd/.bat` wrappers remain analysis-blocking.
+- Reason: The first screenshot error `spawn ...\npm\codex ENOENT` came from the extensionless npm shim. The follow-up screenshot stopped at `codex.cmd` because resolution returned the npm shim before deep discovery. A local test then showed WindowsApps `codex.exe` can resolve but direct execution fails with `spawn EPERM`, while `%LOCALAPPDATA%\OpenAI\Codex\bin\716dda49c14d31a0\codex.exe --version` succeeds.
+- Alternatives considered: Execute npm shims through `cmd.exe`; skipped because this branch intentionally avoids sending dynamic prompts and media paths through Windows shell parsing. Prefer WindowsApps because it appears in `Get-Command`; skipped because Node direct execution failed with `EPERM`. Require manual absolute paths only; skipped because the local native executable can be discovered reliably.
+- Consequences / follow-up: Eagle plugin health checks should now resolve to the local native Codex executable and report `codex-cli 0.136.0-alpha.2` on this machine even if the saved setting is `%APPDATA%\npm\codex.cmd`. If future Codex installs move the native binary again, extend the bounded discovery roots instead of allowing shell wrappers.
 
 ## 2026-06-05 - Update existing v1.0.5 release
 - Status: active

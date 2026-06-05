@@ -300,12 +300,16 @@
     const hasExplicitPath = hasPathSeparator(command);
     const exists = hasExplicitPath ? fileExists(command) : null;
     const commandScript = isWindowsCommandScript(command);
-    const ok = hasExplicitPath ? Boolean(exists) && !commandScript : false;
-    const message = commandScript
-      ? "命令解析到 .cmd/.bat 脚本；分析请求需要原生 .exe 可执行文件路径，或使用可被插件自动解析到 .exe 的命令名"
-      : (ok
-        ? "命令已解析，可用 --version 做轻量检查"
-        : (command ? "未找到可执行命令或无法确认 PATH 解析，请填写 CLI 的绝对路径" : "未找到可执行命令，请填写 CLI 的绝对路径"));
+    const extensionlessPath = isWindowsExtensionlessPath(command);
+    const ok = hasExplicitPath ? Boolean(exists) && !commandScript && !extensionlessPath : false;
+    let message = command ? "未找到可执行命令或无法确认 PATH 解析，请填写 CLI 的绝对路径" : "未找到可执行命令，请填写 CLI 的绝对路径";
+    if (commandScript) {
+      message = "命令解析到 .cmd/.bat 脚本；分析请求需要原生 .exe 可执行文件路径，或使用可被插件自动解析到 .exe 的命令名";
+    } else if (extensionlessPath) {
+      message = "命令解析到无扩展 npm shim；分析请求需要原生 .exe 可执行文件路径，或使用可被插件自动解析到 .exe 的命令名";
+    } else if (ok) {
+      message = "命令已解析，可用 --version 做轻量检查";
+    }
     return {
       backend: normalized,
       ok,
@@ -589,8 +593,15 @@
   }
 
   function assertAnalysisCommandSafe(plan) {
-    if (!isWindowsCommandScript(plan && plan.command)) return;
-    throw new Error(`${formatBackendLabel(plan && plan.backend)} CLI 解析到 .cmd/.bat 脚本。为避免动态提示词和素材路径经过 Windows shell，请填写原生 .exe 可执行文件路径，或使用可被插件自动解析到 .exe 的命令名。`);
+    if (isWindowsCommandScript(plan && plan.command)) {
+      throw new Error(`${formatBackendLabel(plan && plan.backend)} CLI 解析到 .cmd/.bat 脚本。为避免动态提示词和素材路径经过 Windows shell，请填写原生 .exe 可执行文件路径，或使用可被插件自动解析到 .exe 的命令名。`);
+    }
+    if (isWindowsExtensionlessPath(plan && plan.command)) {
+      throw new Error(`${formatBackendLabel(plan && plan.backend)} CLI 解析到无扩展 npm shim。Windows spawn 不能可靠执行该路径，请填写原生 .exe 可执行文件路径，或使用可被插件自动解析到 .exe 的命令名。`);
+    }
+    if (isWindowsAppsPackagePath(plan && plan.command)) {
+      throw new Error(`${formatBackendLabel(plan && plan.backend)} CLI 解析到 WindowsApps 应用包路径。Eagle/Node 可能无法直接执行该路径，请使用本机原生 .exe 可执行文件路径，或使用可被插件自动解析到 .exe 的命令名。`);
+    }
   }
 
   function assertBackendReadImages(plan, object) {
@@ -605,23 +616,37 @@
   function resolveCliCommand(command, backend, runtime) {
     const text = String(command || "").trim();
     if (!text) return text;
-    if (hasPathSeparator(text)) return resolveExplicitWindowsCommandScript(text, runtime);
     if (!isWindowsRuntime()) return text;
+    if (hasPathSeparator(text)) {
+      const explicit = resolveExplicitWindowsCommandScript(text, runtime);
+      if (explicit !== text) return explicit;
+      if (backend === "codex" && (isWindowsNpmCodexShimPath(text) || isWindowsAppsPackagePath(text))) {
+        const discovered = resolveWindowsCliCommandName(getCommandNameFromPath(text), backend, runtime);
+        return discovered || explicit;
+      }
+      return explicit;
+    }
 
+    return resolveWindowsCliCommandName(text, backend, runtime) || text;
+  }
+
+  function resolveWindowsCliCommandName(command, backend, runtime) {
     const env = runtime && runtime.env || (typeof process !== "undefined" ? process.env : {});
     const fileExists = runtime && runtime.fileExists || makeFileExists(runtime && runtime.fs);
     const pathModule = runtime && runtime.path || getNodePath();
-    const candidates = windowsCliCandidates(text, backend, env, pathModule);
-    const found = findPreferredCliExecutable(candidates, fileExists)
-      || findPreferredCliExecutable(discoverWindowsCliExecutables(text, backend, env, pathModule, runtime && runtime.fs), fileExists);
-    return found || text;
+    const candidates = windowsCliCandidates(command, backend, env, pathModule);
+    const direct = findPreferredCliExecutable(candidates, fileExists);
+    if (/\.exe$/i.test(String(direct || ""))) return direct;
+    const discovered = discoverWindowsCliExecutables(command, backend, env, pathModule, runtime && runtime.fs);
+    const found = findPreferredCliExecutable([...candidates, ...discovered], fileExists);
+    return found || "";
   }
 
   function findPreferredCliExecutable(candidates, fileExists) {
     const existing = (Array.isArray(candidates) ? candidates : []).filter(fileExists);
-    return existing.find((candidate) => /\.exe$/i.test(String(candidate || "")))
-      || existing.find((candidate) => !/\.(cmd|bat|ps1)$/i.test(String(candidate || "")))
-      || existing[0]
+    return existing.find((candidate) => /\.exe$/i.test(String(candidate || "")) && !isWindowsAppsPackagePath(candidate))
+      || existing.find((candidate) => /\.(cmd|bat)$/i.test(String(candidate || "")))
+      || existing.find((candidate) => !isWindowsAppsPackagePath(candidate) && !/\.(ps1)$/i.test(String(candidate || "")))
       || "";
   }
 
@@ -778,6 +803,27 @@
 
   function hasPathSeparator(command) {
     return /[\\/]/.test(String(command || ""));
+  }
+
+  function getCommandNameFromPath(command) {
+    const fileName = String(command || "").split(/[\\/]/).pop() || "";
+    return fileName.replace(/\.(exe|cmd|bat|ps1)$/i, "") || fileName;
+  }
+
+  function isWindowsExtensionlessPath(command) {
+    if (!isWindowsRuntime() || !hasPathSeparator(command)) return false;
+    const fileName = String(command || "").split(/[\\/]/).pop() || "";
+    return !/\.[^\\/]+$/.test(fileName);
+  }
+
+  function isWindowsAppsPackagePath(command) {
+    return /[\\/]WindowsApps[\\/]/i.test(String(command || ""));
+  }
+
+  function isWindowsNpmCodexShimPath(command) {
+    const text = String(command || "");
+    const name = getCommandNameFromPath(text).toLowerCase();
+    return name === "codex" && /[\\/]npm[\\/]/i.test(text);
   }
 
   return {
